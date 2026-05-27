@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { scrapeTikTokProfile } from "@/lib/apify-tiktok";
 import { assertTikTokTablesReady, saveTikTokProfile } from "@/lib/supabase-storage";
 
+export const maxDuration = 300;
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => null)) as { url?: string } | null;

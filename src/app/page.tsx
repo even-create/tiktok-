@@ -8,6 +8,7 @@ import {
   Activity,
   BarChart3,
   CirclePlay,
+  CloudDownload,
   Clock3,
   Eye,
   ExternalLink,
@@ -242,6 +243,31 @@ function formatRefreshTime() {
   }).format(new Date());
 }
 
+function formatLastSyncedDisplay(value: Date | string) {
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function pickLatestSyncTime(accountList: Account[]) {
+  let latest = 0;
+
+  for (const account of accountList) {
+    if (!account.lastSyncedAt) continue;
+    const time = new Date(account.lastSyncedAt).getTime();
+    if (time > latest) latest = time;
+  }
+
+  return latest ? new Date(latest) : null;
+}
+
 function tiktokProfileUrl(handle: string, profileUrl?: string | null) {
   const clean = profileUrl?.trim();
   if (clean) return clean;
@@ -358,6 +384,12 @@ export default function DashboardPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [accountSort, setAccountSort] = useState<AccountSortMode>("default");
   const [videoSort, setVideoSort] = useState<VideoSortMode>("default");
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; handle: string } | null>(
+    null,
+  );
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
 
   const loadAccounts = useCallback(async (preferredHandle?: string) => {
     setIsLoading(true);
@@ -375,6 +407,7 @@ export default function DashboardPage() {
 
       if (nextAccounts.length) {
         setAccounts(nextAccounts);
+        setLastSyncedAt(pickLatestSyncTime(nextAccounts));
         setSelectedHandle((current) => {
           if (preferredHandle && nextAccounts.some((account) => account.handle === preferredHandle)) {
             return preferredHandle;
@@ -412,9 +445,86 @@ export default function DashboardPage() {
 
   async function handleRefreshData() {
     setErrorMessage("");
+    setSyncSuccessMessage(null);
     setStatusMessage("正在从 Supabase 刷新数据...");
     await loadAccounts(selectedHandle);
   }
+
+  async function handleSyncAll() {
+    if (isSyncingAll || isSyncing) return;
+
+    setErrorMessage("");
+    setSyncSuccessMessage(null);
+
+    const listResponse = await fetch("/api/accounts", { cache: "no-store" });
+    const listPayload = (await listResponse.json()) as { accounts?: ApiAccount[]; error?: string };
+
+    if (!listResponse.ok) {
+      setErrorMessage(listPayload.error ?? "读取账号列表失败");
+      return;
+    }
+
+    const accountsToSync = listPayload.accounts ?? [];
+
+    if (!accountsToSync.length) {
+      setStatusMessage("暂无已追踪账号，请先添加账号。");
+      return;
+    }
+
+    setIsSyncingAll(true);
+    let successCount = 0;
+    let totalVideos = 0;
+    const failedHandles: string[] = [];
+
+    for (let index = 0; index < accountsToSync.length; index += 1) {
+      const account = accountsToSync[index];
+      const syncUrl = account.profile_url?.trim() || `https://www.tiktok.com/@${account.handle}`;
+
+      setSyncProgress({ current: index + 1, total: accountsToSync.length, handle: account.handle });
+      setStatusMessage(`正在从 TikTok 抓取 @${account.handle}（${index + 1}/${accountsToSync.length}）...`);
+
+      try {
+        const response = await fetch("/api/sync-tiktok", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: syncUrl }),
+        });
+        const payload = (await response.json()) as { videosCount?: number; error?: string };
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? "同步失败");
+        }
+
+        successCount += 1;
+        totalVideos += payload.videosCount ?? 0;
+      } catch (error) {
+        failedHandles.push(account.handle);
+        console.error(`Sync failed for @${account.handle}:`, error);
+      }
+    }
+
+    const syncedAt = new Date();
+    setLastSyncedAt(syncedAt);
+    setSyncProgress(null);
+    await loadAccounts(selectedHandle);
+
+    if (failedHandles.length === 0) {
+      setSyncSuccessMessage(
+        `同步成功：已更新 ${successCount} 个账号，共 ${totalVideos} 条视频数据（粉丝、点赞、播放等）。`,
+      );
+      setStatusMessage(`全部账号已同步 · ${formatRefreshTime()}`);
+    } else {
+      setSyncSuccessMessage(
+        `部分完成：${successCount} 个成功，${failedHandles.length} 个失败（${failedHandles.map((h) => `@${h}`).join("、")}）。`,
+      );
+      setErrorMessage(`以下账号同步失败：${failedHandles.map((h) => `@${h}`).join("、")}`);
+      setStatusMessage(`同步结束 · ${formatRefreshTime()}`);
+    }
+
+    setIsSyncingAll(false);
+  }
+
+  const isBusy = isLoading || isSyncing || isSyncingAll;
 
   const sortedAccounts = useMemo(
     () => sortAccounts(accounts, accountSort),
@@ -491,7 +601,9 @@ export default function DashboardPage() {
 
       const syncedHandle = payload.account?.handle;
       setTiktokUrl("");
-      setStatusMessage(`同步完成，已保存 ${payload.videosCount ?? 0} 条视频。`);
+      setLastSyncedAt(new Date());
+      setSyncSuccessMessage(`账号已添加并同步，共 ${payload.videosCount ?? 0} 条视频。`);
+      setStatusMessage(`同步完成 · ${formatRefreshTime()}`);
       await loadAccounts(syncedHandle);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Apify 同步失败");
@@ -602,7 +714,7 @@ export default function DashboardPage() {
                 <button
                   type="submit"
                   className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--space-cadet)] px-5 text-sm font-semibold text-[var(--eggshell)] transition duration-200 hover:bg-[var(--jet)] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
-                  disabled={isSyncing}
+                  disabled={isBusy}
                 >
                   {isSyncing ? <Clock3 className="size-4 animate-spin" /> : <Plus className="size-4" />}
                   {isSyncing ? "抓取中" : "添加账号"}
@@ -610,39 +722,75 @@ export default function DashboardPage() {
               </form>
             </div>
 
-            {errorMessage ? (
-              <div className="mt-4 flex items-center gap-2">
-                <p className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                  {errorMessage}
-                </p>
+            <div className="mt-4 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <button
                   type="button"
-                  onClick={() => void handleRefreshData()}
-                  disabled={isLoading || isSyncing}
-                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)] disabled:cursor-not-allowed disabled:opacity-60"
-                  aria-label="刷新数据"
+                  onClick={() => void handleSyncAll()}
+                  disabled={isBusy}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--carolina-blue)] px-4 text-sm font-semibold text-[var(--space-cadet)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
-                  刷新
+                  {isSyncingAll ? (
+                    <Clock3 className="size-4 animate-spin" />
+                  ) : (
+                    <CloudDownload className="size-4" />
+                  )}
+                  {isSyncingAll ? "Syncing..." : "Sync Now"}
                 </button>
-              </div>
-            ) : (
-              <div className="mt-4 flex items-center gap-2">
-                <p className="flex-1 rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] px-3 py-2 text-sm text-[var(--space-cadet)]">
-                  {statusMessage}
+                <p className="text-xs text-[var(--cadet-gray)]">
+                  Last synced at:{" "}
+                  <span className="font-medium text-[var(--space-cadet)]">
+                    {lastSyncedAt ? formatLastSyncedDisplay(lastSyncedAt) : "—"}
+                  </span>
                 </p>
-                <button
-                  type="button"
-                  onClick={() => void handleRefreshData()}
-                  disabled={isLoading || isSyncing}
-                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:bg-[color-mix(in_srgb,var(--carolina-blue)_8%,white)] hover:text-[var(--carolina-blue)] disabled:cursor-not-allowed disabled:opacity-60"
-                  aria-label="刷新数据"
-                >
-                  <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
-                  刷新
-                </button>
               </div>
-            )}
+
+              {syncProgress ? (
+                <p className="rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_8%,white)] px-3 py-2 text-sm text-[var(--space-cadet)]">
+                  正在同步 @{syncProgress.handle}（{syncProgress.current}/{syncProgress.total}）…
+                </p>
+              ) : null}
+
+              {syncSuccessMessage ? (
+                <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  {syncSuccessMessage}
+                </p>
+              ) : null}
+
+              {errorMessage ? (
+                <div className="flex items-center gap-2">
+                  <p className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                    {errorMessage}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleRefreshData()}
+                    disabled={isBusy}
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)] disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label="刷新数据"
+                  >
+                    <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
+                    刷新
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <p className="flex-1 rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] px-3 py-2 text-sm text-[var(--space-cadet)]">
+                    {statusMessage}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleRefreshData()}
+                    disabled={isBusy}
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:bg-[color-mix(in_srgb,var(--carolina-blue)_8%,white)] hover:text-[var(--carolina-blue)] disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label="刷新数据"
+                  >
+                    <RefreshCw className={`size-4 ${isLoading && !isSyncingAll ? "animate-spin" : ""}`} />
+                    刷新
+                  </button>
+                </div>
+              )}
+            </div>
           </header>
 
           <div className="grid gap-4 py-5 sm:grid-cols-2 xl:grid-cols-5">
