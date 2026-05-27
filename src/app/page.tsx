@@ -17,6 +17,7 @@ import {
   Menu,
   MessageCircle,
   Plus,
+  RefreshCw,
   Share2,
   Sparkles,
   ThumbsUp,
@@ -233,6 +234,14 @@ function formatPostedAt(value: string | null) {
   }).format(date);
 }
 
+function formatRefreshTime() {
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date());
+}
+
 function tiktokProfileUrl(handle: string, profileUrl?: string | null) {
   const clean = profileUrl?.trim();
   if (clean) return clean;
@@ -377,7 +386,7 @@ export default function DashboardPage() {
 
           return nextAccounts[0].handle;
         });
-        setStatusMessage("Supabase 已连接，Dashboard 使用实时数据。");
+        setStatusMessage(`Supabase 已连接，数据已加载（${formatRefreshTime()}）`);
       } else {
         setAccounts(trackedAccounts);
         setSelectedHandle(trackedAccounts[0].handle);
@@ -400,6 +409,12 @@ export default function DashboardPage() {
 
     return () => window.clearTimeout(timer);
   }, [loadAccounts]);
+
+  async function handleRefreshData() {
+    setErrorMessage("");
+    setStatusMessage("正在从 Supabase 刷新数据...");
+    await loadAccounts(selectedHandle);
+  }
 
   const sortedAccounts = useMemo(
     () => sortAccounts(accounts, accountSort),
@@ -596,13 +611,37 @@ export default function DashboardPage() {
             </div>
 
             {errorMessage ? (
-              <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {errorMessage}
-              </p>
+              <div className="mt-4 flex items-center gap-2">
+                <p className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  {errorMessage}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleRefreshData()}
+                  disabled={isLoading || isSyncing}
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)] disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-label="刷新数据"
+                >
+                  <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
+                  刷新
+                </button>
+              </div>
             ) : (
-              <p className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] px-3 py-2 text-sm text-[var(--space-cadet)]">
-                {statusMessage}
-              </p>
+              <div className="mt-4 flex items-center gap-2">
+                <p className="flex-1 rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] px-3 py-2 text-sm text-[var(--space-cadet)]">
+                  {statusMessage}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleRefreshData()}
+                  disabled={isLoading || isSyncing}
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:bg-[color-mix(in_srgb,var(--carolina-blue)_8%,white)] hover:text-[var(--carolina-blue)] disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-label="刷新数据"
+                >
+                  <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
+                  刷新
+                </button>
+              </div>
             )}
           </header>
 
