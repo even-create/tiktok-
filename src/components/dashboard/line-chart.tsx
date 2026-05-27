@@ -1,4 +1,8 @@
-type LineChartPoint = {
+"use client";
+
+import { useId } from "react";
+
+export type LineChartPoint = {
   label: string;
   value: number;
 };
@@ -8,9 +12,11 @@ type LineChartProps = {
   subtitle?: string;
   points: LineChartPoint[];
   className?: string;
+  emptyLabel?: string;
 };
 
-export function LineChart({ title, subtitle, points, className = "" }: LineChartProps) {
+export function LineChart({ title, subtitle, points, className = "", emptyLabel = "暂无趋势数据" }: LineChartProps) {
+  const chartId = useId().replace(/:/g, "");
   const width = 640;
   const height = 220;
   const padding = { top: 24, right: 24, bottom: 36, left: 24 };
@@ -54,11 +60,11 @@ export function LineChart({ title, subtitle, points, className = "" }: LineChart
             aria-label={title}
           >
             <defs>
-              <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
+              <linearGradient id={`chartFill-${chartId}`} x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%" stopColor="#70B0CC" stopOpacity="0.35" />
                 <stop offset="100%" stopColor="#2D3350" stopOpacity="0.04" />
               </linearGradient>
-              <linearGradient id="chartLine" x1="0" x2="1" y1="0" y2="0">
+              <linearGradient id={`chartLine-${chartId}`} x1="0" x2="1" y1="0" y2="0">
                 <stop offset="0%" stopColor="#70B0CC" />
                 <stop offset="100%" stopColor="#2D3350" />
               </linearGradient>
@@ -79,8 +85,8 @@ export function LineChart({ title, subtitle, points, className = "" }: LineChart
               );
             })}
 
-            <path d={areaPath} fill="url(#chartFill)" />
-            <path d={linePath} fill="none" stroke="url(#chartLine)" strokeWidth="3" strokeLinecap="round" />
+            <path d={areaPath} fill={`url(#chartFill-${chartId})`} />
+            <path d={linePath} fill="none" stroke={`url(#chartLine-${chartId})`} strokeWidth="3" strokeLinecap="round" />
 
             {coordinates.map((point) => (
               <g key={point.label}>
@@ -93,7 +99,7 @@ export function LineChart({ title, subtitle, points, className = "" }: LineChart
           </svg>
         ) : (
           <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] px-4 py-10 text-center text-sm text-[var(--cadet-gray)]">
-            暂无视频趋势数据
+            {emptyLabel}
           </div>
         )}
       </div>
