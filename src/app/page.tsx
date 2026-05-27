@@ -10,6 +10,7 @@ import {
   CirclePlay,
   Clock3,
   Eye,
+  ExternalLink,
   Flame,
   LayoutDashboard,
   Link2,
@@ -47,6 +48,7 @@ type Account = {
   id?: string;
   handle: string;
   displayName: string;
+  profileUrl: string;
   avatar: string;
   avatarUrl: string | null;
   followers: string;
@@ -76,6 +78,7 @@ type ApiAccount = {
   id: string;
   handle: string;
   display_name: string | null;
+  profile_url: string | null;
   avatar_url: string | null;
   followers_count: number;
   likes_count: number;
@@ -90,6 +93,7 @@ const trackedAccounts: Account[] = [
   {
     handle: "studio.signal",
     displayName: "Studio Signal",
+    profileUrl: "https://www.tiktok.com/@studio.signal",
     avatar: "SS",
     avatarUrl: null,
     followersCount: 482600,
@@ -154,6 +158,7 @@ const trackedAccounts: Account[] = [
   {
     handle: "growth.lab",
     displayName: "Growth Lab",
+    profileUrl: "https://www.tiktok.com/@growth.lab",
     avatar: "GL",
     avatarUrl: null,
     followersCount: 236100,
@@ -226,6 +231,12 @@ function formatPostedAt(value: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function tiktokProfileUrl(handle: string, profileUrl?: string | null) {
+  const clean = profileUrl?.trim();
+  if (clean) return clean;
+  return `https://www.tiktok.com/@${handle}`;
 }
 
 function initials(value: string) {
@@ -312,6 +323,7 @@ function mapApiAccount(account: ApiAccount, sortOrder: number): Account {
     id: account.id,
     handle: account.handle,
     displayName,
+    profileUrl: tiktokProfileUrl(account.handle, account.profile_url),
     avatar: initials(displayName),
     avatarUrl: account.avatar_url,
     followersCount: account.followers_count ?? 0,
@@ -664,6 +676,15 @@ export default function DashboardPage() {
                           <p className="text-xs text-[var(--cadet-gray)]">followers</p>
                         </div>
                       </button>
+                      <a
+                        href={account.profileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="grid size-8 shrink-0 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] text-[var(--cadet-gray)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)]"
+                        aria-label={`打开 @${account.handle} 的 TikTok 主页`}
+                      >
+                        <ExternalLink className="size-3.5" />
+                      </a>
                       <button
                         type="button"
                         onClick={() => void handleDeleteAccount(account.handle)}
@@ -695,7 +716,22 @@ export default function DashboardPage() {
 
           <section className="mt-5 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
             <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
-              <h2 className="text-base font-semibold">@{activeAccount?.handle ?? "—"} 视频数据</h2>
+              <div className="flex min-w-0 items-center gap-2">
+                <h2 className="truncate text-base font-semibold">
+                  @{activeAccount?.handle ?? "—"} 视频数据
+                </h2>
+                {activeAccount ? (
+                  <a
+                    href={activeAccount.profileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="grid size-7 shrink-0 place-items-center rounded-lg border border-white/25 bg-white/10 text-[var(--eggshell)] transition hover:border-white/40 hover:bg-white/20"
+                    aria-label={`打开 @${activeAccount.handle} 的 TikTok 主页`}
+                  >
+                    <ExternalLink className="size-3.5" />
+                  </a>
+                ) : null}
+              </div>
               <VideoSortMenu value={videoSort} onChange={setVideoSort} />
             </div>
 
