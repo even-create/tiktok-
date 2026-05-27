@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { resolveApifyToken } from "@/lib/app-settings";
 import { APIFY_MAX_VIDEOS_PER_SYNC } from "@/lib/apify-config";
 
 export type ApifyTikTokVideoItem = {
@@ -83,11 +84,11 @@ function titleFromText(text?: string | null) {
 }
 
 export async function scrapeTikTokProfile(inputUrl: string): Promise<NormalizedTikTokProfile> {
-  const token = process.env.APIFY_TOKEN;
+  const token = await resolveApifyToken();
   const handle = parseTikTokHandle(inputUrl);
 
   if (!token) {
-    throw new Error("Missing APIFY_TOKEN");
+    throw new Error("未配置 Apify Token，请在 Settings 或环境变量 APIFY_TOKEN 中设置");
   }
 
   if (!handle) {

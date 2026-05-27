@@ -1,4 +1,4 @@
-import { formatCacheTtlLabel, shouldUseSyncCache } from "@/lib/apify-config";
+import { formatCacheTtlLabelAsync, shouldUseSyncCacheAsync } from "@/lib/apify-config";
 import { scrapeTikTokProfile } from "@/lib/apify-tiktok";
 import { assertTikTokTablesReady, saveTikTokProfile } from "@/lib/supabase-storage";
 
@@ -27,11 +27,11 @@ export type SyncTikTokAccountResult =
 export async function syncTikTokAccount(options: SyncTikTokAccountOptions): Promise<SyncTikTokAccountResult> {
   await assertTikTokTablesReady();
 
-  if (shouldUseSyncCache(options.lastSyncedAt, options.force)) {
+  if (await shouldUseSyncCacheAsync(options.lastSyncedAt, options.force)) {
     return {
       skipped: true,
       cached: true,
-      message: `跳过 Apify：距上次同步未满 ${formatCacheTtlLabel()}（使用缓存数据）`,
+      message: `跳过 Apify：距上次同步未满 ${await formatCacheTtlLabelAsync()}（使用缓存数据）`,
     };
   }
 

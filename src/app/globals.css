@@ -23,6 +23,27 @@
   --dashboard-panel-height: 22.5rem;
 }
 
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --space-cadet: #e9e3ce;
+  --carolina-blue: #8ec4dc;
+  --eggshell: #1e2130;
+  --cadet-gray: #a8b4c3;
+  --jet: #d8dde8;
+  --background: #12141f;
+  --foreground: #eef1f7;
+  --card: #1c2030;
+  --muted: #a8b4c3;
+  --accent: #8ec4dc;
+}
+
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--carolina-blue) 18%, transparent), transparent 28rem),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--space-cadet) 8%, transparent), transparent 30rem),
+    linear-gradient(180deg, #161a28 0%, #12141f 48%, #0f1119 100%);
+}
+
 * {
   box-sizing: border-box;
 }
