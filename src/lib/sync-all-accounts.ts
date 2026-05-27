@@ -4,11 +4,13 @@ import { syncTikTokAccount } from "@/lib/tiktok-sync";
 export type SyncAccountResult = {
   handle: string;
   ok: boolean;
+  status: "success" | "cached" | "error";
   cached?: boolean;
   videosCount?: number;
   videosInserted?: number;
   videosUpdated?: number;
   apifyCalls?: number;
+  durationMs?: number;
   error?: string;
   message?: string;
 };
@@ -57,6 +59,7 @@ export async function syncAllTrackedAccounts(
 
   for (const account of accounts) {
     const syncUrl = account.profile_url?.trim() || `https://www.tiktok.com/@${account.handle}`;
+    const startedAt = Date.now();
 
     try {
       const result = await syncTikTokAccount({
@@ -65,14 +68,18 @@ export async function syncAllTrackedAccounts(
         lastSyncedAt: account.last_synced_at,
       });
 
+      const durationMs = Date.now() - startedAt;
+
       if (result.skipped) {
         cachedCount += 1;
         results.push({
           handle: account.handle,
           ok: true,
+          status: "cached",
           cached: true,
           videosCount: 0,
           apifyCalls: 0,
+          durationMs,
           message: result.message,
         });
         continue;
@@ -83,16 +90,20 @@ export async function syncAllTrackedAccounts(
       results.push({
         handle: account.handle,
         ok: true,
+        status: "success",
         cached: false,
         videosCount: result.videosProcessed,
         videosInserted: result.videosInserted,
         videosUpdated: result.videosUpdated,
         apifyCalls: result.apifyCalls,
+        durationMs,
       });
     } catch (syncError) {
       results.push({
         handle: account.handle,
         ok: false,
+        status: "error",
+        durationMs: Date.now() - startedAt,
         error: syncError instanceof Error ? syncError.message : "同步失败",
       });
     }
