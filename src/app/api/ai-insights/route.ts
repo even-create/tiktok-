@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildAiInsightsContext, buildHeuristicInsights } from "@/lib/ai-insights";
-import { generateOpenAiInsights, isOpenAiConfigured } from "@/lib/openai-insights";
+import { generateOpenAiInsights, getOpenAiModelName, isOpenAiConfigured } from "@/lib/openai-insights";
 import { supabase } from "@/lib/supabase";
 
 export const maxDuration = 60;
@@ -35,14 +35,18 @@ export async function POST() {
 
     try {
       const insights = await generateOpenAiInsights(context);
-      return NextResponse.json({ insights });
+      return NextResponse.json({
+        insights,
+        model: getOpenAiModelName(),
+      });
     } catch (openAiError) {
+      const message = openAiError instanceof Error ? openAiError.message : "OpenAI 分析失败";
+      console.error("[ai-insights] OpenAI error:", message);
+
       return NextResponse.json({
         insights: heuristic,
-        warning:
-          openAiError instanceof Error
-            ? `OpenAI 分析失败，已回退本地规则：${openAiError.message}`
-            : "OpenAI 分析失败，已回退本地规则。",
+        model: getOpenAiModelName(),
+        warning: `OpenAI 分析失败，已回退本地规则：${message}`,
       });
     }
   } catch (error) {

@@ -81,7 +81,7 @@ export function buildAiInsightsContext(accounts: ApiAccount[]) {
 
   const topVideos = [...videos]
     .sort((left, right) => right.performanceScore - left.performanceScore)
-    .slice(0, 15)
+    .slice(0, 10)
     .map((video) => ({
       title: video.title,
       handle: video.accountHandle,
@@ -114,7 +114,7 @@ export function buildAiInsightsContext(accounts: ApiAccount[]) {
     }))
     .sort((left, right) => right.score - left.score);
 
-  const tagStats = buildTagStats(videos, 20);
+  const tagStats = buildTagStats(videos, 12);
 
   const contentTypes = new Map<ContentTypeKey, { count: number; views: number; engagement: number; titles: string[] }>();
 
@@ -261,42 +261,39 @@ export function buildHeuristicInsights(context: AiInsightsContext): AiInsightsPa
   };
 }
 
+/** Compact payload for OpenAI to reduce input tokens. */
 export function serializeContextForPrompt(context: AiInsightsContext) {
-  return JSON.stringify(
-    {
-      accounts: context.accountCount,
-      videos: context.videoCount,
-      totalFollowers: context.totalFollowers,
-      totalViews: context.totalViews,
-      avgEngagement: Number(context.avgEngagement.toFixed(2)),
-      topVideos: context.topVideos,
-      postingByHour: context.postingByHour,
-      tagStats: context.tagStats,
-      contentTypeRanking: context.contentTypeRanking,
-    },
-    null,
-    2,
-  );
+  return JSON.stringify({
+    accounts: context.accountCount,
+    videos: context.videoCount,
+    followers: context.totalFollowers,
+    views: context.totalViews,
+    avgEngagement: Number(context.avgEngagement.toFixed(2)),
+    topVideos: context.topVideos.slice(0, 8).map((video) => ({
+      title: video.title.slice(0, 72),
+      handle: video.handle,
+      views: video.views,
+      engagement: Number(video.engagement.toFixed(2)),
+      hour: video.postedAt ? new Date(video.postedAt).getHours() : null,
+      tags: video.tags.slice(0, 3),
+      type: video.contentType,
+    })),
+    postingHours: context.postingByHour.slice(0, 6).map((slot) => ({
+      hour: slot.hour,
+      avgViews: Math.round(slot.avgViews),
+      avgEngagement: Number(slot.avgEngagement.toFixed(1)),
+      count: slot.videoCount,
+    })),
+    tags: context.tagStats.slice(0, 8).map((tag) => ({
+      tag: tag.tag,
+      count: tag.count,
+      engagement: Number(tag.avgEngagement.toFixed(1)),
+    })),
+    contentTypes: context.contentTypeRanking.slice(0, 4).map((type) => ({
+      label: type.label,
+      count: type.videoCount,
+      avgViews: Math.round(type.avgViews),
+      avgEngagement: Number(type.avgEngagement.toFixed(1)),
+    })),
+  });
 }
-
-export const AI_INSIGHTS_JSON_SCHEMA = `{
-  "summary": "string (Chinese, 2-3 sentences)",
-  "bestPostingTime": {
-    "recommendation": "string (Chinese)",
-    "slots": [{ "label": "string", "hour": number, "score": number, "videoCount": number }]
-  },
-  "bestHashtags": [{ "tag": "string", "videoCount": number, "avgEngagement": number, "totalViews": number, "reason": "string" }],
-  "topContentType": {
-    "type": "string",
-    "label": "string",
-    "videoCount": number,
-    "avgViews": number,
-    "avgEngagement": number,
-    "description": "string",
-    "examples": ["string"]
-  },
-  "engagementInsights": ["string"],
-  "contentOptimization": ["string"],
-  "viralVideoAnalysis": [{ "title": "string", "accountHandle": "string", "viewsLabel": "string", "engagementLabel": "string", "reason": "string" }],
-  "growthRecommendations": ["string"]
-}`;

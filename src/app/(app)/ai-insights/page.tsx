@@ -23,6 +23,7 @@ export default function AiInsightsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [warningMessage, setWarningMessage] = useState("");
+  const [modelName, setModelName] = useState("gpt-4o-mini");
 
   const generateInsights = useCallback(async () => {
     setIsLoading(true);
@@ -35,6 +36,7 @@ export default function AiInsightsPage() {
         insights?: AiInsightsPayload;
         warning?: string;
         error?: string;
+        model?: string;
       };
 
       if (!response.ok) {
@@ -46,6 +48,9 @@ export default function AiInsightsPage() {
       }
 
       setInsights(payload.insights);
+      if (payload.model) {
+        setModelName(payload.model);
+      }
       if (payload.warning) {
         setWarningMessage(payload.warning);
       }
@@ -129,6 +134,7 @@ export default function AiInsightsPage() {
                 {sourceLabel ? (
                   <span className="rounded-full bg-[var(--eggshell)] px-2.5 py-1">{sourceLabel}</span>
                 ) : null}
+                <span className="rounded-full bg-[var(--eggshell)] px-2.5 py-1">{modelName}</span>
                 <span className="inline-flex items-center gap-1">
                   <Wand2 className="size-3.5" />
                   {new Intl.DateTimeFormat("zh-CN", {
