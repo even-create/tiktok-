@@ -51,11 +51,13 @@ input {
 }
 
 .account-list-scroll {
-  max-height: 17.5rem;
-  overflow-y: auto;
+  /* 4 rows × 68px + 3 gaps × 8px */
+  max-height: calc(4 * 4.25rem + 3 * 0.5rem);
+  overflow-y: scroll;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: var(--cadet-gray) transparent;
+  scrollbar-color: var(--cadet-gray) color-mix(in srgb, var(--cadet-gray) 15%, transparent);
 }
 
 .account-list-scroll::-webkit-scrollbar {

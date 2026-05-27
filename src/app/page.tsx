@@ -1,6 +1,7 @@
 "use client";
 
 import { AccountAvatar } from "@/components/account-avatar";
+import { AccountSortMenu, type AccountSortMode } from "@/components/dashboard/account-sort-menu";
 import { LineChart } from "@/components/dashboard/line-chart";
 import {
   Activity,
@@ -38,8 +39,6 @@ type VideoItem = {
   postedAt: string;
   retention: string;
 };
-
-type AccountSortMode = "default" | "followers" | "updated";
 
 type Account = {
   id?: string;
@@ -83,12 +82,6 @@ type ApiAccount = {
   created_at?: string | null;
   videos?: ApiVideo[];
 };
-
-const accountSortOptions: Array<{ value: AccountSortMode; label: string }> = [
-  { value: "default", label: "默认排序" },
-  { value: "followers", label: "粉丝量从高到低" },
-  { value: "updated", label: "更新时间从新到旧" },
-];
 
 const trackedAccounts: Account[] = [
   {
@@ -594,25 +587,15 @@ export default function DashboardPage() {
             <section className="min-w-0 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-4 shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-base font-semibold text-[var(--space-cadet)]">追踪账号</h2>
-                <span className="rounded-full bg-[var(--eggshell)] px-2 py-1 text-xs text-[var(--cadet-gray)]">{accounts.length}</span>
+                <div className="flex items-center gap-2">
+                  <AccountSortMenu value={accountSort} onChange={setAccountSort} />
+                  <span className="rounded-full bg-[var(--eggshell)] px-2 py-1 text-xs text-[var(--cadet-gray)]">
+                    {accounts.length}
+                  </span>
+                </div>
               </div>
 
-              <label className="mt-3 block">
-                <span className="sr-only">账号排序</span>
-                <select
-                  value={accountSort}
-                  onChange={(event) => setAccountSort(event.target.value as AccountSortMode)}
-                  className="h-9 w-full rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 text-xs text-[var(--space-cadet)] outline-none focus:border-[var(--carolina-blue)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_20%,transparent)]"
-                >
-                  {accountSortOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="account-list-scroll mt-3 space-y-2 pr-1">
+              <div className="account-list-scroll mt-3 space-y-2 pr-0.5">
                 {sortedAccounts.map((account) => {
                   const isActive = account.handle === activeAccount?.handle;
                   const isDeleting = deletingHandle === account.handle;
@@ -620,7 +603,7 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={account.handle}
-                      className={`flex items-center gap-2 rounded-xl border p-2 transition duration-200 ${
+                      className={`account-list-row flex min-h-[4.25rem] shrink-0 items-center gap-2 rounded-xl border p-2 transition duration-200 ${
                         isActive
                           ? "border-[color-mix(in_srgb,var(--carolina-blue)_55%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] shadow-sm"
                           : "border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 hover:border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] hover:bg-[var(--card)] hover:shadow-md"
