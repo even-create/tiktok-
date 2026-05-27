@@ -1,0 +1,15 @@
+---
+description: Auto commit and deploy after completing code changes
+alwaysApply: true
+---
+
+# Auto commit and deploy
+
+When you finish implementing requested code changes in this project:
+
+1. Run `npm run build` if the change affects the app and the build is quick to verify.
+2. Commit all relevant changes with a clear message (do not ask the user for permission to commit).
+3. Push to `origin/main` to trigger Vercel production deployment.
+4. Briefly confirm commit hash and deployment status in the final response.
+
+Do not ask "要不要提交/部署" unless the user explicitly says not to deploy, or there are uncommitted secrets / broken builds that must be fixed first.
