@@ -103,6 +103,7 @@ export async function saveTikTokProfile(profile: NormalizedTikTokProfile) {
       handle: profile.handle,
       display_name: profile.displayName,
       profile_url: profile.profileUrl,
+      avatar_url: profile.avatarUrl,
       followers_count: profile.followersCount,
       likes_count: profile.likesCount,
       video_count: profile.videoCount,

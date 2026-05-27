@@ -30,27 +30,33 @@ export function LineChart({ title, subtitle, points }: LineChartProps) {
   const areaPath = `${linePath} L ${coordinates.at(-1)?.x ?? padding.left} ${padding.top + innerHeight} L ${coordinates[0]?.x ?? padding.left} ${padding.top + innerHeight} Z`;
 
   return (
-    <section className="group rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-lg">
+    <section className="group min-w-0 w-full rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm transition duration-300 hover:shadow-lg">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
-          {subtitle ? <p className="mt-1 text-xs text-zinc-500">{subtitle}</p> : null}
+          <h3 className="text-sm font-semibold text-[var(--space-cadet)]">{title}</h3>
+          {subtitle ? <p className="mt-1 text-xs text-[var(--cadet-gray)]">{subtitle}</p> : null}
         </div>
-        <div className="rounded-full bg-gradient-to-r from-[#161823] via-[#2b2f3a] to-[#161823] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+        <div className="rounded-full bg-gradient-to-r from-[var(--space-cadet)] to-[var(--jet)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--eggshell)]">
           Trend
         </div>
       </div>
 
       {points.length ? (
-        <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 h-auto w-full" role="img" aria-label={title}>
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="xMidYMid meet"
+          className="mt-4 block h-[220px] w-full min-w-0"
+          role="img"
+          aria-label={title}
+        >
           <defs>
             <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#25f4ee" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#fe2c55" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="#70B0CC" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#2D3350" stopOpacity="0.04" />
             </linearGradient>
             <linearGradient id="chartLine" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%" stopColor="#25f4ee" />
-              <stop offset="100%" stopColor="#fe2c55" />
+              <stop offset="0%" stopColor="#70B0CC" />
+              <stop offset="100%" stopColor="#2D3350" />
             </linearGradient>
           </defs>
 
@@ -63,7 +69,7 @@ export function LineChart({ title, subtitle, points }: LineChartProps) {
                 x2={width - padding.right}
                 y1={y}
                 y2={y}
-                stroke="rgba(15,23,42,0.08)"
+                stroke="rgba(135, 149, 165, 0.25)"
                 strokeDasharray="4 6"
               />
             );
@@ -74,15 +80,15 @@ export function LineChart({ title, subtitle, points }: LineChartProps) {
 
           {coordinates.map((point) => (
             <g key={point.label}>
-              <circle cx={point.x} cy={point.y} r="5" fill="#fff" stroke="#fe2c55" strokeWidth="2" />
-              <text x={point.x} y={height - 8} textAnchor="middle" fontSize="10" fill="#71717a">
+              <circle cx={point.x} cy={point.y} r="5" fill="#fff" stroke="#70B0CC" strokeWidth="2" />
+              <text x={point.x} y={height - 8} textAnchor="middle" fontSize="10" fill="#8795A5">
                 {point.label}
               </text>
             </g>
           ))}
         </svg>
       ) : (
-        <div className="mt-6 rounded-xl border border-dashed border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500">
+        <div className="mt-6 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] px-4 py-10 text-center text-sm text-[var(--cadet-gray)]">
           暂无视频趋势数据
         </div>
       )}
