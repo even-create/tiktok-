@@ -1,13 +1,25 @@
 @import "tailwindcss";
 
+@theme {
+  --color-space-cadet: #2d3350;
+  --color-carolina-blue: #70b0cc;
+  --color-eggshell: #e9e3ce;
+  --color-cadet-gray: #8795a5;
+  --color-jet: #3a3948;
+}
+
 :root {
   color-scheme: light;
-  --background: #f5f7fb;
-  --foreground: #161823;
+  --space-cadet: #2d3350;
+  --carolina-blue: #70b0cc;
+  --eggshell: #e9e3ce;
+  --cadet-gray: #8795a5;
+  --jet: #3a3948;
+  --background: var(--eggshell);
+  --foreground: var(--space-cadet);
   --card: #ffffff;
-  --muted: #71717a;
-  --accent: #fe2c55;
-  --accent-secondary: #25f4ee;
+  --muted: var(--cadet-gray);
+  --accent: var(--carolina-blue);
 }
 
 * {
@@ -22,9 +34,9 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(37, 244, 238, 0.12), transparent 28rem),
-    radial-gradient(circle at top right, rgba(254, 44, 85, 0.1), transparent 30rem),
-    linear-gradient(180deg, #ffffff 0%, #f5f7fb 42%, #eef1f7 100%);
+    radial-gradient(circle at top left, color-mix(in srgb, var(--carolina-blue) 28%, transparent), transparent 28rem),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--space-cadet) 12%, transparent), transparent 30rem),
+    linear-gradient(180deg, #ffffff 0%, var(--eggshell) 48%, color-mix(in srgb, var(--cadet-gray) 18%, var(--eggshell)) 100%);
   color: var(--foreground);
   font-family: "Segoe UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
 }
@@ -35,5 +47,26 @@ input {
 }
 
 ::selection {
-  background: rgba(254, 44, 85, 0.18);
+  background: color-mix(in srgb, var(--carolina-blue) 35%, transparent);
+}
+
+.account-list-scroll {
+  max-height: 17.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--cadet-gray) transparent;
+}
+
+.account-list-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.account-list-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cadet-gray) 70%, transparent);
+}
+
+.account-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }

@@ -1,7 +1,7 @@
 "use client";
 
+import { AccountAvatar } from "@/components/account-avatar";
 import { LineChart } from "@/components/dashboard/line-chart";
-import { VideoRanking } from "@/components/dashboard/video-ranking";
 import {
   Activity,
   BarChart3,
@@ -39,12 +39,18 @@ type VideoItem = {
   retention: string;
 };
 
+type AccountSortMode = "default" | "followers" | "updated";
+
 type Account = {
   id?: string;
   handle: string;
   displayName: string;
   avatar: string;
+  avatarUrl: string | null;
   followers: string;
+  followersCount: number;
+  lastSyncedAt: string | null;
+  sortOrder: number;
   likes: string;
   views: string;
   engagement: string;
@@ -74,14 +80,25 @@ type ApiAccount = {
   total_views: number;
   engagement_rate: number;
   last_synced_at: string | null;
+  created_at?: string | null;
   videos?: ApiVideo[];
 };
+
+const accountSortOptions: Array<{ value: AccountSortMode; label: string }> = [
+  { value: "default", label: "默认排序" },
+  { value: "followers", label: "粉丝量从高到低" },
+  { value: "updated", label: "更新时间从新到旧" },
+];
 
 const trackedAccounts: Account[] = [
   {
     handle: "studio.signal",
     displayName: "Studio Signal",
     avatar: "SS",
+    avatarUrl: null,
+    followersCount: 482600,
+    lastSyncedAt: new Date().toISOString(),
+    sortOrder: 0,
     followers: "482.6K",
     likes: "12.4M",
     views: "18.4M",
@@ -136,6 +153,10 @@ const trackedAccounts: Account[] = [
     handle: "growth.lab",
     displayName: "Growth Lab",
     avatar: "GL",
+    avatarUrl: null,
+    followersCount: 236100,
+    lastSyncedAt: new Date(Date.now() - 86400000).toISOString(),
+    sortOrder: 1,
     followers: "236.1K",
     likes: "5.8M",
     views: "9.7M",
@@ -244,7 +265,24 @@ function mapApiVideo(video: ApiVideo): VideoItem {
   };
 }
 
-function mapApiAccount(account: ApiAccount): Account {
+function sortAccounts(list: Account[], mode: AccountSortMode) {
+  const next = [...list];
+
+  switch (mode) {
+    case "followers":
+      return next.sort((left, right) => right.followersCount - left.followersCount);
+    case "updated":
+      return next.sort((left, right) => {
+        const leftTime = left.lastSyncedAt ? new Date(left.lastSyncedAt).getTime() : 0;
+        const rightTime = right.lastSyncedAt ? new Date(right.lastSyncedAt).getTime() : 0;
+        return rightTime - leftTime;
+      });
+    default:
+      return next.sort((left, right) => left.sortOrder - right.sortOrder);
+  }
+}
+
+function mapApiAccount(account: ApiAccount, sortOrder: number): Account {
   const displayName = account.display_name || account.handle;
 
   return {
@@ -252,6 +290,10 @@ function mapApiAccount(account: ApiAccount): Account {
     handle: account.handle,
     displayName,
     avatar: initials(displayName),
+    avatarUrl: account.avatar_url,
+    followersCount: account.followers_count ?? 0,
+    lastSyncedAt: account.last_synced_at,
+    sortOrder,
     followers: formatCompact(account.followers_count ?? 0),
     likes: formatCompact(account.likes_count ?? 0),
     views: formatCompact(account.total_views ?? 0),
@@ -270,6 +312,7 @@ export default function DashboardPage() {
   const [deletingHandle, setDeletingHandle] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("正在连接 Supabase...");
   const [errorMessage, setErrorMessage] = useState("");
+  const [accountSort, setAccountSort] = useState<AccountSortMode>("default");
 
   const loadAccounts = useCallback(async (preferredHandle?: string) => {
     setIsLoading(true);
@@ -283,7 +326,7 @@ export default function DashboardPage() {
         throw new Error(payload.error ?? "读取 Supabase 数据失败");
       }
 
-      const nextAccounts = (payload.accounts ?? []).map(mapApiAccount);
+      const nextAccounts = (payload.accounts ?? []).map((account, index) => mapApiAccount(account, index));
 
       if (nextAccounts.length) {
         setAccounts(nextAccounts);
@@ -322,30 +365,40 @@ export default function DashboardPage() {
     return () => window.clearTimeout(timer);
   }, [loadAccounts]);
 
+  const sortedAccounts = useMemo(
+    () => sortAccounts(accounts, accountSort),
+    [accounts, accountSort],
+  );
+
   const activeAccount = useMemo(
-    () => accounts.find((account) => account.handle === selectedHandle) ?? accounts[0],
-    [accounts, selectedHandle],
+    () =>
+      sortedAccounts.find((account) => account.handle === selectedHandle) ??
+      sortedAccounts[0] ??
+      accounts[0],
+    [accounts, sortedAccounts, selectedHandle],
   );
 
   const totals = useMemo(
     () => ({
-      followers: accounts.length ? activeAccount.followers : "0",
-      likes: accounts.length ? activeAccount.likes : "0",
-      views: accounts.length ? activeAccount.views : "0",
-      engagement: accounts.length ? activeAccount.engagement : "0%",
-      videos: activeAccount.videos.length,
+      followers: activeAccount ? activeAccount.followers : "0",
+      likes: activeAccount ? activeAccount.likes : "0",
+      views: activeAccount ? activeAccount.views : "0",
+      engagement: activeAccount ? activeAccount.engagement : "0%",
+      videos: activeAccount?.videos.length ?? 0,
       avgInteraction:
-        activeAccount.videos.length > 0
+        activeAccount && activeAccount.videos.length > 0
           ? `${(
               activeAccount.videos.reduce((sum, video) => sum + video.interactionRateValue, 0) /
               activeAccount.videos.length
             ).toFixed(2)}%`
           : "0%",
     }),
-    [accounts.length, activeAccount],
+    [activeAccount],
   );
 
   const chartPoints = useMemo(() => {
+    if (!activeAccount) return [];
+
     return [...activeAccount.videos]
       .sort((left, right) => right.viewsCount - left.viewsCount)
       .slice(0, 6)
@@ -354,21 +407,7 @@ export default function DashboardPage() {
         label: `#${index + 1}`,
         value: video.viewsCount,
       }));
-  }, [activeAccount.videos]);
-
-  const rankedVideos = useMemo(() => {
-    return [...activeAccount.videos]
-      .sort((left, right) => right.viewsCount - left.viewsCount)
-      .slice(0, 5)
-      .map((video, index) => ({
-        id: video.id,
-        title: video.title,
-        videoUrl: video.videoUrl,
-        views: video.views,
-        interactionRate: video.interactionRate,
-        rank: index + 1,
-      }));
-  }, [activeAccount.videos]);
+  }, [activeAccount]);
 
   async function handleAddAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -433,21 +472,21 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen text-zinc-900">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1500px] flex-col lg:flex-row">
-        <aside className="border-b border-zinc-200 bg-white/90 px-4 py-4 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:border-b-0 lg:border-r lg:px-5">
+    <main className="min-h-screen text-[var(--space-cadet)]">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1500px] flex-col lg:flex-row lg:items-stretch">
+        <aside className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)]/95 px-4 py-4 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:border-b-0 lg:border-r lg:px-5">
           <div className="flex items-center justify-between lg:justify-start">
             <div className="flex items-center gap-3">
-              <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[#161823] via-[#2b2f3a] to-[#161823] text-white shadow-md">
+              <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[var(--space-cadet)] to-[var(--jet)] text-[var(--eggshell)] shadow-md">
                 <Flame className="size-5" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-zinc-900">TikTok Tracker</p>
-                <p className="text-xs text-zinc-500">Studio-style analytics</p>
+                <p className="text-sm font-semibold text-[var(--space-cadet)]">TikTok Tracker</p>
+                <p className="text-xs text-[var(--cadet-gray)]">Data analytics</p>
               </div>
             </div>
             <button
-              className="grid size-10 place-items-center rounded-lg border border-zinc-200 bg-zinc-50 lg:hidden"
+              className="grid size-10 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/50 lg:hidden"
               aria-label="Open menu"
             >
               <Menu className="size-5" />
@@ -460,8 +499,8 @@ export default function DashboardPage() {
                 key={item.label}
                 className={`flex h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm transition duration-200 lg:justify-start ${
                   item.active
-                    ? "bg-gradient-to-r from-[#161823] to-[#2f3442] text-white shadow-md"
-                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+                    ? "bg-gradient-to-r from-[var(--space-cadet)] to-[var(--jet)] text-[var(--eggshell)] shadow-md"
+                    : "text-[var(--cadet-gray)] hover:bg-[var(--eggshell)]/70 hover:text-[var(--space-cadet)]"
                 }`}
               >
                 <item.icon className="size-4" />
@@ -470,46 +509,43 @@ export default function DashboardPage() {
             ))}
           </nav>
 
-          <section className="mt-6 hidden rounded-2xl border border-zinc-200 bg-gradient-to-br from-[#161823] via-[#222633] to-[#161823] p-4 text-white shadow-lg lg:block">
+          <section className="mt-6 hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-br from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)] shadow-lg lg:block">
             <div className="flex items-center gap-2 text-sm font-medium">
               {isLoading ? (
-                <Clock3 className="size-4 animate-spin text-[#25f4ee]" />
+                <Clock3 className="size-4 animate-spin text-[var(--carolina-blue)]" />
               ) : (
-                <Sparkles className="size-4 text-[#25f4ee]" />
+                <Sparkles className="size-4 text-[var(--carolina-blue)]" />
               )}
               Sync status
             </div>
-            <p className="mt-3 text-xs leading-5 text-zinc-300">{statusMessage}</p>
+            <p className="mt-3 text-xs leading-5 text-[color-mix(in_srgb,var(--eggshell)_75%,transparent)]">{statusMessage}</p>
           </section>
         </aside>
 
-        <section className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
-          <header className="overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <section className="min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8">
+          <header className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#fe2c55]">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
                   <Activity className="size-4" />
                   Dashboard
                 </div>
-                <h1 className="mt-3 text-3xl font-semibold text-zinc-900 sm:text-4xl">TikTok 数据追踪后台</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
-                  添加账号链接，集中查看粉丝、播放、互动率和视频表现，界面风格参考 TikTok Studio。
-                </p>
+                <h1 className="mt-3 text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">TikTok 数据追踪后台</h1>
               </div>
 
               <form onSubmit={handleAddAccount} className="flex w-full flex-col gap-2 sm:flex-row xl:max-w-xl">
                 <label className="relative flex-1">
-                  <Link2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
+                  <Link2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
                   <input
                     value={tiktokUrl}
                     onChange={(event) => setTiktokUrl(event.target.value)}
                     placeholder="粘贴 TikTok 链接，例如 https://www.tiktok.com/@creator"
-                    className="h-12 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#25f4ee] focus:bg-white focus:ring-4 focus:ring-[#25f4ee]/15"
+                    className="h-12 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 pl-10 pr-4 text-sm text-[var(--space-cadet)] outline-none transition placeholder:text-[var(--cadet-gray)] focus:border-[var(--carolina-blue)] focus:bg-[var(--card)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)]"
                   />
                 </label>
                 <button
                   type="submit"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#fe2c55] px-5 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-[#e0264b] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--space-cadet)] px-5 text-sm font-semibold text-[var(--eggshell)] transition duration-200 hover:bg-[var(--jet)] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
                   disabled={isSyncing}
                 >
                   {isSyncing ? <Clock3 className="size-4 animate-spin" /> : <Plus className="size-4" />}
@@ -523,7 +559,7 @@ export default function DashboardPage() {
                 {errorMessage}
               </p>
             ) : (
-              <p className="mt-4 rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-sm text-cyan-900">
+              <p className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] px-3 py-2 text-sm text-[var(--space-cadet)]">
                 {statusMessage}
               </p>
             )}
@@ -531,36 +567,54 @@ export default function DashboardPage() {
 
           <div className="grid gap-4 py-5 sm:grid-cols-2 xl:grid-cols-5">
             {[
-              { label: "粉丝数", value: totals.followers, icon: Users, accent: "from-cyan-500/15 to-cyan-500/0" },
-              { label: "点赞数", value: totals.likes, icon: ThumbsUp, accent: "from-rose-500/15 to-rose-500/0" },
-              { label: "总播放量", value: totals.views, icon: Eye, accent: "from-violet-500/15 to-violet-500/0" },
-              { label: "视频数量", value: String(totals.videos), icon: CirclePlay, accent: "from-amber-500/15 to-amber-500/0" },
-              { label: "平均互动率", value: totals.avgInteraction, icon: TrendingUp, accent: "from-emerald-500/15 to-emerald-500/0" },
+              { label: "粉丝数", value: totals.followers, icon: Users, accent: "from-[color-mix(in_srgb,var(--carolina-blue)_22%,transparent)] to-transparent" },
+              { label: "点赞数", value: totals.likes, icon: ThumbsUp, accent: "from-[color-mix(in_srgb,var(--space-cadet)_14%,transparent)] to-transparent" },
+              { label: "总播放量", value: totals.views, icon: Eye, accent: "from-[color-mix(in_srgb,var(--cadet-gray)_22%,transparent)] to-transparent" },
+              { label: "视频数量", value: String(totals.videos), icon: CirclePlay, accent: "from-[color-mix(in_srgb,var(--jet)_12%,transparent)] to-transparent" },
+              { label: "平均互动率", value: totals.avgInteraction, icon: TrendingUp, accent: "from-[color-mix(in_srgb,var(--carolina-blue)_18%,transparent)] to-transparent" },
             ].map((metric) => (
               <article
                 key={metric.label}
-                className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+                className="group relative overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-4 shadow-sm transition duration-300 hover:shadow-md"
               >
                 <div className={`absolute inset-x-0 top-0 h-16 bg-gradient-to-b ${metric.accent}`} />
                 <div className="relative flex items-center justify-between">
-                  <p className="text-sm text-zinc-500">{metric.label}</p>
-                  <metric.icon className="size-5 text-zinc-700" />
+                  <p className="text-sm text-[var(--cadet-gray)]">{metric.label}</p>
+                  <metric.icon className="size-5 text-[var(--space-cadet)]" />
                 </div>
-                <p className="relative mt-4 text-3xl font-semibold text-zinc-900">{metric.value}</p>
-                <p className="relative mt-2 text-xs text-emerald-600">{activeAccount.trend} vs last sync</p>
+                <p className="relative mt-4 text-3xl font-semibold text-[var(--space-cadet)]">{metric.value}</p>
+                <p className="relative mt-2 text-xs text-[var(--carolina-blue)]">
+                  {activeAccount?.trend ?? "—"} vs last sync
+                </p>
               </article>
             ))}
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[320px_1fr]">
-            <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-zinc-900">追踪账号</h2>
-                <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs text-zinc-600">{accounts.length}</span>
+          <div className="grid gap-5 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
+            <section className="min-w-0 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-base font-semibold text-[var(--space-cadet)]">追踪账号</h2>
+                <span className="rounded-full bg-[var(--eggshell)] px-2 py-1 text-xs text-[var(--cadet-gray)]">{accounts.length}</span>
               </div>
-              <div className="mt-4 space-y-2">
-                {accounts.map((account) => {
-                  const isActive = account.handle === activeAccount.handle;
+
+              <label className="mt-3 block">
+                <span className="sr-only">账号排序</span>
+                <select
+                  value={accountSort}
+                  onChange={(event) => setAccountSort(event.target.value as AccountSortMode)}
+                  className="h-9 w-full rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 text-xs text-[var(--space-cadet)] outline-none focus:border-[var(--carolina-blue)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_20%,transparent)]"
+                >
+                  {accountSortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="account-list-scroll mt-3 space-y-2 pr-1">
+                {sortedAccounts.map((account) => {
+                  const isActive = account.handle === activeAccount?.handle;
                   const isDeleting = deletingHandle === account.handle;
 
                   return (
@@ -568,8 +622,8 @@ export default function DashboardPage() {
                       key={account.handle}
                       className={`flex items-center gap-2 rounded-xl border p-2 transition duration-200 ${
                         isActive
-                          ? "border-[#25f4ee]/50 bg-cyan-50/70 shadow-sm"
-                          : "border-zinc-200 bg-zinc-50/60 hover:border-zinc-300 hover:bg-white hover:shadow-md"
+                          ? "border-[color-mix(in_srgb,var(--carolina-blue)_55%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] shadow-sm"
+                          : "border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 hover:border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] hover:bg-[var(--card)] hover:shadow-md"
                       }`}
                     >
                       <button
@@ -577,23 +631,25 @@ export default function DashboardPage() {
                         onClick={() => setSelectedHandle(account.handle)}
                         className="flex min-w-0 flex-1 items-center gap-3 text-left"
                       >
-                        <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#161823] to-[#3a3f4d] text-sm font-bold text-white">
-                          {account.avatar}
-                        </div>
+                        <AccountAvatar
+                          name={account.displayName}
+                          avatarUrl={account.avatarUrl}
+                          initialsText={account.avatar}
+                        />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-zinc-900">{account.displayName}</p>
-                          <p className="truncate text-xs text-zinc-500">@{account.handle}</p>
+                          <p className="truncate text-sm font-medium text-[var(--space-cadet)]">{account.displayName}</p>
+                          <p className="truncate text-xs text-[var(--cadet-gray)]">@{account.handle}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-zinc-900">{account.followers}</p>
-                          <p className="text-xs text-zinc-500">followers</p>
+                          <p className="text-sm font-semibold text-[var(--space-cadet)]">{account.followers}</p>
+                          <p className="text-xs text-[var(--cadet-gray)]">followers</p>
                         </div>
                       </button>
                       <button
                         type="button"
                         onClick={() => void handleDeleteAccount(account.handle)}
                         disabled={isDeleting}
-                        className="grid size-9 shrink-0 place-items-center rounded-lg border border-zinc-200 bg-white text-zinc-500 transition duration-200 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60"
+                        className="grid size-9 shrink-0 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] text-[var(--cadet-gray)] transition duration-200 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60"
                         aria-label={`删除账号 ${account.handle}`}
                       >
                         {isDeleting ? (
@@ -608,32 +664,24 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="min-w-0">
               <LineChart
                 title="播放量趋势"
                 subtitle="最近同步视频的表现走势"
                 points={chartPoints}
               />
-              <VideoRanking videos={rankedVideos} />
             </div>
           </div>
 
-          <section className="mt-5 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-            <div className="flex flex-col gap-3 border-b border-zinc-200 bg-gradient-to-r from-[#161823] via-[#2a2f3b] to-[#161823] p-4 text-white sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-base font-semibold">@{activeAccount.handle} 视频列表</h2>
-                <p className="mt-1 text-xs text-zinc-300">点击播放图标可打开 TikTok 原视频</p>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs">
-                <BarChart3 className="size-3.5" />
-                互动率 = (点赞 + 评论 + 分享) / 播放量
-              </div>
+          <section className="mt-5 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
+            <div className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
+              <h2 className="text-base font-semibold">@{activeAccount?.handle ?? "—"} 视频数据</h2>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] border-collapse text-left">
                 <thead>
-                  <tr className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-[0.16em] text-zinc-500">
+                  <tr className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/50 text-xs uppercase tracking-[0.16em] text-[var(--cadet-gray)]">
                     <th className="px-4 py-3 font-medium">Video</th>
                     <th className="px-4 py-3 font-medium">Views</th>
                     <th className="px-4 py-3 font-medium">Likes</th>
@@ -645,10 +693,10 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {activeAccount.videos.map((video) => (
+                  {(activeAccount?.videos ?? []).map((video) => (
                     <tr
                       key={video.id}
-                      className="border-b border-zinc-100 transition duration-200 last:border-0 hover:bg-zinc-50/80"
+                      className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] transition duration-200 last:border-0 hover:bg-[var(--eggshell)]/50"
                     >
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
@@ -657,60 +705,60 @@ export default function DashboardPage() {
                               href={video.videoUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="grid size-10 place-items-center rounded-xl border border-zinc-200 bg-white text-[#fe2c55] shadow-sm transition duration-200 hover:scale-105 hover:border-[#fe2c55]/30 hover:shadow-md"
+                              className="grid size-10 place-items-center rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] text-[var(--carolina-blue)] shadow-sm transition duration-200 hover:scale-105 hover:border-[var(--carolina-blue)] hover:shadow-md"
                               aria-label={`打开视频：${video.title}`}
                             >
                               <CirclePlay className="size-5" />
                             </a>
                           ) : (
-                            <div className="grid size-10 place-items-center rounded-xl border border-zinc-200 bg-zinc-100 text-zinc-400">
+                            <div className="grid size-10 place-items-center rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/60 text-[var(--cadet-gray)]">
                               <CirclePlay className="size-5" />
                             </div>
                           )}
-                          <p className="max-w-sm truncate text-sm font-medium text-zinc-900">{video.title}</p>
+                          <p className="max-w-sm truncate text-sm font-medium text-[var(--space-cadet)]">{video.title}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-sm text-zinc-700">
+                      <td className="px-4 py-4 text-sm text-[var(--jet)]">
                         <span className="inline-flex items-center gap-1">
-                          <Eye className="size-3.5 text-zinc-400" />
+                          <Eye className="size-3.5 text-[var(--cadet-gray)]" />
                           {video.views}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-sm text-zinc-700">
+                      <td className="px-4 py-4 text-sm text-[var(--jet)]">
                         <span className="inline-flex items-center gap-1">
-                          <ThumbsUp className="size-3.5 text-zinc-400" />
+                          <ThumbsUp className="size-3.5 text-[var(--cadet-gray)]" />
                           {video.likes}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-sm text-zinc-700">
+                      <td className="px-4 py-4 text-sm text-[var(--jet)]">
                         <span className="inline-flex items-center gap-1">
-                          <MessageCircle className="size-3.5 text-zinc-400" />
+                          <MessageCircle className="size-3.5 text-[var(--cadet-gray)]" />
                           {video.comments}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-sm text-zinc-700">
+                      <td className="px-4 py-4 text-sm text-[var(--jet)]">
                         <span className="inline-flex items-center gap-1">
-                          <Share2 className="size-3.5 text-zinc-400" />
+                          <Share2 className="size-3.5 text-[var(--cadet-gray)]" />
                           {video.shares}
                         </span>
                       </td>
                       <td className="px-4 py-4">
-                        <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-sm font-medium text-emerald-700">
+                        <span className="inline-flex rounded-full bg-[color-mix(in_srgb,var(--carolina-blue)_15%,white)] px-2.5 py-1 text-sm font-medium text-[var(--space-cadet)]">
                           {video.interactionRate}
                         </span>
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-24 overflow-hidden rounded-full bg-zinc-200">
+                          <div className="h-2 w-24 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)]">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-[#25f4ee] to-[#fe2c55]"
+                              className="h-full rounded-full bg-gradient-to-r from-[var(--carolina-blue)] to-[var(--space-cadet)]"
                               style={{ width: video.retention === "N/A" ? "0%" : video.retention }}
                             />
                           </div>
-                          <span className="text-sm text-zinc-600">{video.retention}</span>
+                          <span className="text-sm text-[var(--cadet-gray)]">{video.retention}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-sm text-zinc-500">{video.postedAt}</td>
+                      <td className="px-4 py-4 text-sm text-[var(--cadet-gray)]">{video.postedAt}</td>
                     </tr>
                   ))}
                 </tbody>
