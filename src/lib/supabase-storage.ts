@@ -95,6 +95,51 @@ export async function assertTikTokTablesReady() {
   }
 }
 
+async function getExistingVideoIdSet(accountId: string) {
+  const { data, error } = await supabase
+    .from("videos")
+    .select("tiktok_video_id")
+    .eq("account_id", accountId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return new Set((data ?? []).map((row) => row.tiktok_video_id).filter(Boolean) as string[]);
+}
+
+async function recalculateAccountTotals(accountId: string) {
+  const { data: videos, error } = await supabase
+    .from("videos")
+    .select("views_count, likes_count, comments_count, shares_count")
+    .eq("account_id", accountId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = videos ?? [];
+  const totalViews = rows.reduce((sum, row) => sum + (row.views_count ?? 0), 0);
+  const totalLikes = rows.reduce((sum, row) => sum + (row.likes_count ?? 0), 0);
+  const totalComments = rows.reduce((sum, row) => sum + (row.comments_count ?? 0), 0);
+  const totalShares = rows.reduce((sum, row) => sum + (row.shares_count ?? 0), 0);
+  const engagementRate =
+    totalViews > 0
+      ? Number((((totalLikes + totalComments + totalShares) / totalViews) * 100).toFixed(2))
+      : 0;
+
+  await supabase
+    .from("accounts")
+    .update({
+      total_views: totalViews,
+      engagement_rate: engagementRate,
+      last_synced_at: new Date().toISOString(),
+    })
+    .eq("id", accountId);
+
+  return { totalViews, engagementRate };
+}
+
 export async function saveTikTokProfile(profile: NormalizedTikTokProfile) {
   const accountResult = await upsertWithMissingColumnRetry(
     "accounts",
@@ -120,28 +165,48 @@ export async function saveTikTokProfile(profile: NormalizedTikTokProfile) {
     throw new Error("账号保存失败，请确认 Supabase 表已创建。");
   }
 
-  const videos = profile.videos.map((video) => ({
-    account_id: account.id,
-    tiktok_video_id: video.tiktokVideoId,
-    title: video.title,
-    video_url: video.videoUrl,
-    thumbnail_url: video.thumbnailUrl,
-    views_count: video.viewsCount,
-    likes_count: video.likesCount,
-    comments_count: video.commentsCount,
-    shares_count: video.sharesCount,
-    posted_at: video.postedAt,
-  }));
+  const existingIds = await getExistingVideoIdSet(account.id);
 
-  const videosResult = await upsertManyWithMissingColumnRetry(
-    "videos",
-    videos,
-    { onConflict: "account_id,tiktok_video_id" },
-  );
+  let videosInserted = 0;
+  let videosUpdated = 0;
+
+  const videos = profile.videos.map((video) => {
+    if (existingIds.has(video.tiktokVideoId)) {
+      videosUpdated += 1;
+    } else {
+      videosInserted += 1;
+    }
+
+    return {
+      account_id: account.id,
+      tiktok_video_id: video.tiktokVideoId,
+      title: video.title,
+      video_url: video.videoUrl,
+      thumbnail_url: video.thumbnailUrl,
+      views_count: video.viewsCount,
+      likes_count: video.likesCount,
+      comments_count: video.commentsCount,
+      shares_count: video.sharesCount,
+      posted_at: video.postedAt,
+    };
+  });
+
+  if (videos.length) {
+    await upsertManyWithMissingColumnRetry("videos", videos, {
+      onConflict: "account_id,tiktok_video_id",
+    });
+  }
+
+  await recalculateAccountTotals(account.id);
+
+  const { data: refreshedAccount } = await supabase.from("accounts").select("*").eq("id", account.id).single();
 
   return {
-    account,
-    skippedColumns: [...accountResult.skippedColumns, ...videosResult.skippedColumns],
-    videosCount: videos.length,
+    account: refreshedAccount ?? account,
+    skippedColumns: accountResult.skippedColumns,
+    videosProcessed: profile.videos.length,
+    videosInserted,
+    videosUpdated,
+    videosCount: profile.videos.length,
   };
 }

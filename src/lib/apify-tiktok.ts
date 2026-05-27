@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { APIFY_MAX_VIDEOS_PER_SYNC } from "@/lib/apify-config";
 
 export type ApifyTikTokVideoItem = {
   id?: string | number | null;
@@ -102,7 +103,7 @@ export async function scrapeTikTokProfile(inputUrl: string): Promise<NormalizedT
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       profiles: [handle],
-      resultsPerPage: 30,
+      resultsPerPage: APIFY_MAX_VIDEOS_PER_SYNC,
       shouldDownloadCovers: false,
       shouldDownloadSlideshowImages: false,
       shouldDownloadSubtitles: false,
@@ -128,12 +129,27 @@ export async function scrapeTikTokProfile(inputUrl: string): Promise<NormalizedT
 
   const firstAuthor = items.find((item) => item.authorMeta)?.authorMeta;
   const normalizedHandle = firstAuthor?.name ?? handle;
-  const totalViews = items.reduce((sum, item) => sum + toNumber(item.playCount), 0);
-  const videoLikes = items.reduce((sum, item) => sum + toNumber(item.diggCount), 0);
-  const videoComments = items.reduce((sum, item) => sum + toNumber(item.commentCount), 0);
-  const videoShares = items.reduce((sum, item) => sum + toNumber(item.shareCount), 0);
+
+  const recentItems = [...items]
+    .sort((left, right) => {
+      const leftTime = left.createTimeISO
+        ? new Date(left.createTimeISO).getTime()
+        : (left.createTime ?? 0) * 1000;
+      const rightTime = right.createTimeISO
+        ? new Date(right.createTimeISO).getTime()
+        : (right.createTime ?? 0) * 1000;
+      return rightTime - leftTime;
+    })
+    .slice(0, APIFY_MAX_VIDEOS_PER_SYNC);
+
+  const scrapedViews = recentItems.reduce((sum, item) => sum + toNumber(item.playCount), 0);
+  const videoLikes = recentItems.reduce((sum, item) => sum + toNumber(item.diggCount), 0);
+  const videoComments = recentItems.reduce((sum, item) => sum + toNumber(item.commentCount), 0);
+  const videoShares = recentItems.reduce((sum, item) => sum + toNumber(item.shareCount), 0);
   const engagementRate =
-    totalViews > 0 ? Number((((videoLikes + videoComments + videoShares) / totalViews) * 100).toFixed(2)) : 0;
+    scrapedViews > 0
+      ? Number((((videoLikes + videoComments + videoShares) / scrapedViews) * 100).toFixed(2))
+      : 0;
 
   return {
     tiktokUserId: firstAuthor?.id ?? null,
@@ -143,10 +159,10 @@ export async function scrapeTikTokProfile(inputUrl: string): Promise<NormalizedT
     avatarUrl: firstAuthor?.avatar ?? null,
     followersCount: toNumber(firstAuthor?.fans),
     likesCount: toNumber(firstAuthor?.heart),
-    videoCount: toNumber(firstAuthor?.video) || items.length,
-    totalViews,
+    videoCount: toNumber(firstAuthor?.video) || recentItems.length,
+    totalViews: scrapedViews,
     engagementRate,
-    videos: items.map((item) => ({
+    videos: recentItems.map((item) => ({
       tiktokVideoId: String(item.id ?? fallbackVideoId(item)),
       title: titleFromText(item.text),
       videoUrl: item.webVideoUrl ?? null,

@@ -1,26 +1,45 @@
 import { NextResponse } from "next/server";
-import { scrapeTikTokProfile } from "@/lib/apify-tiktok";
-import { assertTikTokTablesReady, saveTikTokProfile } from "@/lib/supabase-storage";
+import { syncTikTokAccount } from "@/lib/tiktok-sync";
 
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json().catch(() => null)) as { url?: string } | null;
+    const body = (await request.json().catch(() => null)) as {
+      url?: string;
+      force?: boolean;
+      lastSyncedAt?: string | null;
+    } | null;
     const tiktokUrl = body?.url?.trim();
 
     if (!tiktokUrl) {
       return NextResponse.json({ error: "请输入 TikTok 账号链接" }, { status: 400 });
     }
 
-    await assertTikTokTablesReady();
+    const result = await syncTikTokAccount({
+      url: tiktokUrl,
+      force: body?.force === true,
+      lastSyncedAt: body?.lastSyncedAt,
+    });
 
-    const profile = await scrapeTikTokProfile(tiktokUrl);
-    const result = await saveTikTokProfile(profile);
+    if (result.skipped) {
+      return NextResponse.json({
+        cached: true,
+        skipped: true,
+        message: result.message,
+        videosCount: 0,
+        apifyCalls: 0,
+      });
+    }
 
     return NextResponse.json({
+      cached: false,
+      skipped: false,
       account: result.account,
-      videosCount: result.videosCount,
+      videosCount: result.videosProcessed,
+      videosInserted: result.videosInserted,
+      videosUpdated: result.videosUpdated,
+      apifyCalls: result.apifyCalls,
     });
   } catch (error) {
     return NextResponse.json(

@@ -455,73 +455,62 @@ export default function DashboardPage() {
 
     setErrorMessage("");
     setSyncSuccessMessage(null);
-
-    const listResponse = await fetch("/api/accounts", { cache: "no-store" });
-    const listPayload = (await listResponse.json()) as { accounts?: ApiAccount[]; error?: string };
-
-    if (!listResponse.ok) {
-      setErrorMessage(listPayload.error ?? "读取账号列表失败");
-      return;
-    }
-
-    const accountsToSync = listPayload.accounts ?? [];
-
-    if (!accountsToSync.length) {
-      setStatusMessage("暂无已追踪账号，请先添加账号。");
-      return;
-    }
-
     setIsSyncingAll(true);
-    let successCount = 0;
-    let totalVideos = 0;
-    const failedHandles: string[] = [];
+    setSyncProgress({ current: 0, total: 1, handle: "全部账号" });
+    setStatusMessage("正在批量同步（每账号最多 20 条最新视频）...");
 
-    for (let index = 0; index < accountsToSync.length; index += 1) {
-      const account = accountsToSync[index];
-      const syncUrl = account.profile_url?.trim() || `https://www.tiktok.com/@${account.handle}`;
+    try {
+      const response = await fetch("/api/sync-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: true }),
+      });
+      const payload = (await response.json()) as {
+        totalAccounts?: number;
+        successCount?: number;
+        failedCount?: number;
+        cachedCount?: number;
+        apifyCalls?: number;
+        totalVideos?: number;
+        results?: Array<{ handle: string; ok: boolean; error?: string }>;
+        message?: string;
+        error?: string;
+      };
 
-      setSyncProgress({ current: index + 1, total: accountsToSync.length, handle: account.handle });
-      setStatusMessage(`正在从 TikTok 抓取 @${account.handle}（${index + 1}/${accountsToSync.length}）...`);
-
-      try {
-        const response = await fetch("/api/sync-tiktok", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: syncUrl }),
-        });
-        const payload = (await response.json()) as { videosCount?: number; error?: string };
-
-        if (!response.ok) {
-          throw new Error(payload.error ?? "同步失败");
-        }
-
-        successCount += 1;
-        totalVideos += payload.videosCount ?? 0;
-      } catch (error) {
-        failedHandles.push(account.handle);
-        console.error(`Sync failed for @${account.handle}:`, error);
+      if (!response.ok) {
+        throw new Error(payload.error ?? "批量同步失败");
       }
+
+      const failedHandles = (payload.results ?? []).filter((item) => !item.ok).map((item) => item.handle);
+      const syncedAt = new Date();
+      setLastSyncedAt(syncedAt);
+      setSyncProgress(null);
+      await loadAccounts(selectedHandle);
+
+      const apifyNote =
+        typeof payload.apifyCalls === "number" ? `，Apify 调用 ${payload.apifyCalls} 次` : "";
+      const cacheNote =
+        payload.cachedCount && payload.cachedCount > 0 ? `（${payload.cachedCount} 个命中缓存）` : "";
+
+      if (failedHandles.length === 0) {
+        setSyncSuccessMessage(
+          `同步成功：${payload.successCount ?? 0} 个账号，处理 ${payload.totalVideos ?? 0} 条视频${apifyNote}${cacheNote}。`,
+        );
+        setStatusMessage(`全部账号已同步 · ${formatRefreshTime()}`);
+      } else {
+        setSyncSuccessMessage(
+          `部分完成：${payload.successCount ?? 0} 个成功，${failedHandles.length} 个失败${apifyNote}。`,
+        );
+        setErrorMessage(`以下账号同步失败：${failedHandles.map((h) => `@${h}`).join("、")}`);
+        setStatusMessage(`同步结束 · ${formatRefreshTime()}`);
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "批量同步失败");
+      setStatusMessage("同步未完成，请检查 Apify Token 与账号链接。");
+      setSyncProgress(null);
+    } finally {
+      setIsSyncingAll(false);
     }
-
-    const syncedAt = new Date();
-    setLastSyncedAt(syncedAt);
-    setSyncProgress(null);
-    await loadAccounts(selectedHandle);
-
-    if (failedHandles.length === 0) {
-      setSyncSuccessMessage(
-        `同步成功：已更新 ${successCount} 个账号，共 ${totalVideos} 条视频数据（粉丝、点赞、播放等）。`,
-      );
-      setStatusMessage(`全部账号已同步 · ${formatRefreshTime()}`);
-    } else {
-      setSyncSuccessMessage(
-        `部分完成：${successCount} 个成功，${failedHandles.length} 个失败（${failedHandles.map((h) => `@${h}`).join("、")}）。`,
-      );
-      setErrorMessage(`以下账号同步失败：${failedHandles.map((h) => `@${h}`).join("、")}`);
-      setStatusMessage(`同步结束 · ${formatRefreshTime()}`);
-    }
-
-    setIsSyncingAll(false);
   }
 
   const isBusy = isLoading || isSyncing || isSyncingAll;
@@ -587,7 +576,7 @@ export default function DashboardPage() {
       const response = await fetch("/api/sync-tiktok", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: tiktokUrl }),
+        body: JSON.stringify({ url: tiktokUrl, force: true }),
       });
       const payload = (await response.json()) as {
         account?: { handle: string };
