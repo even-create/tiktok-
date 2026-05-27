@@ -2,6 +2,7 @@ export type ApiVideo = {
   id: string;
   title: string;
   video_url: string | null;
+  thumbnail_url?: string | null;
   views_count: number | null;
   likes_count: number | null;
   comments_count: number | null;
