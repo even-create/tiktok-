@@ -23,7 +23,7 @@ export function SortMenu<T extends string>({
   onChange,
   options,
   ariaLabel,
-  menuTextClass = "text-[10px] leading-snug",
+  menuTextClass = "text-[11px] leading-snug text-[var(--space-cadet)]",
   menuWidthClass = "w-40",
   align = "right",
 }: SortMenuProps<T>) {
@@ -85,8 +85,8 @@ export function SortMenu<T extends string>({
                 }}
                 className={`flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left transition ${
                   isActive
-                    ? "bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] text-[var(--space-cadet)]"
-                    : "text-[var(--jet)] hover:bg-[var(--eggshell)]/60"
+                    ? "bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)]"
+                    : "hover:bg-[var(--eggshell)]/80"
                 }`}
               >
                 <span className={menuTextClass}>{option.label}</span>

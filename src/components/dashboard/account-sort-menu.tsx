@@ -22,7 +22,7 @@ export function AccountSortMenu({ value, onChange }: AccountSortMenuProps) {
       onChange={onChange}
       options={accountSortOptions}
       ariaLabel="账号排序"
-      menuTextClass="text-[10px] leading-snug"
+      menuTextClass="text-[11px] leading-snug text-[var(--space-cadet)]"
       menuWidthClass="w-36"
     />
   );
