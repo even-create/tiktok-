@@ -3,6 +3,7 @@
 import { AccountAvatar } from "@/components/account-avatar";
 import { AccountSortMenu, type AccountSortMode } from "@/components/dashboard/account-sort-menu";
 import { LineChart } from "@/components/dashboard/line-chart";
+import { VideoSortMenu, type VideoSortMode } from "@/components/dashboard/video-sort-menu";
 import {
   Activity,
   BarChart3,
@@ -32,6 +33,8 @@ type VideoItem = {
   views: string;
   viewsCount: number;
   likes: string;
+  likesCount: number;
+  sortOrder: number;
   comments: string;
   shares: string;
   interactionRate: string;
@@ -104,6 +107,8 @@ const trackedAccounts: Account[] = [
         videoUrl: "https://www.tiktok.com/@studio.signal/video/1",
         views: "2.8M",
         viewsCount: 2800000,
+        likesCount: 184000,
+        sortOrder: 0,
         likes: "184K",
         comments: "9.2K",
         shares: "14.8K",
@@ -118,6 +123,8 @@ const trackedAccounts: Account[] = [
         videoUrl: "https://www.tiktok.com/@studio.signal/video/2",
         views: "918K",
         viewsCount: 918000,
+        likesCount: 72000,
+        sortOrder: 1,
         likes: "72K",
         comments: "3.4K",
         shares: "7.1K",
@@ -132,6 +139,8 @@ const trackedAccounts: Account[] = [
         videoUrl: "https://www.tiktok.com/@studio.signal/video/3",
         views: "611K",
         viewsCount: 611000,
+        likesCount: 41000,
+        sortOrder: 2,
         likes: "41K",
         comments: "1.8K",
         shares: "4.3K",
@@ -162,6 +171,8 @@ const trackedAccounts: Account[] = [
         videoUrl: "https://www.tiktok.com/@growth.lab/video/4",
         views: "1.2M",
         viewsCount: 1200000,
+        likesCount: 96000,
+        sortOrder: 0,
         likes: "96K",
         comments: "5.6K",
         shares: "11.2K",
@@ -176,6 +187,8 @@ const trackedAccounts: Account[] = [
         videoUrl: "https://www.tiktok.com/@growth.lab/video/5",
         views: "744K",
         viewsCount: 744000,
+        likesCount: 48000,
+        sortOrder: 1,
         likes: "48K",
         comments: "2.1K",
         shares: "5.9K",
@@ -235,7 +248,7 @@ function calcInteractionRate(likes: number, comments: number, shares: number, vi
   return { label: `${value.toFixed(2)}%`, value };
 }
 
-function mapApiVideo(video: ApiVideo): VideoItem {
+function mapApiVideo(video: ApiVideo, sortOrder: number): VideoItem {
   const viewsCount = video.views_count ?? 0;
   const likesCount = video.likes_count ?? 0;
   const commentsCount = video.comments_count ?? 0;
@@ -249,6 +262,8 @@ function mapApiVideo(video: ApiVideo): VideoItem {
     views: formatCompact(viewsCount),
     viewsCount,
     likes: formatCompact(likesCount),
+    likesCount,
+    sortOrder,
     comments: formatCompact(commentsCount),
     shares: formatCompact(sharesCount),
     interactionRate: interaction.label,
@@ -256,6 +271,21 @@ function mapApiVideo(video: ApiVideo): VideoItem {
     postedAt: formatPostedAt(video.posted_at),
     retention: video.retention_rate ? `${video.retention_rate}%` : "N/A",
   };
+}
+
+function sortVideos(list: VideoItem[], mode: VideoSortMode) {
+  const next = [...list];
+
+  switch (mode) {
+    case "views":
+      return next.sort((left, right) => right.viewsCount - left.viewsCount);
+    case "likes":
+      return next.sort((left, right) => right.likesCount - left.likesCount);
+    case "interaction":
+      return next.sort((left, right) => right.interactionRateValue - left.interactionRateValue);
+    default:
+      return next.sort((left, right) => left.sortOrder - right.sortOrder);
+  }
 }
 
 function sortAccounts(list: Account[], mode: AccountSortMode) {
@@ -292,7 +322,7 @@ function mapApiAccount(account: ApiAccount, sortOrder: number): Account {
     views: formatCompact(account.total_views ?? 0),
     engagement: `${Number(account.engagement_rate ?? 0).toFixed(1)}%`,
     trend: account.last_synced_at ? "Live" : "New",
-    videos: (account.videos ?? []).map(mapApiVideo),
+    videos: (account.videos ?? []).map((video, index) => mapApiVideo(video, index)),
   };
 }
 
@@ -306,6 +336,7 @@ export default function DashboardPage() {
   const [statusMessage, setStatusMessage] = useState("正在连接 Supabase...");
   const [errorMessage, setErrorMessage] = useState("");
   const [accountSort, setAccountSort] = useState<AccountSortMode>("default");
+  const [videoSort, setVideoSort] = useState<VideoSortMode>("default");
 
   const loadAccounts = useCallback(async (preferredHandle?: string) => {
     setIsLoading(true);
@@ -401,6 +432,11 @@ export default function DashboardPage() {
         value: video.viewsCount,
       }));
   }, [activeAccount]);
+
+  const sortedVideos = useMemo(() => {
+    if (!activeAccount) return [];
+    return sortVideos(activeAccount.videos, videoSort);
+  }, [activeAccount, videoSort]);
 
   async function handleAddAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -583,8 +619,8 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
-            <section className="min-w-0 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-4 shadow-sm">
+          <div className="grid gap-5 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] lg:items-stretch">
+            <section className="dashboard-split-panel flex min-w-0 flex-col rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-4 shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-base font-semibold text-[var(--space-cadet)]">追踪账号</h2>
                 <div className="flex items-center gap-2">
@@ -647,18 +683,20 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <div className="min-w-0">
+            <div className="min-w-0 lg:h-full">
               <LineChart
                 title="播放量趋势"
                 subtitle="最近同步视频的表现走势"
                 points={chartPoints}
+                className="h-full"
               />
             </div>
           </div>
 
           <section className="mt-5 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
-            <div className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
+            <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
               <h2 className="text-base font-semibold">@{activeAccount?.handle ?? "—"} 视频数据</h2>
+              <VideoSortMenu value={videoSort} onChange={setVideoSort} />
             </div>
 
             <div className="overflow-x-auto">
@@ -676,7 +714,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(activeAccount?.videos ?? []).map((video) => (
+                  {sortedVideos.map((video) => (
                     <tr
                       key={video.id}
                       className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] transition duration-200 last:border-0 hover:bg-[var(--eggshell)]/50"

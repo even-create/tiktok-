@@ -20,6 +20,7 @@
   --card: #ffffff;
   --muted: var(--cadet-gray);
   --accent: var(--carolina-blue);
+  --dashboard-panel-height: 22.5rem;
 }
 
 * {
@@ -50,9 +51,14 @@ input {
   background: color-mix(in srgb, var(--carolina-blue) 35%, transparent);
 }
 
+.dashboard-split-panel {
+  min-height: var(--dashboard-panel-height);
+  height: var(--dashboard-panel-height);
+}
+
 .account-list-scroll {
-  /* 4 rows × 68px + 3 gaps × 8px */
-  max-height: calc(4 * 4.25rem + 3 * 0.5rem);
+  flex: 1;
+  min-height: 0;
   overflow-y: scroll;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
