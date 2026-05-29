@@ -7,6 +7,7 @@ export type ThemeMode = "light" | "dark";
 export type AppSettingsRow = {
   id: string;
   apify_token: string | null;
+  gemini_api_key: string | null;
   sync_interval_minutes: number;
   theme: ThemeMode;
   notify_sync_success: boolean;
@@ -29,12 +30,17 @@ export type AppSettingsPublic = {
   apifyTokenConfigured: boolean;
   apifyTokenMasked: string | null;
   apifyTokenSource: "database" | "environment" | "none";
+  geminiApiKeyConfigured: boolean;
+  geminiApiKeyMasked: string | null;
+  geminiApiKeySource: "database" | "environment" | "none";
   updatedAt: string | null;
 };
 
 export type SaveAppSettingsInput = {
   apifyToken?: string;
   clearApifyToken?: boolean;
+  geminiApiKey?: string;
+  clearGeminiApiKey?: boolean;
   syncIntervalMinutes?: number;
   theme?: ThemeMode;
   notifications?: Partial<NotificationSettings>;
@@ -42,6 +48,7 @@ export type SaveAppSettingsInput = {
 
 const DEFAULT_SETTINGS: Omit<AppSettingsRow, "id" | "updated_at"> = {
   apify_token: null,
+  gemini_api_key: null,
   sync_interval_minutes: 360,
   theme: "light",
   notify_sync_success: true,
@@ -49,12 +56,16 @@ const DEFAULT_SETTINGS: Omit<AppSettingsRow, "id" | "updated_at"> = {
   notify_weekly_digest: false,
 };
 
-export function maskApifyToken(token: string) {
+export function maskSecretToken(token: string) {
   const trimmed = token.trim();
   if (trimmed.length <= 10) {
     return "••••••••";
   }
   return `${trimmed.slice(0, 8)}...${trimmed.slice(-4)}`;
+}
+
+export function maskApifyToken(token: string) {
+  return maskSecretToken(token);
 }
 
 function normalizeTheme(value: string | null | undefined): ThemeMode {
@@ -67,9 +78,13 @@ function clampSyncInterval(minutes: number) {
 }
 
 export function toPublicSettings(row: AppSettingsRow | null): AppSettingsPublic {
-  const envToken = process.env.APIFY_TOKEN?.trim() || null;
-  const dbToken = row?.apify_token?.trim() || null;
-  const effectiveToken = dbToken || envToken;
+  const envApifyToken = process.env.APIFY_TOKEN?.trim() || null;
+  const dbApifyToken = row?.apify_token?.trim() || null;
+  const effectiveApifyToken = dbApifyToken || envApifyToken;
+
+  const envGeminiKey = process.env.GEMINI_API_KEY?.trim() || null;
+  const dbGeminiKey = row?.gemini_api_key?.trim() || null;
+  const effectiveGeminiKey = dbGeminiKey || envGeminiKey;
 
   return {
     syncIntervalMinutes: clampSyncInterval(row?.sync_interval_minutes ?? DEFAULT_SETTINGS.sync_interval_minutes),
@@ -80,9 +95,12 @@ export function toPublicSettings(row: AppSettingsRow | null): AppSettingsPublic 
       syncError: row?.notify_sync_error ?? DEFAULT_SETTINGS.notify_sync_error,
       weeklyDigest: row?.notify_weekly_digest ?? DEFAULT_SETTINGS.notify_weekly_digest,
     },
-    apifyTokenConfigured: Boolean(effectiveToken),
-    apifyTokenMasked: effectiveToken ? maskApifyToken(effectiveToken) : null,
-    apifyTokenSource: dbToken ? "database" : envToken ? "environment" : "none",
+    apifyTokenConfigured: Boolean(effectiveApifyToken),
+    apifyTokenMasked: effectiveApifyToken ? maskApifyToken(effectiveApifyToken) : null,
+    apifyTokenSource: dbApifyToken ? "database" : envApifyToken ? "environment" : "none",
+    geminiApiKeyConfigured: Boolean(effectiveGeminiKey),
+    geminiApiKeyMasked: effectiveGeminiKey ? maskSecretToken(effectiveGeminiKey) : null,
+    geminiApiKeySource: dbGeminiKey ? "database" : envGeminiKey ? "environment" : "none",
     updatedAt: row?.updated_at ?? null,
   };
 }
@@ -114,6 +132,14 @@ export async function resolveApifyToken() {
   return process.env.APIFY_TOKEN?.trim() || null;
 }
 
+export async function resolveGeminiApiKey() {
+  const row = await getAppSettingsRow();
+  const dbKey = row?.gemini_api_key?.trim();
+  if (dbKey) return dbKey;
+
+  return process.env.GEMINI_API_KEY?.trim() || null;
+}
+
 export async function resolveSyncIntervalMinutes() {
   const row = await getAppSettingsRow();
   if (row?.sync_interval_minutes) {
@@ -130,6 +156,7 @@ export async function saveAppSettings(input: SaveAppSettingsInput) {
   const nextRecord = {
     id: APP_SETTINGS_ID,
     apify_token: existing?.apify_token ?? null,
+    gemini_api_key: existing?.gemini_api_key ?? null,
     sync_interval_minutes: clampSyncInterval(
       input.syncIntervalMinutes ?? existing?.sync_interval_minutes ?? DEFAULT_SETTINGS.sync_interval_minutes,
     ),
@@ -147,6 +174,12 @@ export async function saveAppSettings(input: SaveAppSettingsInput) {
     nextRecord.apify_token = null;
   } else if (input.apifyToken?.trim()) {
     nextRecord.apify_token = input.apifyToken.trim();
+  }
+
+  if (input.clearGeminiApiKey) {
+    nextRecord.gemini_api_key = null;
+  } else if (input.geminiApiKey?.trim()) {
+    nextRecord.gemini_api_key = input.geminiApiKey.trim();
   }
 
   const { data, error } = await supabase.from("app_settings").upsert(nextRecord).select().single();

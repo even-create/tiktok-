@@ -18,6 +18,8 @@ export async function PUT(request: Request) {
     const body = (await request.json().catch(() => null)) as {
       apifyToken?: string;
       clearApifyToken?: boolean;
+      geminiApiKey?: string;
+      clearGeminiApiKey?: boolean;
       syncIntervalMinutes?: number;
       theme?: ThemeMode;
       darkMode?: boolean;
@@ -38,6 +40,8 @@ export async function PUT(request: Request) {
     const settings = await saveAppSettings({
       apifyToken: body.apifyToken,
       clearApifyToken: body.clearApifyToken,
+      geminiApiKey: body.geminiApiKey,
+      clearGeminiApiKey: body.clearGeminiApiKey,
       syncIntervalMinutes: body.syncIntervalMinutes,
       theme,
       notifications: body.notifications,

@@ -26,10 +26,10 @@ export async function POST() {
 
     const heuristic = buildHeuristicInsights(context);
 
-    if (!isGeminiConfigured()) {
+    if (!(await isGeminiConfigured())) {
       return NextResponse.json({
         insights: heuristic,
-        warning: "未配置 GEMINI_API_KEY，已使用本地规则生成分析。",
+        warning: "未配置 GEMINI_API_KEY（环境变量或 Settings），已使用本地规则生成分析。",
       });
     }
 
