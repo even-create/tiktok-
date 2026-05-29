@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LineChart,
   Menu,
+  Rss,
   Settings,
   Sparkles,
   Users,
@@ -26,6 +27,7 @@ const navItems: NavItem[] = [
   { label: "Content Analytics", href: "/content-analytics", icon: LineChart },
   { label: "Trends", href: "/trends", icon: Sparkles },
   { label: "AI Insights", href: "/ai-insights", icon: BrainCircuit },
+  { label: "Growth Feed", href: "/growth-feed", icon: Rss },
   { label: "Sync Center", href: "/sync-center", icon: CloudDownload },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
