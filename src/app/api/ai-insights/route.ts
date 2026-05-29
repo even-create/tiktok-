@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildAiInsightsContext, buildHeuristicInsights } from "@/lib/ai-insights";
-import { generateOpenAiInsights, getOpenAiModelName, isOpenAiConfigured } from "@/lib/openai-insights";
+import { generateGeminiInsights, getGeminiModelName, isGeminiConfigured } from "@/lib/gemini-insights";
 import { supabase } from "@/lib/supabase";
 
 export const maxDuration = 60;
@@ -26,27 +26,27 @@ export async function POST() {
 
     const heuristic = buildHeuristicInsights(context);
 
-    if (!isOpenAiConfigured()) {
+    if (!isGeminiConfigured()) {
       return NextResponse.json({
         insights: heuristic,
-        warning: "未配置 OPENAI_API_KEY，已使用本地规则生成分析。",
+        warning: "未配置 GEMINI_API_KEY，已使用本地规则生成分析。",
       });
     }
 
     try {
-      const insights = await generateOpenAiInsights(context);
+      const insights = await generateGeminiInsights(context);
       return NextResponse.json({
         insights,
-        model: getOpenAiModelName(),
+        model: getGeminiModelName(),
       });
-    } catch (openAiError) {
-      const message = openAiError instanceof Error ? openAiError.message : "OpenAI 分析失败";
-      console.error("[ai-insights] OpenAI error:", message);
+    } catch (geminiError) {
+      const message = geminiError instanceof Error ? geminiError.message : "Gemini 分析失败";
+      console.error("[ai-insights] Gemini error:", message);
 
       return NextResponse.json({
         insights: heuristic,
-        model: getOpenAiModelName(),
-        warning: `OpenAI 分析失败，已回退本地规则：${message}`,
+        model: getGeminiModelName(),
+        warning: `Gemini 分析失败，已回退本地规则：${message}`,
       });
     }
   } catch (error) {

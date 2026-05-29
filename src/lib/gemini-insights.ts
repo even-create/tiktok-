@@ -5,9 +5,9 @@ import {
   serializeContextForPrompt,
 } from "@/lib/ai-insights";
 
-const DEFAULT_MODEL = "gpt-4o-mini";
-const REQUEST_TIMEOUT_MS = 45_000;
-const MAX_OUTPUT_TOKENS = 1_200;
+const DEFAULT_MODEL = "gemini-2.0-flash";
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_OUTPUT_TOKENS = 1_024;
 
 const SYSTEM_PROMPT = `你是 TikTok 运营数据分析助手。根据用户提供的精简 JSON 统计，输出简体中文、可执行的运营洞察。
 规则：
@@ -16,44 +16,54 @@ const SYSTEM_PROMPT = `你是 TikTok 运营数据分析助手。根据用户提�
 - bestHashtags 最多 6 个；viralVideoAnalysis 最多 5 条；bestPostingTime.slots 最多 5 个
 - 数字与结论需与输入数据一致，不要编造不存在的账号`;
 
-function getOpenAiConfig() {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  const model = process.env.OPENAI_MODEL?.trim() || DEFAULT_MODEL;
+function getGeminiConfig() {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
 
   return { apiKey, model };
 }
 
-export function isOpenAiConfigured() {
-  return Boolean(getOpenAiConfig().apiKey);
+export function isGeminiConfigured() {
+  return Boolean(getGeminiConfig().apiKey);
 }
 
-function parseOpenAiError(status: number, body: string) {
+function parseGeminiError(status: number, body: string) {
   try {
-    const payload = JSON.parse(body) as { error?: { message?: string; type?: string } };
+    const payload = JSON.parse(body) as { error?: { message?: string; status?: string; code?: number } };
     const message = payload.error?.message;
 
-    if (status === 401) {
-      return "OpenAI API Key 无效或未授权，请检查环境变量 OPENAI_API_KEY";
+    if (status === 400 && message?.toLowerCase().includes("api key")) {
+      return "Gemini API Key 无效，请检查环境变量 GEMINI_API_KEY";
+    }
+    if (status === 401 || status === 403) {
+      return "Gemini API Key 无效或未授权，请检查环境变量 GEMINI_API_KEY";
     }
     if (status === 429) {
-      return "OpenAI 请求过于频繁或额度不足，请稍后重试";
+      return "Gemini 请求过于频繁或额度不足，请稍后重试";
     }
-    if (status === 503) {
-      return "OpenAI 服务暂时不可用，请稍后重试";
+    if (status === 503 || status === 500) {
+      return "Gemini 服务暂时不可用，请稍后重试";
     }
     if (message) {
-      return `OpenAI：${message}`;
+      return `Gemini：${message}`;
     }
   } catch {
     // ignore JSON parse errors
   }
 
-  return `OpenAI 请求失败（HTTP ${status}）`;
+  return `Gemini 请求失败（HTTP ${status}）`;
 }
 
 function asStringArray(value: unknown, max = 6) {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string").slice(0, max);
+}
+
+function extractJsonObject(text: string): Record<string, unknown> {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const jsonText = fenced ? fenced[1].trim() : trimmed;
+  return JSON.parse(jsonText) as Record<string, unknown>;
 }
 
 function normalizePayload(
@@ -174,62 +184,80 @@ function normalizePayload(
   };
 }
 
-export async function generateOpenAiInsights(context: AiInsightsContext): Promise<AiInsightsPayload> {
-  const { apiKey, model } = getOpenAiConfig();
+export async function generateGeminiInsights(context: AiInsightsContext): Promise<AiInsightsPayload> {
+  const { apiKey, model } = getGeminiConfig();
   const fallback = buildHeuristicInsights(context);
 
   if (!apiKey) {
-    throw new Error("未配置 OPENAI_API_KEY");
+    throw new Error("未配置 GEMINI_API_KEY");
   }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
-        model,
-        temperature: 0.3,
-        max_tokens: MAX_OUTPUT_TOKENS,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+        systemInstruction: {
+          parts: [{ text: SYSTEM_PROMPT }],
+        },
+        contents: [
           {
             role: "user",
-            content: `请基于以下 TikTok 追踪数据生成运营洞察 JSON：\n${serializeContextForPrompt(context)}`,
+            parts: [
+              {
+                text: `请基于以下 TikTok 追踪数据生成运营洞察 JSON：\n${serializeContextForPrompt(context)}`,
+              },
+            ],
           },
         ],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          responseMimeType: "application/json",
+        },
       }),
     });
 
     if (!response.ok) {
       const message = await response.text();
-      throw new Error(parseOpenAiError(response.status, message));
+      throw new Error(parseGeminiError(response.status, message));
     }
 
     const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-      usage?: { total_tokens?: number };
+      candidates?: Array<{
+        content?: { parts?: Array<{ text?: string }> };
+        finishReason?: string;
+      }>;
+      promptFeedback?: { blockReason?: string };
     };
 
-    const content = payload.choices?.[0]?.message?.content?.trim();
+    if (payload.promptFeedback?.blockReason) {
+      throw new Error(`Gemini 拒绝生成内容：${payload.promptFeedback.blockReason}`);
+    }
+
+    const finishReason = payload.candidates?.[0]?.finishReason;
+    if (finishReason === "MAX_TOKENS") {
+      throw new Error("Gemini 输出被截断，请稍后重试");
+    }
+
+    const content = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
 
     if (!content) {
-      throw new Error("OpenAI 未返回分析内容");
+      throw new Error("Gemini 未返回分析内容");
     }
 
     let parsed: Record<string, unknown>;
 
     try {
-      parsed = JSON.parse(content) as Record<string, unknown>;
+      parsed = extractJsonObject(content);
     } catch {
-      throw new Error("OpenAI 返回的内容不是有效 JSON");
+      throw new Error("Gemini 返回的内容不是有效 JSON");
     }
 
     const normalized = normalizePayload(parsed, fallback);
@@ -237,11 +265,11 @@ export async function generateOpenAiInsights(context: AiInsightsContext): Promis
     return {
       ...normalized,
       generatedAt: new Date().toISOString(),
-      source: "openai",
+      source: "gemini",
     };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("OpenAI 请求超时，请稍后重试");
+      throw new Error("Gemini 请求超时，请稍后重试");
     }
     throw error;
   } finally {
@@ -249,6 +277,6 @@ export async function generateOpenAiInsights(context: AiInsightsContext): Promis
   }
 }
 
-export function getOpenAiModelName() {
-  return getOpenAiConfig().model;
+export function getGeminiModelName() {
+  return getGeminiConfig().model;
 }

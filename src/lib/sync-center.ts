@@ -4,7 +4,7 @@ import {
   getSyncCacheTtlMs,
   shouldUseSyncCache,
 } from "@/lib/apify-config";
-import { isOpenAiConfigured } from "@/lib/openai-insights";
+import { isGeminiConfigured } from "@/lib/gemini-insights";
 import type { AccountRow } from "@/lib/tiktok-data";
 import type { SyncAccountResult } from "@/lib/sync-all-accounts";
 import { insertSyncLog } from "@/lib/sync-logs";
@@ -28,7 +28,7 @@ export type ApiUsageStatus = {
   cacheTtlLabel: string;
   cacheTtlMinutes: number;
   apifyCallsToday: number;
-  openAiConfigured: boolean;
+  geminiConfigured: boolean;
 };
 
 function formatLastSynced(value: string | null) {
@@ -88,7 +88,7 @@ export function buildApiUsageStatus(apifyCallsToday: number): ApiUsageStatus {
     cacheTtlLabel: formatCacheTtlLabel(),
     cacheTtlMinutes: Math.round(getSyncCacheTtlMs() / 60000),
     apifyCallsToday,
-    openAiConfigured: isOpenAiConfigured(),
+    geminiConfigured: isGeminiConfigured(),
   };
 }
 

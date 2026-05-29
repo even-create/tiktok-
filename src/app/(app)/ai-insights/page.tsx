@@ -23,7 +23,7 @@ export default function AiInsightsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [warningMessage, setWarningMessage] = useState("");
-  const [modelName, setModelName] = useState("gpt-4o-mini");
+  const [modelName, setModelName] = useState("gemini-2.0-flash");
 
   const generateInsights = useCallback(async () => {
     setIsLoading(true);
@@ -69,7 +69,7 @@ export default function AiInsightsPage() {
   }, [generateInsights]);
 
   const sourceLabel =
-    insights?.source === "openai" ? "OpenAI 生成" : insights?.source === "heuristic" ? "本地规则生成" : "";
+    insights?.source === "gemini" ? "Gemini 生成" : insights?.source === "heuristic" ? "本地规则生成" : "";
 
   return (
     <div className="space-y-5">

@@ -36,7 +36,7 @@ export type ViralVideoInsight = {
 
 export type AiInsightsPayload = {
   generatedAt: string;
-  source: "openai" | "heuristic";
+  source: "gemini" | "heuristic";
   summary: string;
   bestPostingTime: {
     recommendation: string;
@@ -261,7 +261,7 @@ export function buildHeuristicInsights(context: AiInsightsContext): AiInsightsPa
   };
 }
 
-/** Compact payload for OpenAI to reduce input tokens. */
+/** Compact payload for LLM prompts to reduce input tokens. */
 export function serializeContextForPrompt(context: AiInsightsContext) {
   return JSON.stringify({
     accounts: context.accountCount,
