@@ -1,13 +1,16 @@
 import { ExternalLink, Eye, MessageCircle, Share2, ThumbsUp, TrendingUp } from "lucide-react";
 import { VideoThumbnail } from "@/components/content-analytics/video-thumbnail";
 import type { ContentVideo } from "@/lib/content-analytics";
+import type { ContentVideoWithQuality } from "@/lib/content-quality";
+
+type RankVideo = ContentVideo | ContentVideoWithQuality;
 
 type VideoRankRowProps = {
   title: string;
   subtitle: string;
-  videos: ContentVideo[];
+  videos: RankVideo[];
   metricLabel: string;
-  metricValue: (video: ContentVideo) => string;
+  metricValue: (video: RankVideo) => string;
 };
 
 export function VideoRankRow({ title, subtitle, videos, metricLabel, metricValue }: VideoRankRowProps) {

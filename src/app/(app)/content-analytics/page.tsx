@@ -12,9 +12,17 @@ import {
   ThumbsUp,
   TrendingUp,
 } from "lucide-react";
+import { QualityAnalysisPanel } from "@/components/content-analytics/quality-analysis-panel";
 import { TagAnalysisPanel } from "@/components/content-analytics/tag-analysis-panel";
 import { VideoDataTable } from "@/components/content-analytics/video-data-table";
 import { VideoRankRow } from "@/components/content-analytics/video-rank-row";
+import {
+  buildQualitySummary,
+  buildQualityTrends,
+  enrichVideosWithQuality,
+  pickVideosByTier,
+  type QualityTier,
+} from "@/lib/content-quality";
 import { formatCompact, type ApiAccount } from "@/lib/accounts";
 import {
   buildContentStats,
@@ -38,6 +46,7 @@ export default function ContentAnalyticsPage() {
   const [allVideos, setAllVideos] = useState<ContentVideo[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRangeFilter>("all");
+  const [tierFilter, setTierFilter] = useState<"all" | QualityTier>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -75,13 +84,26 @@ export default function ContentAnalyticsPage() {
     return sortVideos(bySearch, "views");
   }, [allVideos, dateRange, searchQuery]);
 
+  const qualityVideos = useMemo(() => enrichVideosWithQuality(filteredVideos), [filteredVideos]);
+
+  const displayVideos = useMemo(() => {
+    if (tierFilter === "all") return qualityVideos;
+    return qualityVideos.filter((video) => video.qualityTier === tierFilter);
+  }, [qualityVideos, tierFilter]);
+
   const stats = useMemo(() => buildContentStats(filteredVideos), [filteredVideos]);
   const tagStats = useMemo(() => buildTagStats(filteredVideos), [filteredVideos]);
+  const qualitySummary = useMemo(() => buildQualitySummary(qualityVideos), [qualityVideos]);
+  const qualityTrends = useMemo(() => buildQualityTrends(qualityVideos), [qualityVideos]);
 
   const topPerforming = useMemo(() => pickTopVideos(filteredVideos, "performanceScore", 5), [filteredVideos]);
   const mostViewed = useMemo(() => pickTopVideos(filteredVideos, "viewsCount", 5), [filteredVideos]);
   const highestEngagement = useMemo(() => pickTopVideos(filteredVideos, "engagementRate", 5), [filteredVideos]);
   const mostShared = useMemo(() => pickTopVideos(filteredVideos, "sharesCount", 5), [filteredVideos]);
+
+  const viralVideos = useMemo(() => pickVideosByTier(qualityVideos, "viral", 5), [qualityVideos]);
+  const highPotentialVideos = useMemo(() => pickVideosByTier(qualityVideos, "high-potential", 5), [qualityVideos]);
+  const weakVideos = useMemo(() => pickVideosByTier(qualityVideos, "weak", 5), [qualityVideos]);
 
   return (
     <div className="space-y-5">
@@ -94,7 +116,7 @@ export default function ContentAnalyticsPage() {
             </div>
             <h1 className="mt-3 text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">内容分析</h1>
             <p className="mt-2 text-sm text-[var(--cadet-gray)]">
-              汇总全部追踪视频的表现数据，支持时间筛选、搜索、排序与标签分析。
+              汇总全部追踪视频的表现数据，含互动/传播/留存/Hook 质量评分、分层与趋势图表。
             </p>
           </div>
 
@@ -171,6 +193,37 @@ export default function ContentAnalyticsPage() {
             ))}
           </div>
 
+          <QualityAnalysisPanel
+            summary={qualitySummary}
+            trends={qualityTrends}
+            tierFilter={tierFilter}
+            onTierFilterChange={setTierFilter}
+          />
+
+          <div className="grid gap-4 xl:grid-cols-3">
+            <VideoRankRow
+              title="Viral"
+              subtitle="传播得分与播放处于头部"
+              videos={viralVideos}
+              metricLabel="Viral"
+              metricValue={(video) => String("viralScore" in video ? video.viralScore : 0)}
+            />
+            <VideoRankRow
+              title="High Potential"
+              subtitle="互动与 Hook 强、具备增长空间"
+              videos={highPotentialVideos}
+              metricLabel="Engagement"
+              metricValue={(video) => String("engagementScore" in video ? video.engagementScore : 0)}
+            />
+            <VideoRankRow
+              title="Weak Performance"
+              subtitle="需优化开头或互动结构"
+              videos={weakVideos}
+              metricLabel="Hook"
+              metricValue={(video) => String("hookStrength" in video ? video.hookStrength : 0)}
+            />
+          </div>
+
           <div className="grid gap-4 xl:grid-cols-2">
             <VideoRankRow
               title="Top Performing Videos"
@@ -203,7 +256,7 @@ export default function ContentAnalyticsPage() {
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <VideoDataTable videos={filteredVideos} />
+            <VideoDataTable videos={displayVideos} />
             <div className="space-y-4">
               <TagAnalysisPanel tags={tagStats} />
               <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-4 shadow-sm">

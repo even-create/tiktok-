@@ -16,6 +16,7 @@ export type ContentVideo = {
   likesCount: number;
   commentsCount: number;
   sharesCount: number;
+  retentionRate: number | null;
   engagementRate: number;
   performanceScore: number;
   postedAt: string | null;
@@ -123,6 +124,10 @@ export function mapApiVideoToContentVideo(
     likesCount,
     commentsCount,
     sharesCount,
+    retentionRate:
+      typeof video.retention_rate === "number" && Number.isFinite(video.retention_rate)
+        ? video.retention_rate
+        : null,
     engagementRate,
     performanceScore: calcPerformanceScore(viewsCount, likesCount, commentsCount, sharesCount, engagementRate),
     postedAt: video.posted_at,

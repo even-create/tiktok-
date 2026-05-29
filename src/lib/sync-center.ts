@@ -81,14 +81,14 @@ export function getStartOfTodayIso() {
   return date.toISOString();
 }
 
-export function buildApiUsageStatus(apifyCallsToday: number): ApiUsageStatus {
+export async function buildApiUsageStatus(apifyCallsToday: number): Promise<ApiUsageStatus> {
   return {
     apifyConfigured: Boolean(process.env.APIFY_TOKEN?.trim()),
     apifyMaxVideosPerSync: APIFY_MAX_VIDEOS_PER_SYNC,
     cacheTtlLabel: formatCacheTtlLabel(),
     cacheTtlMinutes: Math.round(getSyncCacheTtlMs() / 60000),
     apifyCallsToday,
-    geminiConfigured: isGeminiConfigured(),
+    geminiConfigured: await isGeminiConfigured(),
   };
 }
 

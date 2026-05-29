@@ -1,9 +1,10 @@
 import { ExternalLink, Eye, MessageCircle, Share2, ThumbsUp, TrendingUp } from "lucide-react";
 import { VideoThumbnail } from "@/components/content-analytics/video-thumbnail";
-import type { ContentVideo } from "@/lib/content-analytics";
+import type { ContentVideoWithQuality } from "@/lib/content-quality";
+import { qualityTierStyles } from "@/lib/content-quality";
 
 type VideoDataTableProps = {
-  videos: ContentVideo[];
+  videos: ContentVideoWithQuality[];
 };
 
 export function VideoDataTable({ videos }: VideoDataTableProps) {
@@ -15,16 +16,18 @@ export function VideoDataTable({ videos }: VideoDataTableProps) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1080px] border-collapse text-left">
+        <table className="w-full min-w-[1280px] border-collapse text-left">
           <thead>
             <tr className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/50 text-xs uppercase tracking-[0.16em] text-[var(--cadet-gray)]">
               <th className="px-4 py-3 font-medium">Video</th>
               <th className="px-4 py-3 font-medium">Account</th>
+              <th className="px-4 py-3 font-medium">Tier</th>
               <th className="px-4 py-3 font-medium">Views</th>
               <th className="px-4 py-3 font-medium">Likes</th>
               <th className="px-4 py-3 font-medium">Comments</th>
               <th className="px-4 py-3 font-medium">Shares</th>
               <th className="px-4 py-3 font-medium">Engagement</th>
+              <th className="px-4 py-3 font-medium">Quality</th>
               <th className="px-4 py-3 font-medium">Tags</th>
               <th className="px-4 py-3 font-medium">Posted</th>
             </tr>
@@ -60,6 +63,13 @@ export function VideoDataTable({ videos }: VideoDataTableProps) {
                   <p className="font-medium text-[var(--space-cadet)]">{video.accountDisplayName}</p>
                   <p className="text-xs text-[var(--cadet-gray)]">@{video.accountHandle}</p>
                 </td>
+                <td className="px-4 py-4">
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${qualityTierStyles[video.qualityTier].badge}`}
+                  >
+                    {video.qualityLabel}
+                  </span>
+                </td>
                 <td className="px-4 py-4 text-sm text-[var(--jet)]">
                   <span className="inline-flex items-center gap-1">
                     <Eye className="size-3.5 text-[var(--cadet-gray)]" />
@@ -89,6 +99,14 @@ export function VideoDataTable({ videos }: VideoDataTableProps) {
                     <TrendingUp className="mr-1 inline size-3.5" />
                     {video.engagementLabel}
                   </span>
+                </td>
+                <td className="px-4 py-4 text-xs text-[var(--cadet-gray)]">
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                    <span>Eng {video.engagementScore}</span>
+                    <span>Viral {video.viralScore}</span>
+                    <span>Ret {video.retentionProxy}</span>
+                    <span>Hook {video.hookStrength}</span>
+                  </div>
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex max-w-[180px] flex-wrap gap-1">

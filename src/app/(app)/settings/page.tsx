@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Bell,
+  BrainCircuit,
   Clock3,
   KeyRound,
   Loader2,
@@ -18,6 +19,8 @@ import type { AppSettingsPublic, ThemeMode } from "@/lib/app-settings";
 type FormState = {
   apifyToken: string;
   clearApifyToken: boolean;
+  geminiApiKey: string;
+  clearGeminiApiKey: boolean;
   syncIntervalMinutes: number;
   theme: ThemeMode;
   notifications: {
@@ -39,6 +42,8 @@ function settingsToForm(settings: AppSettingsPublic): FormState {
   return {
     apifyToken: "",
     clearApifyToken: false,
+    geminiApiKey: "",
+    clearGeminiApiKey: false,
     syncIntervalMinutes: settings.syncIntervalMinutes,
     theme: settings.theme,
     notifications: { ...settings.notifications },
@@ -73,6 +78,8 @@ export default function SettingsPage() {
         body: JSON.stringify({
           apifyToken: form.apifyToken.trim() || undefined,
           clearApifyToken: form.clearApifyToken,
+          geminiApiKey: form.geminiApiKey.trim() || undefined,
+          clearGeminiApiKey: form.clearGeminiApiKey,
           syncIntervalMinutes: form.syncIntervalMinutes,
           theme: form.theme,
           notifications: form.notifications,
@@ -192,6 +199,48 @@ export default function SettingsPage() {
                   className="size-4 rounded accent-[var(--space-cadet)]"
                 />
                 清除 Supabase 中保存的 Token（回退到环境变量）
+              </label>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
+            <div className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
+              <BrainCircuit className="size-4 text-[var(--carolina-blue)]" />
+              Gemini API Key
+            </div>
+            <p className="mt-1 text-xs text-[var(--cadet-gray)]">
+              用于 AI Insights 分析。优先使用 Supabase 保存的 Key，环境变量 GEMINI_API_KEY 作为后备。
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <p className="text-sm text-[var(--cadet-gray)]">
+                当前状态：
+                {settings?.geminiApiKeyConfigured ? (
+                  <span className="ml-1 font-medium text-[var(--foreground)]">
+                    已配置 ({settings.geminiApiKeyMasked}) · 来源 {settings.geminiApiKeySource}
+                  </span>
+                ) : (
+                  <span className="ml-1 font-medium text-rose-600">未配置</span>
+                )}
+              </p>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-[var(--cadet-gray)]">新 API Key（可选）</span>
+                <input
+                  type="password"
+                  value={form.geminiApiKey}
+                  onChange={(event) => setForm({ ...form, geminiApiKey: event.target.value })}
+                  placeholder="输入 Gemini API Key"
+                  className="h-11 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--carolina-blue)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)]"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm text-[var(--cadet-gray)]">
+                <input
+                  type="checkbox"
+                  checked={form.clearGeminiApiKey}
+                  onChange={(event) => setForm({ ...form, clearGeminiApiKey: event.target.checked })}
+                  className="size-4 rounded accent-[var(--space-cadet)]"
+                />
+                清除 Supabase 中保存的 Key（回退到环境变量）
               </label>
             </div>
           </section>

@@ -7,6 +7,7 @@ export type ApiVideo = {
   likes_count: number | null;
   comments_count: number | null;
   shares_count: number | null;
+  retention_rate: number | null;
   posted_at: string | null;
 };
 

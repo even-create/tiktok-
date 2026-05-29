@@ -34,7 +34,7 @@ export async function GET() {
       accounts: (accounts ?? []).map((account) => mapAccountSyncRow(account)),
       syncLogs,
       errorLogs,
-      usage: buildApiUsageStatus(apifyCallsToday),
+      usage: await buildApiUsageStatus(apifyCallsToday),
     });
   } catch (error) {
     return NextResponse.json(
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
       ok: true,
       durationMs: Date.now() - startedAt,
       syncResult,
-      usage: buildApiUsageStatus(apifyCallsToday),
+      usage: await buildApiUsageStatus(apifyCallsToday),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "同步失败";
