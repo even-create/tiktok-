@@ -88,6 +88,11 @@ export default function SyncCenterPage() {
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const [autoSyncIntervalMinutes, setAutoSyncIntervalMinutes] = useState(DEFAULT_AUTO_SYNC_INTERVAL_MINUTES);
   const [lastBatchDurationMs, setLastBatchDurationMs] = useState<number | null>(null);
+  const [deployInfo, setDeployInfo] = useState<{
+    provider: string;
+    commit: string;
+    tikhubConfigured: boolean;
+  } | null>(null);
 
   const autoSyncRef = useRef(false);
   autoSyncRef.current = autoSyncEnabled;
@@ -113,6 +118,21 @@ export default function SyncCenterPage() {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    void fetch("/api/version", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { provider?: string; commit?: string; tikhubConfigured?: boolean }) => {
+        setDeployInfo({
+          provider: payload.provider ?? "unknown",
+          commit: payload.commit ?? "unknown",
+          tikhubConfigured: Boolean(payload.tikhubConfigured),
+        });
+      })
+      .catch(() => {
+        setDeployInfo(null);
+      });
   }, []);
 
   useEffect(() => {
@@ -253,6 +273,20 @@ export default function SyncCenterPage() {
             <p className="mt-2 text-sm text-[var(--cadet-gray)]">
               管理全部账号同步状态、TikHub 调用与同步日志。
             </p>
+            {deployInfo ? (
+              <p className="mt-2 inline-flex flex-wrap items-center gap-2 text-xs text-[var(--cadet-gray)]">
+                <span className="rounded-full border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_8%,white)] px-2 py-0.5 font-medium text-[var(--space-cadet)]">
+                  数据源 TikHub · 构建 {deployInfo.commit}
+                </span>
+                <span>
+                  Key：{deployInfo.tikhubConfigured ? "已配置" : "未配置"}
+                </span>
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-amber-700">
+                无法读取部署版本（/api/version）。若页面仍显示 Apify，说明线上是旧版本，请在 Vercel 对 main 重新部署。
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -319,7 +353,11 @@ export default function SyncCenterPage() {
             />
           ))}
         </div>
-      ) : usage ? (
+      ) : !usage ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          未能加载 TikHub 用量统计（接口未返回 usage）。请点「刷新」或检查 Supabase 迁移是否已执行。
+        </p>
+      ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[
             {
@@ -355,7 +393,7 @@ export default function SyncCenterPage() {
             </article>
           ))}
         </div>
-      ) : null}
+      )}
 
       <section className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
