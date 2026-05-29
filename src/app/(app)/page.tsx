@@ -20,33 +20,8 @@ import {
 import { AccountAvatar } from "@/components/account-avatar";
 import { LineChart } from "@/components/dashboard/line-chart";
 import { AccountSortMenu } from "@/components/dashboard/account-sort-menu";
-
-type ApiVideo = {
-  id: string;
-  title: string;
-  video_url: string | null;
-  thumbnail_url: string | null;
-  views_count: number | null;
-  likes_count: number | null;
-  comments_count: number | null;
-  shares_count: number | null;
-  retention_rate: number | null;
-  posted_at: string | null;
-};
-
-type ApiAccount = {
-  id: string;
-  handle: string;
-  display_name: string | null;
-  profile_url: string | null;
-  avatar_url: string | null;
-  followers_count: number | null;
-  likes_count: number | null;
-  total_views: number | null;
-  engagement_rate: number | null;
-  last_synced_at: string | null;
-  videos?: ApiVideo[];
-};
+import { LatestVideosFeed } from "@/components/dashboard/latest-videos-feed";
+import type { ApiAccount, ApiVideo } from "@/lib/accounts";
 
 type VideoItem = {
   id: string;
@@ -294,6 +269,7 @@ function mapApiAccount(account: ApiAccount, sortOrder: number): Account {
 
 export default function DashboardPage() {
   const [accounts, setAccounts] = useState<Account[]>(trackedAccounts);
+  const [apiAccounts, setApiAccounts] = useState<ApiAccount[]>([]);
   const [selectedHandle, setSelectedHandle] = useState(trackedAccounts[0].handle);
   const [tiktokUrl, setTiktokUrl] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
@@ -318,7 +294,9 @@ export default function DashboardPage() {
         throw new Error(payload.error ?? "读取 Supabase 数据失败");
       }
 
-      const nextAccounts = (payload.accounts ?? []).map((account, index) => mapApiAccount(account, index));
+      const rawAccounts = payload.accounts ?? [];
+      setApiAccounts(rawAccounts);
+      const nextAccounts = rawAccounts.map((account, index) => mapApiAccount(account, index));
 
       if (nextAccounts.length) {
         setAccounts(nextAccounts);
@@ -685,6 +663,8 @@ export default function DashboardPage() {
           <LineChart title="播放量趋势" subtitle="最近同步视频的表现走势" points={chartPoints} className="h-full" />
         </div>
       </div>
+
+      <LatestVideosFeed apiAccounts={apiAccounts} isLoading={isLoading} />
 
       <section className="mt-5 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
