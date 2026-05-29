@@ -7,6 +7,7 @@ export type ThemeMode = "light" | "dark";
 export type AppSettingsRow = {
   id: string;
   apify_token: string | null;
+  tikhub_api_key: string | null;
   gemini_api_key: string | null;
   sync_interval_minutes: number;
   theme: ThemeMode;
@@ -30,6 +31,9 @@ export type AppSettingsPublic = {
   apifyTokenConfigured: boolean;
   apifyTokenMasked: string | null;
   apifyTokenSource: "database" | "environment" | "none";
+  tikhubApiKeyConfigured: boolean;
+  tikhubApiKeyMasked: string | null;
+  tikhubApiKeySource: "database" | "environment" | "none";
   geminiApiKeyConfigured: boolean;
   geminiApiKeyMasked: string | null;
   geminiApiKeySource: "database" | "environment" | "none";
@@ -39,6 +43,8 @@ export type AppSettingsPublic = {
 export type SaveAppSettingsInput = {
   apifyToken?: string;
   clearApifyToken?: boolean;
+  tikhubApiKey?: string;
+  clearTikHubApiKey?: boolean;
   geminiApiKey?: string;
   clearGeminiApiKey?: boolean;
   syncIntervalMinutes?: number;
@@ -48,6 +54,7 @@ export type SaveAppSettingsInput = {
 
 const DEFAULT_SETTINGS: Omit<AppSettingsRow, "id" | "updated_at"> = {
   apify_token: null,
+  tikhub_api_key: null,
   gemini_api_key: null,
   sync_interval_minutes: 360,
   theme: "light",
@@ -82,6 +89,10 @@ export function toPublicSettings(row: AppSettingsRow | null): AppSettingsPublic 
   const dbApifyToken = row?.apify_token?.trim() || null;
   const effectiveApifyToken = dbApifyToken || envApifyToken;
 
+  const envTikHubKey = process.env.TIKHUB_API_KEY?.trim() || null;
+  const dbTikHubKey = row?.tikhub_api_key?.trim() || null;
+  const effectiveTikHubKey = dbTikHubKey || envTikHubKey;
+
   const envGeminiKey = process.env.GEMINI_API_KEY?.trim() || null;
   const dbGeminiKey = row?.gemini_api_key?.trim() || null;
   const effectiveGeminiKey = dbGeminiKey || envGeminiKey;
@@ -98,6 +109,9 @@ export function toPublicSettings(row: AppSettingsRow | null): AppSettingsPublic 
     apifyTokenConfigured: Boolean(effectiveApifyToken),
     apifyTokenMasked: effectiveApifyToken ? maskApifyToken(effectiveApifyToken) : null,
     apifyTokenSource: dbApifyToken ? "database" : envApifyToken ? "environment" : "none",
+    tikhubApiKeyConfigured: Boolean(effectiveTikHubKey),
+    tikhubApiKeyMasked: effectiveTikHubKey ? maskSecretToken(effectiveTikHubKey) : null,
+    tikhubApiKeySource: dbTikHubKey ? "database" : envTikHubKey ? "environment" : "none",
     geminiApiKeyConfigured: Boolean(effectiveGeminiKey),
     geminiApiKeyMasked: effectiveGeminiKey ? maskSecretToken(effectiveGeminiKey) : null,
     geminiApiKeySource: dbGeminiKey ? "database" : envGeminiKey ? "environment" : "none",
@@ -132,6 +146,18 @@ export async function resolveApifyToken() {
   return process.env.APIFY_TOKEN?.trim() || null;
 }
 
+export async function resolveTikHubApiKey() {
+  const row = await getAppSettingsRow();
+  const dbKey = row?.tikhub_api_key?.trim();
+  if (dbKey) return dbKey;
+
+  return process.env.TIKHUB_API_KEY?.trim() || null;
+}
+
+export async function isTikHubConfigured() {
+  return Boolean(await resolveTikHubApiKey());
+}
+
 export async function resolveGeminiApiKey() {
   const row = await getAppSettingsRow();
   const dbKey = row?.gemini_api_key?.trim();
@@ -146,7 +172,7 @@ export async function resolveSyncIntervalMinutes() {
     return clampSyncInterval(row.sync_interval_minutes);
   }
 
-  const envMinutes = Number(process.env.APIFY_SYNC_CACHE_MINUTES ?? 360);
+  const envMinutes = Number(process.env.SYNC_CACHE_MINUTES ?? process.env.APIFY_SYNC_CACHE_MINUTES ?? 360);
   return clampSyncInterval(envMinutes);
 }
 
@@ -156,6 +182,7 @@ export async function saveAppSettings(input: SaveAppSettingsInput) {
   const nextRecord = {
     id: APP_SETTINGS_ID,
     apify_token: existing?.apify_token ?? null,
+    tikhub_api_key: existing?.tikhub_api_key ?? null,
     gemini_api_key: existing?.gemini_api_key ?? null,
     sync_interval_minutes: clampSyncInterval(
       input.syncIntervalMinutes ?? existing?.sync_interval_minutes ?? DEFAULT_SETTINGS.sync_interval_minutes,
@@ -174,6 +201,12 @@ export async function saveAppSettings(input: SaveAppSettingsInput) {
     nextRecord.apify_token = null;
   } else if (input.apifyToken?.trim()) {
     nextRecord.apify_token = input.apifyToken.trim();
+  }
+
+  if (input.clearTikHubApiKey) {
+    nextRecord.tikhub_api_key = null;
+  } else if (input.tikhubApiKey?.trim()) {
+    nextRecord.tikhub_api_key = input.tikhubApiKey.trim();
   }
 
   if (input.clearGeminiApiKey) {

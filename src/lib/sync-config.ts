@@ -1,9 +1,11 @@
-/** Max videos requested from Apify per account sync (controls cost). */
-export const APIFY_MAX_VIDEOS_PER_SYNC = 20;
+/** Max videos requested per account sync (controls API cost). */
+export const MAX_VIDEOS_PER_SYNC = 20;
+
+/** @deprecated Use MAX_VIDEOS_PER_SYNC — kept for backward compatibility. */
+export const APIFY_MAX_VIDEOS_PER_SYNC = MAX_VIDEOS_PER_SYNC;
 
 import { resolveSyncIntervalMinutes } from "@/lib/app-settings";
 
-/** Skip new Apify runs if account was synced within this window (minutes). */
 export function getSyncCacheTtlMsFromMinutes(minutes: number) {
   if (!Number.isFinite(minutes) || minutes <= 0) {
     return 6 * 60 * 60 * 1000;
@@ -12,7 +14,7 @@ export function getSyncCacheTtlMsFromMinutes(minutes: number) {
 }
 
 export function getSyncCacheTtlMs() {
-  const minutes = Number(process.env.APIFY_SYNC_CACHE_MINUTES ?? 360);
+  const minutes = Number(process.env.SYNC_CACHE_MINUTES ?? process.env.APIFY_SYNC_CACHE_MINUTES ?? 360);
   return getSyncCacheTtlMsFromMinutes(minutes);
 }
 

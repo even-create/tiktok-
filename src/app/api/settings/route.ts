@@ -16,8 +16,8 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = (await request.json().catch(() => null)) as {
-      apifyToken?: string;
-      clearApifyToken?: boolean;
+      tikhubApiKey?: string;
+      clearTikHubApiKey?: boolean;
       geminiApiKey?: string;
       clearGeminiApiKey?: boolean;
       syncIntervalMinutes?: number;
@@ -38,8 +38,8 @@ export async function PUT(request: Request) {
       body.theme ?? (typeof body.darkMode === "boolean" ? (body.darkMode ? "dark" : "light") : undefined);
 
     const settings = await saveAppSettings({
-      apifyToken: body.apifyToken,
-      clearApifyToken: body.clearApifyToken,
+      tikhubApiKey: body.tikhubApiKey,
+      clearTikHubApiKey: body.clearTikHubApiKey,
       geminiApiKey: body.geminiApiKey,
       clearGeminiApiKey: body.clearGeminiApiKey,
       syncIntervalMinutes: body.syncIntervalMinutes,

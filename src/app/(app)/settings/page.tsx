@@ -17,8 +17,8 @@ import { useAppSettings } from "@/components/settings/theme-provider";
 import type { AppSettingsPublic, ThemeMode } from "@/lib/app-settings";
 
 type FormState = {
-  apifyToken: string;
-  clearApifyToken: boolean;
+  tikhubApiKey: string;
+  clearTikHubApiKey: boolean;
   geminiApiKey: string;
   clearGeminiApiKey: boolean;
   syncIntervalMinutes: number;
@@ -40,8 +40,8 @@ const syncIntervalPresets = [
 
 function settingsToForm(settings: AppSettingsPublic): FormState {
   return {
-    apifyToken: "",
-    clearApifyToken: false,
+    tikhubApiKey: "",
+    clearTikHubApiKey: false,
     geminiApiKey: "",
     clearGeminiApiKey: false,
     syncIntervalMinutes: settings.syncIntervalMinutes,
@@ -76,8 +76,8 @@ export default function SettingsPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          apifyToken: form.apifyToken.trim() || undefined,
-          clearApifyToken: form.clearApifyToken,
+          tikhubApiKey: form.tikhubApiKey.trim() || undefined,
+          clearTikHubApiKey: form.clearTikHubApiKey,
           geminiApiKey: form.geminiApiKey.trim() || undefined,
           clearGeminiApiKey: form.clearGeminiApiKey,
           syncIntervalMinutes: form.syncIntervalMinutes,
@@ -124,7 +124,7 @@ export default function SettingsPage() {
             </div>
             <h1 className="mt-3 text-3xl font-semibold text-[var(--foreground)] sm:text-4xl">系统设置</h1>
             <p className="mt-2 text-sm text-[var(--cadet-gray)]">
-              管理 Apify Token、同步间隔、主题与通知偏好，配置保存在 Supabase。
+              管理 TikHub API Key、同步间隔、主题与通知偏好，配置保存在 Supabase。
             </p>
           </div>
           <button
@@ -164,41 +164,41 @@ export default function SettingsPage() {
           <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
             <div className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
               <KeyRound className="size-4 text-[var(--carolina-blue)]" />
-              Apify Token
+              TikHub API Key
             </div>
             <p className="mt-1 text-xs text-[var(--cadet-gray)]">
-              优先使用 Supabase 中保存的 Token；留空则保持现有配置。环境变量仍可作为后备。
+              用于 TikTok 数据同步。优先使用 Supabase 中保存的 Key；留空则保持现有配置。环境变量 TIKHUB_API_KEY 可作为后备。
             </p>
 
             <div className="mt-4 space-y-3">
               <p className="text-sm text-[var(--cadet-gray)]">
                 当前状态：
-                {settings?.apifyTokenConfigured ? (
+                {settings?.tikhubApiKeyConfigured ? (
                   <span className="ml-1 font-medium text-[var(--foreground)]">
-                    已配置 ({settings.apifyTokenMasked}) · 来源 {settings.apifyTokenSource}
+                    已配置 ({settings.tikhubApiKeyMasked}) · 来源 {settings.tikhubApiKeySource}
                   </span>
                 ) : (
                   <span className="ml-1 font-medium text-rose-600">未配置</span>
                 )}
               </p>
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-[var(--cadet-gray)]">新 Token（可选）</span>
+                <span className="mb-1 block text-xs font-medium text-[var(--cadet-gray)]">新 API Key（可选）</span>
                 <input
                   type="password"
-                  value={form.apifyToken}
-                  onChange={(event) => setForm({ ...form, apifyToken: event.target.value })}
-                  placeholder="输入新的 Apify API Token"
+                  value={form.tikhubApiKey}
+                  onChange={(event) => setForm({ ...form, tikhubApiKey: event.target.value })}
+                  placeholder="输入新的 TikHub API Key"
                   className="h-11 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--carolina-blue)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)]"
                 />
               </label>
               <label className="flex items-center gap-2 text-sm text-[var(--cadet-gray)]">
                 <input
                   type="checkbox"
-                  checked={form.clearApifyToken}
-                  onChange={(event) => setForm({ ...form, clearApifyToken: event.target.checked })}
+                  checked={form.clearTikHubApiKey}
+                  onChange={(event) => setForm({ ...form, clearTikHubApiKey: event.target.checked })}
                   className="size-4 rounded accent-[var(--space-cadet)]"
                 />
-                清除 Supabase 中保存的 Token（回退到环境变量）
+                清除 Supabase 中保存的 Key（回退到环境变量）
               </label>
             </div>
           </section>
@@ -250,7 +250,7 @@ export default function SettingsPage() {
               <Clock3 className="size-4 text-[var(--carolina-blue)]" />
               Sync Interval
             </div>
-            <p className="mt-1 text-xs text-[var(--cadet-gray)]">同步缓存窗口：此时间内重复同步将跳过 Apify 调用。</p>
+            <p className="mt-1 text-xs text-[var(--cadet-gray)]">同步缓存窗口：此时间内重复同步将跳过 TikHub 调用。</p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {syncIntervalPresets.map((preset) => (

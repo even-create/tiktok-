@@ -16,8 +16,8 @@ export async function POST(request: Request) {
     }
 
     const cacheNote =
-      result.cachedCount > 0 ? `，${result.cachedCount} 个使用缓存（未调用 Apify）` : "";
-    const apifyNote = `Apify 调用 ${result.apifyCalls} 次`;
+      result.cachedCount > 0 ? `，${result.cachedCount} 个使用缓存（未调用 TikHub）` : "";
+    const apifyNote = `TikHub 调用 ${result.apifyCalls} 次`;
 
     return NextResponse.json({
       ...result,

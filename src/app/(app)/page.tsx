@@ -384,7 +384,7 @@ export default function DashboardPage() {
       setSyncProgress(null);
       await loadAccounts(selectedHandle);
 
-      const apifyNote = typeof payload.apifyCalls === "number" ? `，Apify 调用 ${payload.apifyCalls} 次` : "";
+      const apifyNote = typeof payload.apifyCalls === "number" ? `，TikHub 调用 ${payload.apifyCalls} 次` : "";
       const cacheNote = payload.cachedCount && payload.cachedCount > 0 ? `（${payload.cachedCount} 个命中缓存）` : "";
 
       if (failedHandles.length === 0) {
@@ -418,7 +418,7 @@ export default function DashboardPage() {
       const payload = (await response.json()) as { account?: { handle: string }; videosCount?: number; error?: string };
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Apify 同步失败");
+        throw new Error(payload.error ?? "TikTok 同步失败");
       }
 
       const syncedHandle = payload.account?.handle;
@@ -427,7 +427,7 @@ export default function DashboardPage() {
       setSyncSuccessMessage(`账号已添加并同步，共 ${payload.videosCount ?? 0} 条视频。`);
       await loadAccounts(syncedHandle);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Apify 同步失败");
+      setErrorMessage(error instanceof Error ? error.message : "TikTok 同步失败");
     } finally {
       setIsSyncing(false);
     }

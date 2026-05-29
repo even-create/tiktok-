@@ -1,6 +1,6 @@
 # TikTok 账号追踪 Dashboard
 
-TikTok Studio 风格的账号与视频数据追踪后台，支持通过 Apify 同步公开账号数据，并保存到 Supabase。
+TikTok Studio 风格的账号与视频数据追踪后台，支持通过 [TikHub API](https://docs.tikhub.io/) 同步公开账号数据，并保存到 Supabase。
 
 ## 功能
 
@@ -34,7 +34,10 @@ npm run dev
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 项目 URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
-| `APIFY_TOKEN` | Apify API Token |
+| `TIKHUB_API_KEY` | TikHub API Key（TikTok 数据同步） |
+| `GEMINI_API_KEY` | Gemini API Key（AI Insights） |
+| `CRON_SECRET` | Vercel Cron 鉴权（`/api/cron/sync`） |
+| `SYNC_CACHE_MINUTES` | 同步缓存窗口（分钟，默认 360） |
 
 ## 技术栈
 
@@ -42,4 +45,4 @@ npm run dev
 - React 19
 - Tailwind CSS 4
 - Supabase
-- Apify TikTok Profile Scraper
+- TikHub TikTok App API

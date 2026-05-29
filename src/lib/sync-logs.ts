@@ -81,6 +81,11 @@ export async function getRecentSyncLogs(limit = 50) {
   };
 }
 
+/** Count provider API calls since timestamp (stored in sync_logs.apify_calls). */
+export async function countProviderApiCallsSince(sinceIso: string) {
+  return countApifyCallsSince(sinceIso);
+}
+
 export async function countApifyCallsSince(sinceIso: string) {
   const { count, error } = await supabase
     .from("sync_logs")

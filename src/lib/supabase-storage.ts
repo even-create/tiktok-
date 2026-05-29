@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { NormalizedTikTokProfile } from "@/lib/apify-tiktok";
+import type { NormalizedTikTokProfile } from "@/lib/tiktok/types";
 
 type RecordValue = string | number | null;
 

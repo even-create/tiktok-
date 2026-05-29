@@ -1,10 +1,11 @@
+import { isGeminiConfigured } from "@/lib/gemini-insights";
+import { isTikHubConfigured } from "@/lib/app-settings";
 import {
-  APIFY_MAX_VIDEOS_PER_SYNC,
   formatCacheTtlLabel,
   getSyncCacheTtlMs,
+  MAX_VIDEOS_PER_SYNC,
   shouldUseSyncCache,
-} from "@/lib/apify-config";
-import { isGeminiConfigured } from "@/lib/gemini-insights";
+} from "@/lib/sync-config";
 import type { AccountRow } from "@/lib/tiktok-data";
 import type { SyncAccountResult } from "@/lib/sync-all-accounts";
 import { insertSyncLog } from "@/lib/sync-logs";
@@ -23,6 +24,8 @@ export type AccountSyncRow = {
 };
 
 export type ApiUsageStatus = {
+  tikhubConfigured: boolean;
+  /** @deprecated Use tikhubConfigured — kept for older clients */
   apifyConfigured: boolean;
   apifyMaxVideosPerSync: number;
   cacheTtlLabel: string;
@@ -81,13 +84,16 @@ export function getStartOfTodayIso() {
   return date.toISOString();
 }
 
-export async function buildApiUsageStatus(apifyCallsToday: number): Promise<ApiUsageStatus> {
+export async function buildApiUsageStatus(providerCallsToday: number): Promise<ApiUsageStatus> {
+  const tikhubConfigured = await isTikHubConfigured();
+
   return {
-    apifyConfigured: Boolean(process.env.APIFY_TOKEN?.trim()),
-    apifyMaxVideosPerSync: APIFY_MAX_VIDEOS_PER_SYNC,
+    tikhubConfigured,
+    apifyConfigured: tikhubConfigured,
+    apifyMaxVideosPerSync: MAX_VIDEOS_PER_SYNC,
     cacheTtlLabel: formatCacheTtlLabel(),
     cacheTtlMinutes: Math.round(getSyncCacheTtlMs() / 60000),
-    apifyCallsToday,
+    apifyCallsToday: providerCallsToday,
     geminiConfigured: await isGeminiConfigured(),
   };
 }
@@ -112,7 +118,7 @@ export async function persistSyncResults(
           accountHandle: result.handle,
           syncType,
           status: "cached",
-          message: result.message ?? "命中缓存，跳过 Apify",
+          message: result.message ?? "命中缓存，跳过 TikHub",
           durationMs: result.durationMs,
           apifyCalls: 0,
           videosProcessed: 0,
@@ -137,4 +143,4 @@ export async function persistSyncResults(
 export const AUTO_SYNC_STORAGE_KEY = "tiktok-tracker:auto-sync-enabled";
 export const AUTO_SYNC_INTERVAL_STORAGE_KEY = "tiktok-tracker:auto-sync-interval-minutes";
 
-export const DEFAULT_AUTO_SYNC_INTERVAL_MINUTES = Math.round(getSyncCacheTtlMs() / 60000);
+export const DEFAULT_AUTO_SYNC_INTERVAL_MINUTES = 30;

@@ -171,7 +171,7 @@ export default function SyncCenterPage() {
         const result = payload.syncResult;
         if (result) {
           setSyncMessage(
-            `同步完成：${result.successCount} 个成功，${result.failedCount} 个失败，${result.cachedCount} 个缓存跳过；Apify ${result.apifyCalls} 次，处理 ${result.totalVideos} 条视频。`,
+            `同步完成：${result.successCount} 个成功，${result.failedCount} 个失败，${result.cachedCount} 个缓存跳过；TikHub ${result.apifyCalls} 次，处理 ${result.totalVideos} 条视频。`,
           );
         }
 
@@ -204,7 +204,7 @@ export default function SyncCenterPage() {
           throw new Error(payload.error ?? "同步失败");
         }
 
-        setSyncMessage(payload.cached ? `@${handle} 命中缓存，已跳过 Apify` : `@${handle} 同步成功`);
+        setSyncMessage(payload.cached ? `@${handle} 命中缓存，已跳过 TikHub` : `@${handle} 同步成功`);
         await loadCenter();
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : "同步失败");
@@ -251,7 +251,7 @@ export default function SyncCenterPage() {
             </div>
             <h1 className="mt-3 text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">同步中心</h1>
             <p className="mt-2 text-sm text-[var(--cadet-gray)]">
-              管理全部账号同步状态、Apify 调用与同步日志。
+              管理全部账号同步状态、TikHub 调用与同步日志。
             </p>
           </div>
 
@@ -288,7 +288,7 @@ export default function SyncCenterPage() {
             Auto Sync（页面打开时按间隔自动同步）
           </label>
           <span className="text-xs text-[var(--cadet-gray)]">
-            间隔 {autoSyncIntervalMinutes} 分钟 · 缓存窗口内跳过 Apify
+            间隔 {autoSyncIntervalMinutes} 分钟 · 缓存窗口内跳过 TikHub
           </span>
           {lastBatchDurationMs !== null ? (
             <span className="text-xs text-[var(--carolina-blue)]">
@@ -323,12 +323,12 @@ export default function SyncCenterPage() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[
             {
-              label: "Apify 状态",
-              value: usage.apifyConfigured ? "已配置" : "未配置",
+              label: "TikHub 状态",
+              value: (usage.tikhubConfigured ?? usage.apifyConfigured) ? "已配置" : "未配置",
               icon: Zap,
             },
             {
-              label: "今日 Apify 调用",
+              label: "今日 TikHub 调用",
               value: String(usage.apifyCallsToday),
               icon: CloudDownload,
             },
@@ -468,7 +468,7 @@ export default function SyncCenterPage() {
                   <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-[var(--cadet-gray)]">
                     <span className="rounded-full bg-[var(--card)] px-2 py-0.5">{log.status}</span>
                     <span>耗时 {formatDurationMs(log.durationMs)}</span>
-                    {log.apifyCalls > 0 ? <span>Apify {log.apifyCalls}</span> : null}
+                    {log.apifyCalls > 0 ? <span>TikHub {log.apifyCalls}</span> : null}
                   </div>
                 </article>
               ))
