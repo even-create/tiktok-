@@ -11,7 +11,6 @@ import {
   Link2,
   MessageCircle,
   Plus,
-  RefreshCw,
   Share2,
   ThumbsUp,
   Trash2,
@@ -21,7 +20,6 @@ import {
 import { AccountAvatar } from "@/components/account-avatar";
 import { LineChart } from "@/components/dashboard/line-chart";
 import { AccountSortMenu } from "@/components/dashboard/account-sort-menu";
-import { VideoSortMenu } from "@/components/dashboard/video-sort-menu";
 
 type ApiVideo = {
   id: string;
@@ -171,10 +169,6 @@ function formatPostedAt(value: string | null) {
   );
 }
 
-function formatRefreshTime() {
-  return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date());
-}
-
 function formatLastSyncedDisplay(value: Date | string) {
   const date = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return "—";
@@ -305,10 +299,8 @@ export default function DashboardPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingHandle, setDeletingHandle] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState("正在连接 Supabase...");
   const [errorMessage, setErrorMessage] = useState("");
   const [accountSort, setAccountSort] = useState<AccountSortMode>("default");
-  const [videoSort, setVideoSort] = useState<VideoSortMode>("default");
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; handle: string } | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
@@ -340,17 +332,14 @@ export default function DashboardPage() {
           }
           return nextAccounts[0].handle;
         });
-        setStatusMessage(`Supabase 已连接，数据已加载（${formatRefreshTime()}）`);
       } else {
         setAccounts(trackedAccounts);
         setSelectedHandle(trackedAccounts[0].handle);
-        setStatusMessage("Supabase 已连接，暂无数据，正在显示示例账号。");
       }
     } catch (error) {
       setAccounts(trackedAccounts);
       setSelectedHandle(trackedAccounts[0].handle);
       setErrorMessage(error instanceof Error ? error.message : "连接 Supabase 失败");
-      setStatusMessage("请先在 Supabase SQL Editor 执行 migration 建表。");
     } finally {
       setIsLoading(false);
     }
@@ -363,13 +352,6 @@ export default function DashboardPage() {
     return () => window.clearTimeout(timer);
   }, [loadAccounts]);
 
-  async function handleRefreshData() {
-    setErrorMessage("");
-    setSyncSuccessMessage(null);
-    setStatusMessage("正在从 Supabase 刷新数据...");
-    await loadAccounts(selectedHandle);
-  }
-
   async function handleSyncAll() {
     if (isSyncingAll || isSyncing) return;
 
@@ -377,8 +359,6 @@ export default function DashboardPage() {
     setSyncSuccessMessage(null);
     setIsSyncingAll(true);
     setSyncProgress({ current: 0, total: 1, handle: "全部账号" });
-    setStatusMessage("正在批量同步（每账号最多 20 条最新视频）...");
-
     try {
       const response = await fetch("/api/sync-all", {
         method: "POST",
@@ -411,15 +391,12 @@ export default function DashboardPage() {
         setSyncSuccessMessage(
           `同步成功：${payload.successCount ?? 0} 个账号，处理 ${payload.totalVideos ?? 0} 条视频${apifyNote}${cacheNote}。`,
         );
-        setStatusMessage(`全部账号已同步 · ${formatRefreshTime()}`);
       } else {
         setSyncSuccessMessage(`部分完成：${payload.successCount ?? 0} 个成功，${failedHandles.length} 个失败${apifyNote}。`);
         setErrorMessage(`以下账号同步失败：${failedHandles.map((h) => `@${h}`).join("、")}`);
-        setStatusMessage(`同步结束 · ${formatRefreshTime()}`);
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "批量同步失败");
-      setStatusMessage("同步未完成，请检查 Apify Token 与账号链接。");
       setSyncProgress(null);
     } finally {
       setIsSyncingAll(false);
@@ -432,8 +409,6 @@ export default function DashboardPage() {
 
     setIsSyncing(true);
     setErrorMessage("");
-    setStatusMessage("正在调用 Apify 抓取账号和视频数据...");
-
     try {
       const response = await fetch("/api/sync-tiktok", {
         method: "POST",
@@ -450,11 +425,9 @@ export default function DashboardPage() {
       setTiktokUrl("");
       setLastSyncedAt(new Date());
       setSyncSuccessMessage(`账号已添加并同步，共 ${payload.videosCount ?? 0} 条视频。`);
-      setStatusMessage(`同步完成 · ${formatRefreshTime()}`);
       await loadAccounts(syncedHandle);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Apify 同步失败");
-      setStatusMessage("同步未完成，请检查 Apify Token、Supabase 表和账号链接。");
     } finally {
       setIsSyncing(false);
     }
@@ -475,7 +448,6 @@ export default function DashboardPage() {
         throw new Error(payload.error ?? "删除账号失败");
       }
 
-      setStatusMessage(`已删除 @${handle}。`);
       await loadAccounts();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "删除账号失败");
@@ -521,8 +493,8 @@ export default function DashboardPage() {
 
   const sortedVideos = useMemo(() => {
     if (!activeAccount) return [];
-    return sortVideos(activeAccount.videos, videoSort);
-  }, [activeAccount, videoSort]);
+    return sortVideos(activeAccount.videos, "default");
+  }, [activeAccount]);
 
   return (
     <>
@@ -589,38 +561,10 @@ export default function DashboardPage() {
           ) : null}
 
           {errorMessage ? (
-            <div className="flex items-center gap-2">
-              <p className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {errorMessage}
-              </p>
-              <button
-                type="button"
-                onClick={() => void handleRefreshData()}
-                disabled={isBusy}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)] disabled:cursor-not-allowed disabled:opacity-60"
-                aria-label="刷新数据"
-              >
-                <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
-                刷新
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <p className="flex-1 rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] px-3 py-2 text-sm text-[var(--space-cadet)]">
-                {statusMessage}
-              </p>
-              <button
-                type="button"
-                onClick={() => void handleRefreshData()}
-                disabled={isBusy}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:bg-[color-mix(in_srgb,var(--carolina-blue)_8%,white)] hover:text-[var(--carolina-blue)] disabled:cursor-not-allowed disabled:opacity-60"
-                aria-label="刷新数据"
-              >
-                <RefreshCw className={`size-4 ${isLoading && !isSyncingAll ? "animate-spin" : ""}`} />
-                刷新
-              </button>
-            </div>
-          )}
+            <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {errorMessage}
+            </p>
+          ) : null}
         </div>
       </header>
 
@@ -758,7 +702,6 @@ export default function DashboardPage() {
               </a>
             ) : null}
           </div>
-          <VideoSortMenu value={videoSort} onChange={setVideoSort} />
         </div>
 
         <div className="overflow-x-auto">

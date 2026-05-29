@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowDownWideNarrow,
   CirclePlay,
   Eye,
   Hash,
   LineChart,
   MessageCircle,
-  RefreshCw,
   Search,
   Share2,
   ThumbsUp,
@@ -28,7 +26,6 @@ import {
   sortVideos,
   type ContentVideo,
   type DateRangeFilter,
-  type VideoSortField,
 } from "@/lib/content-analytics";
 
 const dateRangeOptions: Array<{ value: DateRangeFilter; label: string }> = [
@@ -37,17 +34,10 @@ const dateRangeOptions: Array<{ value: DateRangeFilter; label: string }> = [
   { value: "all", label: "全部" },
 ];
 
-const sortOptions: Array<{ value: VideoSortField; label: string }> = [
-  { value: "views", label: "播放量" },
-  { value: "likes", label: "点赞数" },
-  { value: "comments", label: "评论数" },
-];
-
 export default function ContentAnalyticsPage() {
   const [allVideos, setAllVideos] = useState<ContentVideo[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRangeFilter>("all");
-  const [sortField, setSortField] = useState<VideoSortField>("views");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -82,8 +72,8 @@ export default function ContentAnalyticsPage() {
   const filteredVideos = useMemo(() => {
     const byDate = filterVideosByDateRange(allVideos, dateRange);
     const bySearch = filterVideosBySearch(byDate, searchQuery);
-    return sortVideos(bySearch, sortField);
-  }, [allVideos, dateRange, searchQuery, sortField]);
+    return sortVideos(bySearch, "views");
+  }, [allVideos, dateRange, searchQuery]);
 
   const stats = useMemo(() => buildContentStats(filteredVideos), [filteredVideos]);
   const tagStats = useMemo(() => buildTagStats(filteredVideos), [filteredVideos]);
@@ -136,34 +126,6 @@ export default function ContentAnalyticsPage() {
                   </button>
                 ))}
               </div>
-
-              <div className="flex flex-wrap items-center gap-1 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-1">
-                <ArrowDownWideNarrow className="ml-2 size-4 text-[var(--cadet-gray)]" />
-                {sortOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setSortField(option.value)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition duration-200 ${
-                      sortField === option.value
-                        ? "bg-[color-mix(in_srgb,var(--carolina-blue)_15%,white)] text-[var(--space-cadet)]"
-                        : "text-[var(--cadet-gray)] hover:text-[var(--space-cadet)]"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => void loadVideos()}
-                disabled={isLoading}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-xs font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)] disabled:opacity-60"
-              >
-                <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin" : ""}`} />
-                刷新
-              </button>
             </div>
           </div>
         </div>
