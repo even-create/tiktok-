@@ -1,11 +1,12 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { AppSettingsPublic, ThemeMode } from "@/lib/app-settings";
+import { getDefaultPublicSettings, type AppSettingsPublic, type ThemeMode } from "@/lib/app-settings";
 
 type ThemeContextValue = {
   settings: AppSettingsPublic | null;
   isLoading: boolean;
+  loadError: string | null;
   applyTheme: (theme: ThemeMode) => void;
   refreshSettings: () => Promise<AppSettingsPublic | null>;
 };
@@ -21,8 +22,11 @@ function applyThemeToDocument(theme: ThemeMode) {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettingsPublic | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const refreshSettings = useCallback(async () => {
+    setLoadError(null);
+
     try {
       const response = await fetch("/api/settings", { cache: "no-store" });
       const payload = (await response.json()) as { settings?: AppSettingsPublic; error?: string };
@@ -31,15 +35,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         throw new Error(payload.error ?? "读取设置失败");
       }
 
-      if (payload.settings) {
-        setSettings(payload.settings);
-        applyThemeToDocument(payload.settings.theme);
-      }
-
-      return payload.settings ?? null;
-    } catch {
-      applyThemeToDocument("light");
-      return null;
+      const nextSettings = payload.settings ?? getDefaultPublicSettings();
+      setSettings(nextSettings);
+      applyThemeToDocument(nextSettings.theme);
+      return nextSettings;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "读取设置失败";
+      setLoadError(message);
+      const fallback = getDefaultPublicSettings();
+      setSettings(fallback);
+      applyThemeToDocument(fallback.theme);
+      return fallback;
     } finally {
       setIsLoading(false);
     }
@@ -61,10 +67,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     () => ({
       settings,
       isLoading,
+      loadError,
       applyTheme,
       refreshSettings,
     }),
-    [settings, isLoading, applyTheme, refreshSettings],
+    [settings, isLoading, loadError, applyTheme, refreshSettings],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

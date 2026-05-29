@@ -51,17 +51,17 @@ function settingsToForm(settings: AppSettingsPublic): FormState {
 }
 
 export default function SettingsPage() {
-  const { settings, isLoading, applyTheme, refreshSettings } = useAppSettings();
+  const { settings, isLoading, loadError, applyTheme, refreshSettings } = useAppSettings();
   const [form, setForm] = useState<FormState | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    if (settings && !form) {
+    if (!isLoading && settings && !form) {
       setForm(settingsToForm(settings));
     }
-  }, [settings, form]);
+  }, [settings, form, isLoading]);
 
   async function handleSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -160,6 +160,12 @@ export default function SettingsPage() {
               {errorMessage}
             </p>
           ) : null}
+          {loadError ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              设置读取异常：{loadError}。若保存 TikHub Key 失败，请在 Supabase 执行迁移{" "}
+              <code className="text-xs">20260529120000_app_settings_tikhub_key.sql</code>。
+            </p>
+          ) : null}
 
           <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
             <div className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
@@ -167,7 +173,8 @@ export default function SettingsPage() {
               TikHub API Key
             </div>
             <p className="mt-1 text-xs text-[var(--cadet-gray)]">
-              用于 TikTok 数据同步。优先使用 Supabase 中保存的 Key；留空则保持现有配置。环境变量 TIKHUB_API_KEY 可作为后备。
+              用于 TikTok 数据同步。已在 Vercel 配置 TIKHUB_API_KEY 时，此处应显示「已配置 · 来源 environment」。
+              也可在此保存到 Supabase（优先于环境变量）。
             </p>
 
             <div className="mt-4 space-y-3">

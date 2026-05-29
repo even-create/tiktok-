@@ -133,9 +133,18 @@ export async function getAppSettingsRow() {
   return data as AppSettingsRow | null;
 }
 
+export function getDefaultPublicSettings(): AppSettingsPublic {
+  return toPublicSettings(null);
+}
+
 export async function getAppSettings() {
-  const row = await getAppSettingsRow();
-  return toPublicSettings(row);
+  try {
+    const row = await getAppSettingsRow();
+    return toPublicSettings(row);
+  } catch (error) {
+    console.error("[app-settings] read failed, using defaults", error);
+    return getDefaultPublicSettings();
+  }
 }
 
 export async function resolveApifyToken() {
