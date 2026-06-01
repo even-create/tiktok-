@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, MessageCircle, Share2, ThumbsUp, TrendingUp, X } from "lucide-react";
-import { VideoThumbnail } from "@/components/content-analytics/video-thumbnail";
+import { FeedVideoCover } from "@/components/dashboard/feed-video-cover";
 import { TikTokIcon } from "@/components/dashboard/tiktok-icon";
 import {
   qualityTierDisplayLabel,
@@ -32,7 +32,12 @@ export function VideoDetailModal({ video, onClose }: VideoDetailModalProps) {
         onClick={(event) => event.stopPropagation()}
       >
         <div className="relative">
-          <VideoThumbnail title={video.title} thumbnailUrl={video.thumbnailUrl} className="h-48 w-full rounded-none sm:h-56" />
+          <FeedVideoCover
+            title={video.title}
+            thumbnailUrl={video.thumbnailUrl}
+            videoUrl={video.videoUrl}
+            className="aspect-[3/4] w-full max-h-[min(70vh,520px)] sm:max-h-none"
+          />
           <button
             type="button"
             onClick={onClose}

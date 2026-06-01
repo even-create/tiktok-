@@ -6,20 +6,15 @@ import {
   CirclePlay,
   Clock3,
   CloudDownload,
-  ExternalLink,
   Eye,
   Link2,
   MessageCircle,
   Plus,
   Share2,
   ThumbsUp,
-  Trash2,
   TrendingUp,
   Users,
 } from "lucide-react";
-import { AccountAvatar } from "@/components/account-avatar";
-import { LineChart } from "@/components/dashboard/line-chart";
-import { AccountSortMenu } from "@/components/dashboard/account-sort-menu";
 import { LatestVideosFeed } from "@/components/dashboard/latest-videos-feed";
 import type { ApiAccount, ApiVideo } from "@/lib/accounts";
 
@@ -58,7 +53,6 @@ type Account = {
   videos: VideoItem[];
 };
 
-type AccountSortMode = "default" | "followers" | "updated";
 type VideoSortMode = "default" | "views" | "likes" | "interaction";
 
 const trackedAccounts: Account[] = [
@@ -229,22 +223,6 @@ function sortVideos(list: VideoItem[], mode: VideoSortMode) {
   }
 }
 
-function sortAccounts(list: Account[], mode: AccountSortMode) {
-  const next = [...list];
-  switch (mode) {
-    case "followers":
-      return next.sort((left, right) => right.followersCount - left.followersCount);
-    case "updated":
-      return next.sort((left, right) => {
-        const leftTime = left.lastSyncedAt ? new Date(left.lastSyncedAt).getTime() : 0;
-        const rightTime = right.lastSyncedAt ? new Date(right.lastSyncedAt).getTime() : 0;
-        return rightTime - leftTime;
-      });
-    default:
-      return next.sort((left, right) => left.sortOrder - right.sortOrder);
-  }
-}
-
 function mapApiAccount(account: ApiAccount, sortOrder: number): Account {
   const displayName = account.display_name || account.handle;
 
@@ -274,9 +252,7 @@ export default function DashboardPage() {
   const [tiktokUrl, setTiktokUrl] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [deletingHandle, setDeletingHandle] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
-  const [accountSort, setAccountSort] = useState<AccountSortMode>("default");
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; handle: string } | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
@@ -411,68 +387,46 @@ export default function DashboardPage() {
     }
   }
 
-  async function handleDeleteAccount(handle: string) {
-    const confirmed = window.confirm(`确定要停止追踪 @${handle} 吗？相关视频数据也会一并删除。`);
-    if (!confirmed) return;
-
-    setDeletingHandle(handle);
-    setErrorMessage("");
-
-    try {
-      const response = await fetch(`/api/accounts?handle=${encodeURIComponent(handle)}`, { method: "DELETE" });
-      const payload = (await response.json()) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "删除账号失败");
-      }
-
-      await loadAccounts();
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "删除账号失败");
-    } finally {
-      setDeletingHandle(null);
-    }
-  }
-
   const isBusy = isLoading || isSyncing || isSyncingAll;
 
-  const sortedAccounts = useMemo(() => sortAccounts(accounts, accountSort), [accounts, accountSort]);
-
-  const activeAccount = useMemo(
-    () =>
-      sortedAccounts.find((account) => account.handle === selectedHandle) ?? sortedAccounts[0] ?? accounts[0] ?? null,
-    [accounts, sortedAccounts, selectedHandle],
-  );
-
   const totals = useMemo(() => {
-    return {
-      followers: activeAccount ? activeAccount.followers : "0",
-      likes: activeAccount ? activeAccount.likes : "0",
-      views: activeAccount ? activeAccount.views : "0",
-      engagement: activeAccount ? activeAccount.engagement : "0%",
-      videos: activeAccount?.videos.length ?? 0,
-      avgInteraction:
-        activeAccount && activeAccount.videos.length > 0
-          ? `${(
-              activeAccount.videos.reduce((sum, video) => sum + video.interactionRateValue, 0) / activeAccount.videos.length
-            ).toFixed(2)}%`
-          : "0%",
-    };
-  }, [activeAccount]);
+    let totalFollowers = 0;
+    let totalLikes = 0;
+    let totalViews = 0;
+    let totalVideos = 0;
+    let interactionSum = 0;
 
-  const chartPoints = useMemo(() => {
-    if (!activeAccount) return [];
-    return [...activeAccount.videos]
-      .sort((left, right) => right.viewsCount - left.viewsCount)
-      .slice(0, 6)
-      .reverse()
-      .map((video, index) => ({ label: `#${index + 1}`, value: video.viewsCount }));
-  }, [activeAccount]);
+    for (const account of apiAccounts) {
+      totalFollowers += account.followers_count ?? 0;
+      totalLikes += account.likes_count ?? 0;
+      totalViews += account.total_views ?? 0;
+
+      for (const video of account.videos ?? []) {
+        totalVideos += 1;
+        const views = video.views_count ?? 0;
+        const likes = video.likes_count ?? 0;
+        const comments = video.comments_count ?? 0;
+        const shares = video.shares_count ?? 0;
+        if (views > 0) {
+          interactionSum += ((likes + comments + shares) / views) * 100;
+        }
+      }
+    }
+
+    return {
+      followers: formatCompact(totalFollowers),
+      likes: formatCompact(totalLikes),
+      views: formatCompact(totalViews),
+      videos: String(totalVideos),
+      avgInteraction: totalVideos > 0 ? `${(interactionSum / totalVideos).toFixed(2)}%` : "0%",
+      accountCount: apiAccounts.length,
+    };
+  }, [apiAccounts]);
 
   const sortedVideos = useMemo(() => {
-    if (!activeAccount) return [];
-    return sortVideos(activeAccount.videos, "default");
-  }, [activeAccount]);
+    const allVideos = accounts.flatMap((account) => account.videos);
+    return sortVideos(allVideos, "views");
+  }, [accounts]);
 
   return (
     <>
@@ -549,13 +503,13 @@ export default function DashboardPage() {
       <div className="grid gap-4 py-5 sm:grid-cols-2 xl:grid-cols-5">
         {[
           {
-            label: "粉丝数",
+            label: "总粉丝数",
             value: totals.followers,
             icon: Users,
             accent: "from-[color-mix(in_srgb,var(--carolina-blue)_22%,transparent)] to-transparent",
           },
           {
-            label: "点赞数",
+            label: "总点赞量",
             value: totals.likes,
             icon: ThumbsUp,
             accent: "from-[color-mix(in_srgb,var(--space-cadet)_14%,transparent)] to-transparent",
@@ -567,7 +521,7 @@ export default function DashboardPage() {
             accent: "from-[color-mix(in_srgb,var(--cadet-gray)_22%,transparent)] to-transparent",
           },
           {
-            label: "视频数量",
+            label: "总视频数",
             value: String(totals.videos),
             icon: CirclePlay,
             accent: "from-[color-mix(in_srgb,var(--jet)_12%,transparent)] to-transparent",
@@ -589,79 +543,11 @@ export default function DashboardPage() {
               <metric.icon className="size-5 text-[var(--space-cadet)]" />
             </div>
             <p className="relative mt-4 text-3xl font-semibold text-[var(--space-cadet)]">{metric.value}</p>
-            <p className="relative mt-2 text-xs text-[var(--carolina-blue)]">{activeAccount?.trend ?? "—"} vs last sync</p>
+            <p className="relative mt-2 text-xs text-[var(--carolina-blue)]">
+              {totals.accountCount} 个账号合计
+            </p>
           </article>
         ))}
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] lg:items-stretch">
-        <section className="dashboard-split-panel flex min-w-0 flex-col rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-[var(--space-cadet)]">追踪账号</h2>
-            <div className="flex items-center gap-2">
-              <AccountSortMenu value={accountSort} onChange={setAccountSort} />
-              <span className="rounded-full bg-[var(--eggshell)] px-2 py-1 text-xs text-[var(--cadet-gray)]">
-                {accounts.length}
-              </span>
-            </div>
-          </div>
-
-          <div className="account-list-scroll mt-3 space-y-2 pr-0.5">
-            {sortedAccounts.map((account) => {
-              const isActive = account.handle === activeAccount?.handle;
-              const isDeleting = deletingHandle === account.handle;
-
-              return (
-                <div
-                  key={account.handle}
-                  className={`account-list-row flex min-h-[4.25rem] shrink-0 items-center gap-2 rounded-xl border p-2 transition duration-200 ${
-                    isActive
-                      ? "border-[color-mix(in_srgb,var(--carolina-blue)_55%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] shadow-sm"
-                      : "border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 hover:border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] hover:bg-[var(--card)] hover:shadow-md"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setSelectedHandle(account.handle)}
-                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                  >
-                    <AccountAvatar name={account.displayName} avatarUrl={account.avatarUrl} initialsText={account.avatar} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-[var(--space-cadet)]">{account.displayName}</p>
-                      <p className="truncate text-xs text-[var(--cadet-gray)]">@{account.handle}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-[var(--space-cadet)]">{account.followers}</p>
-                      <p className="text-xs text-[var(--cadet-gray)]">followers</p>
-                    </div>
-                  </button>
-                  <a
-                    href={account.profileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="grid size-8 shrink-0 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] text-[var(--cadet-gray)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)]"
-                    aria-label={`打开 @${account.handle} 的 TikTok 主页`}
-                  >
-                    <ExternalLink className="size-3.5" />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => void handleDeleteAccount(account.handle)}
-                    disabled={isDeleting}
-                    className="grid size-9 shrink-0 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] text-[var(--cadet-gray)] transition duration-200 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60"
-                    aria-label={`删除账号 ${account.handle}`}
-                  >
-                    {isDeleting ? <Clock3 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <div className="min-w-0 lg:h-full">
-          <LineChart title="播放量趋势" subtitle="最近同步视频的表现走势" points={chartPoints} className="h-full" />
-        </div>
       </div>
 
       <LatestVideosFeed apiAccounts={apiAccounts} isLoading={isLoading} />
@@ -669,18 +555,8 @@ export default function DashboardPage() {
       <section className="mt-5 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
           <div className="flex min-w-0 items-center gap-2">
-            <h2 className="truncate text-base font-semibold">@{activeAccount?.handle ?? "—"} 视频数据</h2>
-            {activeAccount ? (
-              <a
-                href={activeAccount.profileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="grid size-7 shrink-0 place-items-center rounded-lg border border-white/25 bg-white/10 text-[var(--eggshell)] transition hover:border-white/40 hover:bg-white/20"
-                aria-label={`打开 @${activeAccount.handle} 的 TikTok 主页`}
-              >
-                <ExternalLink className="size-3.5" />
-              </a>
-            ) : null}
+            <h2 className="truncate text-base font-semibold">全部账号视频数据</h2>
+            <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs">{sortedVideos.length} 条</span>
           </div>
         </div>
 

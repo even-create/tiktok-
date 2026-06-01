@@ -15,7 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { AccountAvatar } from "@/components/account-avatar";
-import { VideoThumbnail } from "@/components/content-analytics/video-thumbnail";
+import { FeedVideoCover } from "@/components/dashboard/feed-video-cover";
 import { TikTokIcon } from "@/components/dashboard/tiktok-icon";
 import { VideoDetailModal } from "@/components/dashboard/video-detail-modal";
 import type { ApiAccount } from "@/lib/accounts";
@@ -23,7 +23,6 @@ import {
   filterVideosByDateRange,
   filterVideosBySearch,
   flattenVideosFromAccounts,
-  sortVideos,
   type DateRangeFilter,
 } from "@/lib/content-analytics";
 import { enrichVideosWithQuality, qualityTierStyles, type ContentVideoWithQuality } from "@/lib/content-quality";
@@ -55,7 +54,7 @@ function FeedSkeleton() {
           key={index}
           className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-[var(--card)]"
         >
-          <div className="h-40 animate-pulse bg-[var(--eggshell)]/60" />
+          <div className="aspect-[3/4] w-full animate-pulse bg-[var(--eggshell)]/60" />
           <div className="space-y-3 p-4">
             <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--eggshell)]" />
             <div className="h-3 w-1/2 animate-pulse rounded bg-[var(--eggshell)]" />
@@ -104,7 +103,12 @@ function VideoFeedCard({
         onClick={() => onSelect(video)}
         className="relative block w-full text-left"
       >
-        <VideoThumbnail title={video.title} thumbnailUrl={video.thumbnailUrl} className="h-40 w-full rounded-none sm:h-44" />
+        <FeedVideoCover
+          title={video.title}
+          thumbnailUrl={video.thumbnailUrl}
+          videoUrl={video.videoUrl}
+          className="aspect-[3/4] w-full"
+        />
         <span
           className={`absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold shadow-sm ${tierStyle.badge}`}
         >
@@ -126,9 +130,9 @@ function VideoFeedCard({
         <div className="flex items-center gap-2">
           <AccountAvatar
             name={video.accountDisplayName}
-            avatarUrl={null}
+            avatarUrl={video.accountAvatarUrl}
             initialsText={video.accountHandle.slice(0, 2).toUpperCase()}
-            className="size-7 text-[10px]"
+            className="size-7 rounded-full text-[10px]"
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium text-[var(--space-cadet)]">@{video.accountHandle}</p>

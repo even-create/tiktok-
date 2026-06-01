@@ -9,6 +9,7 @@ export type ContentVideo = {
   accountId: string;
   accountHandle: string;
   accountDisplayName: string;
+  accountAvatarUrl: string | null;
   title: string;
   videoUrl: string | null;
   thumbnailUrl: string | null;
@@ -93,7 +94,9 @@ export function flattenVideosFromAccounts(accounts: ApiAccount[]): ContentVideo[
     const displayName = account.display_name?.trim() || account.handle;
 
     for (const video of account.videos ?? []) {
-      items.push(mapApiVideoToContentVideo(video, account.id, account.handle, displayName));
+      items.push(
+        mapApiVideoToContentVideo(video, account.id, account.handle, displayName, account.avatar_url ?? null),
+      );
     }
   }
 
@@ -105,6 +108,7 @@ export function mapApiVideoToContentVideo(
   accountId: string,
   accountHandle: string,
   accountDisplayName: string,
+  accountAvatarUrl: string | null = null,
 ): ContentVideo {
   const viewsCount = video.views_count ?? 0;
   const likesCount = video.likes_count ?? 0;
@@ -117,6 +121,7 @@ export function mapApiVideoToContentVideo(
     accountId,
     accountHandle,
     accountDisplayName,
+    accountAvatarUrl,
     title: video.title,
     videoUrl: video.video_url,
     thumbnailUrl: video.thumbnail_url ?? null,
