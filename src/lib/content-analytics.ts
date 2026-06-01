@@ -2,6 +2,7 @@ import { formatCompact, type ApiAccount, type ApiVideo } from "@/lib/accounts";
 import {
   formatBeijingTime,
   formatBeijingTimeChinese,
+  getBeijingDateKey,
   isWithinBeijingCalendarDays,
 } from "@/lib/format-beijing-time";
 
@@ -146,6 +147,16 @@ export function filterVideosByDateRange(videos: ContentVideo[], range: DateRange
   const days = range === "7d" ? 7 : 30;
 
   return videos.filter((video) => isWithinBeijingCalendarDays(video.postedAt, days));
+}
+
+/** Filter by Beijing calendar date (YYYY-MM-DD). `null` = all videos. */
+export function filterVideosByPostedDate(videos: ContentVideo[], postedDate: string | null) {
+  if (!postedDate) return videos;
+
+  return videos.filter((video) => {
+    if (!video.postedAt) return false;
+    return getBeijingDateKey(video.postedAt) === postedDate;
+  });
 }
 
 export function filterVideosBySearch(videos: ContentVideo[], query: string) {

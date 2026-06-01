@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar,
+  ChevronDown,
   CirclePlay,
   Eye,
   Filter,
@@ -19,12 +20,8 @@ import { FeedVideoCover } from "@/components/dashboard/feed-video-cover";
 import { TikTokIcon } from "@/components/dashboard/tiktok-icon";
 import { VideoDetailModal } from "@/components/dashboard/video-detail-modal";
 import type { ApiAccount } from "@/lib/accounts";
-import {
-  filterVideosByDateRange,
-  filterVideosBySearch,
-  flattenVideosFromAccounts,
-  type DateRangeFilter,
-} from "@/lib/content-analytics";
+import { filterVideosByPostedDate, filterVideosBySearch, flattenVideosFromAccounts } from "@/lib/content-analytics";
+import { formatBeijingDateChinese, getBeijingDateKey } from "@/lib/format-beijing-time";
 import { enrichVideosWithQuality, qualityTierStyles, type ContentVideoWithQuality } from "@/lib/content-quality";
 import {
   buildFeedAccountOptions,
@@ -40,11 +37,95 @@ type LatestVideosFeedProps = {
   isLoading: boolean;
 };
 
-const dateRangeOptions: Array<{ value: DateRangeFilter; label: string }> = [
-  { value: "7d", label: "7 天" },
-  { value: "30d", label: "30 天" },
-  { value: "all", label: "全部" },
-];
+function PostedDateFilter({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (value: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const todayKey = getBeijingDateKey();
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
+  const buttonLabel = value ? formatBeijingDateChinese(value) : "全部";
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="inline-flex h-10 min-w-[9.5rem] items-center justify-between gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[color-mix(in_srgb,var(--carolina-blue)_40%,transparent)]"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+      >
+        <span className="inline-flex items-center gap-1.5">
+          <Calendar className="size-3.5 text-[var(--cadet-gray)]" />
+          {buttonLabel}
+        </span>
+        <ChevronDown className={`size-4 text-[var(--cadet-gray)] transition ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 top-[calc(100%+0.35rem)] z-30 w-64 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-3 shadow-lg">
+          <button
+            type="button"
+            onClick={() => {
+              onChange(null);
+              setOpen(false);
+            }}
+            className={`mb-3 flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition ${
+              value === null
+                ? "bg-[var(--space-cadet)] font-medium text-[var(--eggshell)]"
+                : "text-[var(--space-cadet)] hover:bg-[var(--eggshell)]"
+            }`}
+          >
+            全部
+            <span className="text-xs opacity-80">显示所有视频</span>
+          </button>
+
+          <label className="block text-xs font-medium text-[var(--cadet-gray)]">选择发布日期（北京时间）</label>
+          <input
+            type="date"
+            value={value ?? ""}
+            max={todayKey}
+            onChange={(event) => {
+              const next = event.target.value.trim();
+              onChange(next || null);
+              if (next) setOpen(false);
+            }}
+            className="mt-1.5 h-10 w-full rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/30 px-3 text-sm text-[var(--space-cadet)] outline-none focus:border-[var(--carolina-blue)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_20%,transparent)]"
+          />
+          {value ? (
+            <button
+              type="button"
+              onClick={() => {
+                onChange(null);
+                setOpen(false);
+              }}
+              className="mt-2 text-xs text-[var(--carolina-blue)] hover:underline"
+            >
+              清除日期筛选
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function FeedSkeleton() {
   return (
@@ -198,7 +279,7 @@ function VideoFeedCard({
 
 export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState<DateRangeFilter>("all");
+  const [postedDate, setPostedDate] = useState<string | null>(null);
   const [accountFilter, setAccountFilter] = useState("all");
   const [sortMode, setSortMode] = useState<FeedSortMode>("posted");
   const [selectedVideo, setSelectedVideo] = useState<ContentVideoWithQuality | null>(null);
@@ -208,7 +289,7 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
   const accountOptions = useMemo(() => buildFeedAccountOptions(allVideos), [allVideos]);
 
   const filteredVideos = useMemo((): ContentVideoWithQuality[] => {
-    let list = filterVideosByDateRange(allVideos, dateRange);
+    let list = filterVideosByPostedDate(allVideos, postedDate);
     list = filterVideosByAccountHandle(list, accountFilter);
     list = filterVideosBySearch(list, searchQuery);
     const enriched: ContentVideoWithQuality[] = enrichVideosWithQuality(list);
@@ -218,9 +299,9 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
     }
 
     return sortVideosByPostedAt(enriched);
-  }, [allVideos, dateRange, accountFilter, searchQuery, sortMode]);
+  }, [allVideos, postedDate, accountFilter, searchQuery, sortMode]);
 
-  const hasActiveFilters = accountFilter !== "all" || dateRange !== "all" || searchQuery.trim().length > 0;
+  const hasActiveFilters = accountFilter !== "all" || postedDate !== null || searchQuery.trim().length > 0;
 
   return (
     <section className="mt-5 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
@@ -274,22 +355,7 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
               <Calendar className="size-3" />
               发布时间
             </span>
-            <div className="flex flex-wrap gap-1 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-1">
-              {dateRangeOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setDateRange(option.value)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                    dateRange === option.value
-                      ? "bg-[var(--space-cadet)] text-[var(--eggshell)]"
-                      : "text-[var(--cadet-gray)] hover:bg-[var(--eggshell)] hover:text-[var(--space-cadet)]"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+            <PostedDateFilter value={postedDate} onChange={setPostedDate} />
           </div>
 
           <div className="flex flex-col gap-1.5">
