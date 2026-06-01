@@ -3,8 +3,6 @@
 import { useMemo } from "react";
 import {
   BarChart3,
-  CalendarDays,
-  ChevronDown,
   CirclePlay,
   Eye,
   Heart,
@@ -153,22 +151,11 @@ export function GrowthOverview({
 
   return (
     <section className="mt-2 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm">
-            <BarChart3 className="size-5" />
-          </div>
-          <h2 className="text-lg font-semibold text-[var(--space-cadet)] sm:text-xl">今日增长概览</h2>
+      <div className="flex items-center gap-3">
+        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm">
+          <BarChart3 className="size-5" />
         </div>
-
-        <div
-          className="inline-flex w-fit items-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-sm font-medium text-[var(--space-cadet)]"
-          aria-label={`统计日期 ${overview.dateLabel}`}
-        >
-          <CalendarDays className="size-4 text-[var(--cadet-gray)]" />
-          <span>{overview.dateLabel}</span>
-          <ChevronDown className="size-4 text-[var(--cadet-gray)]" />
-        </div>
+        <h2 className="text-lg font-semibold text-[var(--space-cadet)] sm:text-xl">今日增长概览</h2>
       </div>
 
       {setupHint ? (
