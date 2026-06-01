@@ -99,3 +99,17 @@ input {
 .account-list-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
+
+@keyframes sync-runner-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@utility animate-sync-runner-bob {
+  animation: sync-runner-bob 0.45s ease-in-out infinite;
+}

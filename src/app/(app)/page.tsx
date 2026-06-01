@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { GrowthOverview } from "@/components/dashboard/growth-overview";
 import { LatestVideosFeed } from "@/components/dashboard/latest-videos-feed";
+import { SyncRunnerProgress } from "@/components/dashboard/sync-runner-progress";
 import { formatBeijingTime } from "@/lib/format-beijing-time";
 import type { ApiAccount, ApiVideo } from "@/lib/accounts";
 import type { AccountSnapshotRow } from "@/lib/account-snapshots";
@@ -230,6 +231,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [syncPercent, setSyncPercent] = useState(0);
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; handle: string } | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
@@ -291,13 +293,30 @@ export default function DashboardPage() {
     return () => window.clearTimeout(timer);
   }, [loadAccounts]);
 
+  useEffect(() => {
+    if (!isSyncingAll) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setSyncPercent((current) => (current >= 88 ? current : current + 1.2));
+    }, 180);
+
+    return () => window.clearInterval(interval);
+  }, [isSyncingAll]);
+
   async function handleSyncAll() {
     if (isSyncingAll) return;
 
     setErrorMessage("");
     setSyncSuccessMessage(null);
     setIsSyncingAll(true);
-    setSyncProgress({ current: 0, total: 1, handle: "全部账号" });
+    setSyncPercent(0);
+    setSyncProgress({
+      current: 0,
+      total: Math.max(apiAccounts.length, 1),
+      handle: "全部账号",
+    });
     try {
       const response = await fetch("/api/sync-all", {
         method: "POST",
@@ -320,7 +339,10 @@ export default function DashboardPage() {
       const failedHandles = (payload.results ?? []).filter((item) => !item.ok).map((item) => item.handle);
       const syncedAt = new Date();
       setLastSyncedAt(syncedAt);
+      setSyncPercent(100);
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
       setSyncProgress(null);
+      setSyncPercent(0);
       await loadAccounts(selectedHandle);
 
       const apifyNote = typeof payload.apifyCalls === "number" ? `，TikHub 调用 ${payload.apifyCalls} 次` : "";
@@ -337,6 +359,7 @@ export default function DashboardPage() {
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "批量同步失败");
       setSyncProgress(null);
+      setSyncPercent(0);
     } finally {
       setIsSyncingAll(false);
     }
@@ -410,10 +433,11 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {syncProgress ? (
-            <p className="rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_8%,white)] px-3 py-2 text-sm text-[var(--space-cadet)]">
-              正在同步 @{syncProgress.handle}（{syncProgress.current}/{syncProgress.total}）…
-            </p>
+          {isSyncingAll && syncProgress ? (
+            <SyncRunnerProgress
+              percent={syncPercent}
+              label={`正在同步${syncProgress.handle === "全部账号" ? "全部账号" : `@${syncProgress.handle}`}…`}
+            />
           ) : null}
 
           {syncSuccessMessage ? (
