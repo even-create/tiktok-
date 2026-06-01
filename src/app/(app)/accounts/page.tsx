@@ -82,19 +82,16 @@ export default function AccountsPage() {
   return (
     <div className="space-y-5">
       <header className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
-              <Users className="size-4" />
-              Accounts
-            </div>
-            <h1 className="mt-3 text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">账号管理</h1>
-            <p className="mt-2 text-sm text-[var(--cadet-gray)]">
-              查看所有追踪账号的核心指标、同步状态与播放趋势，点击进入详情页。
-            </p>
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
+            <Users className="size-4" />
+            Accounts
           </div>
+          <h1 className="mt-3 text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">账号管理</h1>
+        </div>
 
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:max-w-2xl">
+        <div className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
             <AddAccountForm
               className="min-w-0 flex-1"
               disabled={isLoading || deletingHandle !== null}
@@ -125,17 +122,17 @@ export default function AccountsPage() {
               粉丝排序
             </button>
           </div>
-        </div>
 
-        <label className="relative mt-4 block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
-          <input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="搜索账号名或 @handle"
-            className="h-11 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 pl-10 pr-4 text-sm text-[var(--space-cadet)] outline-none transition placeholder:text-[var(--cadet-gray)] focus:border-[var(--carolina-blue)] focus:bg-[var(--card)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)]"
-          />
-        </label>
+          <label className="relative w-full shrink-0 lg:ml-auto lg:w-72 xl:w-80">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="搜索账号名或 @handle"
+              className="h-11 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 pl-10 pr-4 text-sm text-[var(--space-cadet)] outline-none transition placeholder:text-[var(--cadet-gray)] focus:border-[var(--carolina-blue)] focus:bg-[var(--card)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)]"
+            />
+          </label>
+        </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[var(--cadet-gray)]">
           <span>
