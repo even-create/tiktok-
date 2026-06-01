@@ -223,8 +223,8 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
   const hasActiveFilters = accountFilter !== "all" || dateRange !== "all" || searchQuery.trim().length > 0;
 
   return (
-    <section className="mt-5 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
+    <section className="mt-5 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm">
             <CirclePlay className="size-5" />
@@ -232,13 +232,13 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
           <h2 className="text-lg font-semibold text-[var(--space-cadet)] sm:text-xl">最新视频动态</h2>
         </div>
         {!isLoading ? (
-          <span className="rounded-full border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--eggshell)]/50 px-3 py-1 text-xs font-medium text-[var(--cadet-gray)]">
+          <p className="text-sm text-[var(--cadet-gray)]">
             {filteredVideos.length} / {allVideos.length} 条视频
-          </span>
+          </p>
         ) : null}
       </div>
 
-      <div className="space-y-4 border-t border-[color-mix(in_srgb,var(--cadet-gray)_20%,transparent)] bg-[var(--eggshell)]/25 p-4 sm:p-5">
+      <div className="mt-4 space-y-4 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] pt-4">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
           <input
@@ -330,7 +330,7 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
         </p>
       </div>
 
-      <div className="p-4 sm:p-5">
+      <div className="mt-4">
         {isLoading ? (
           <FeedSkeleton />
         ) : filteredVideos.length ? (
