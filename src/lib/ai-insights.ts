@@ -1,5 +1,6 @@
 import { formatCompact, type ApiAccount } from "@/lib/accounts";
 import { buildTagStats, flattenVideosFromAccounts, type ContentVideo } from "@/lib/content-analytics";
+import { getBeijingHour } from "@/lib/format-beijing-time";
 
 export type PostingTimeSlot = {
   label: string;
@@ -96,7 +97,8 @@ export function buildAiInsightsContext(accounts: ApiAccount[]) {
 
   for (const video of videos) {
     if (!video.postedAt) continue;
-    const hour = new Date(video.postedAt).getHours();
+    const hour = getBeijingHour(video.postedAt);
+    if (hour === null) continue;
     const current = hourBuckets.get(hour) ?? { views: 0, engagement: 0, count: 0 };
     current.views += video.viewsCount;
     current.engagement += video.engagementRate;
@@ -274,7 +276,7 @@ export function serializeContextForPrompt(context: AiInsightsContext) {
       handle: video.handle,
       views: video.views,
       engagement: Number(video.engagement.toFixed(2)),
-      hour: video.postedAt ? new Date(video.postedAt).getHours() : null,
+      hour: video.postedAt ? getBeijingHour(video.postedAt) : null,
       tags: video.tags.slice(0, 3),
       type: video.contentType,
     })),

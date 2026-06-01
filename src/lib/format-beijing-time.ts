@@ -5,6 +5,7 @@ import timezone from "dayjs/plugin/timezone";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+/** All analytics date boundaries and display formatting use Beijing time (UTC+8). */
 export const BEIJING_TIMEZONE = "Asia/Shanghai";
 
 export type BeijingTimeFormat = "full" | "compact" | "chinese" | "chinese-date" | "chart-day" | "seconds";
@@ -86,6 +87,86 @@ export function formatBeijingChartDay(time: TimeInput, fallback = "—") {
 /** YYYY-MM-DD — date keys for snapshots */
 export function getBeijingDateKey(time: TimeInput = new Date()) {
   return formatPattern(time, "YYYY-MM-DD", "");
+}
+
+/** Absolute instant (ms) for comparisons and sorting. */
+export function getBeijingTimestamp(time: TimeInput): number | null {
+  const parsed = parseBeijingDayjs(time);
+  return parsed?.valueOf() ?? null;
+}
+
+/** Start of today 00:00 in Beijing. */
+export function getBeijingTodayStartMs() {
+  return dayjs().tz(BEIJING_TIMEZONE).startOf("day").valueOf();
+}
+
+/** Inclusive calendar window: last N Beijing days including today. */
+export function getBeijingCalendarRangeStartMs(dayCount: number) {
+  if (dayCount <= 1) return getBeijingTodayStartMs();
+  return dayjs()
+    .tz(BEIJING_TIMEZONE)
+    .subtract(dayCount - 1, "day")
+    .startOf("day")
+    .valueOf();
+}
+
+export function isWithinBeijingCalendarDays(time: TimeInput, dayCount: number) {
+  const timestamp = getBeijingTimestamp(time);
+  if (timestamp === null) return false;
+  return timestamp >= getBeijingCalendarRangeStartMs(dayCount);
+}
+
+export function getBeijingHour(time: TimeInput): number | null {
+  const parsed = parseBeijingDayjs(time);
+  if (!parsed) return null;
+  return parsed.tz(BEIJING_TIMEZONE).hour();
+}
+
+/** Monday 00:00 Beijing for the week containing `time`. */
+export function getBeijingWeekStartMs(time: TimeInput): number | null {
+  const parsed = parseBeijingDayjs(time);
+  if (!parsed) return null;
+  const beijing = parsed.tz(BEIJING_TIMEZONE);
+  const weekday = beijing.day();
+  const daysSinceMonday = weekday === 0 ? 6 : weekday - 1;
+  return beijing.subtract(daysSinceMonday, "day").startOf("day").valueOf();
+}
+
+export function getBeijingRangeMidpointMs(dayCount: number) {
+  const start = getBeijingCalendarRangeStartMs(dayCount);
+  const end = dayjs().tz(BEIJING_TIMEZONE).endOf("day").valueOf();
+  return start + (end - start) / 2;
+}
+
+export type BeijingDayBucket = {
+  key: string;
+  label: string;
+  start: number;
+  end: number;
+};
+
+/** Calendar-aligned day buckets in Beijing time for charts and trends. */
+export function buildBeijingDayBuckets(rangeDays: number, stepDays = 1): BeijingDayBucket[] {
+  const bucketCount = stepDays > 1 ? Math.ceil(rangeDays / stepDays) : rangeDays;
+  const today = dayjs().tz(BEIJING_TIMEZONE).startOf("day");
+  const buckets: BeijingDayBucket[] = [];
+
+  for (let index = 0; index < bucketCount; index += 1) {
+    const endDayOffset = (bucketCount - 1 - index) * stepDays;
+    const bucketEndDay = today.subtract(endDayOffset, "day");
+    const bucketStartDay = bucketEndDay.subtract(stepDays - 1, "day").startOf("day");
+    const start = bucketStartDay.valueOf();
+    const end = bucketEndDay.endOf("day").valueOf() + 1;
+
+    buckets.push({
+      key: `${start}-${end}`,
+      label: formatBeijingChartDay(bucketEndDay.valueOf()),
+      start,
+      end,
+    });
+  }
+
+  return buckets;
 }
 
 export function formatBeijingTimeByVariant(

@@ -1,4 +1,4 @@
-import { formatBeijingTime } from "@/lib/format-beijing-time";
+import { formatBeijingTime, getBeijingTimestamp } from "@/lib/format-beijing-time";
 
 export type ApiVideo = {
   id: string;
@@ -86,8 +86,8 @@ export function buildViewsTrendPoints(videos: ApiVideo[] | undefined, maxPoints 
   if (!videos?.length) return [];
 
   const sorted = [...videos].sort((left, right) => {
-    const leftTime = left.posted_at ? new Date(left.posted_at).getTime() : 0;
-    const rightTime = right.posted_at ? new Date(right.posted_at).getTime() : 0;
+    const leftTime = left.posted_at ? (getBeijingTimestamp(left.posted_at) ?? 0) : 0;
+    const rightTime = right.posted_at ? (getBeijingTimestamp(right.posted_at) ?? 0) : 0;
     if (leftTime !== rightTime) return leftTime - rightTime;
     return (left.views_count ?? 0) - (right.views_count ?? 0);
   });

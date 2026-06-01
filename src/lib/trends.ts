@@ -1,5 +1,10 @@
 import { formatCompact, type ApiAccount, type ApiVideo } from "@/lib/accounts";
-import { formatBeijingChartDay } from "@/lib/format-beijing-time";
+import {
+  buildBeijingDayBuckets,
+  getBeijingRangeMidpointMs,
+  getBeijingTimestamp,
+  isWithinBeijingCalendarDays,
+} from "@/lib/format-beijing-time";
 import type { LineChartPoint } from "@/components/dashboard/line-chart";
 
 export type TrendsRange = "7d" | "30d" | "90d";
@@ -102,43 +107,18 @@ function getRangeLabel(range: TrendsRange) {
 function buildDayBuckets(range: TrendsRange): DayBucket[] {
   const days = getRangeDays(range);
   const step = range === "90d" ? 7 : 1;
-  const bucketCount = range === "90d" ? Math.ceil(days / 7) : days;
-  const rangeEnd = Date.now();
-  const rangeStart = rangeEnd - days * 24 * 60 * 60 * 1000;
-  const buckets: DayBucket[] = [];
-
-  for (let index = 0; index < bucketCount; index += 1) {
-    const start = rangeStart + index * step * 24 * 60 * 60 * 1000;
-    const end = Math.min(rangeStart + (index + 1) * step * 24 * 60 * 60 * 1000, rangeEnd + 1);
-    const labelDate = end - 1;
-    const label = formatBeijingChartDay(labelDate);
-
-    buckets.push({
-      key: `${start}-${end}`,
-      label,
-      start,
-      end,
-    });
-  }
-
-  return buckets;
+  return buildBeijingDayBuckets(days, step);
 }
 
 function videoPostedTime(video: VideoWithAccount) {
   if (!video.posted_at) return null;
-  const time = new Date(video.posted_at).getTime();
-  return Number.isNaN(time) ? null : time;
+  return getBeijingTimestamp(video.posted_at);
 }
 
 function videosInRange(videos: VideoWithAccount[], range: TrendsRange) {
   const days = getRangeDays(range);
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
 
-  return videos.filter((video) => {
-    const posted = videoPostedTime(video);
-    if (posted === null) return false;
-    return posted >= cutoff;
-  });
+  return videos.filter((video) => isWithinBeijingCalendarDays(video.posted_at, days));
 }
 
 function videoInBucket(video: VideoWithAccount, bucket: DayBucket) {
@@ -220,7 +200,7 @@ function findFastestGrowingAccount(videos: VideoWithAccount[], range: TrendsRang
     if (posted === null) continue;
 
     const days = getRangeDays(range);
-    const midpoint = Date.now() - (days / 2) * 24 * 60 * 60 * 1000;
+    const midpoint = getBeijingRangeMidpointMs(days);
     const views = video.views_count ?? 0;
 
     const current = byAccount.get(video.accountId) ?? {

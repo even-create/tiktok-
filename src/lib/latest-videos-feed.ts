@@ -1,4 +1,5 @@
 import type { ContentVideo } from "@/lib/content-analytics";
+import { getBeijingTimestamp } from "@/lib/format-beijing-time";
 import type { QualityTier } from "@/lib/content-quality";
 
 export type FeedAccountOption = {
@@ -22,8 +23,8 @@ export const qualityTierDisplayLabel: Record<QualityTier, string> = {
 
 export function sortVideosByPostedAt<T extends ContentVideo>(videos: T[]): T[] {
   return [...videos].sort((left, right) => {
-    const leftTime = left.postedAt ? new Date(left.postedAt).getTime() : 0;
-    const rightTime = right.postedAt ? new Date(right.postedAt).getTime() : 0;
+    const leftTime = left.postedAt ? (getBeijingTimestamp(left.postedAt) ?? 0) : 0;
+    const rightTime = right.postedAt ? (getBeijingTimestamp(right.postedAt) ?? 0) : 0;
     return rightTime - leftTime;
   });
 }

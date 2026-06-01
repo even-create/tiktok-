@@ -1,5 +1,5 @@
 import type { LineChartPoint } from "@/components/dashboard/line-chart";
-import { formatBeijingDateChinese } from "@/lib/format-beijing-time";
+import { formatBeijingDateChinese, getBeijingDateKey, getBeijingWeekStartMs } from "@/lib/format-beijing-time";
 import type { ContentVideo } from "@/lib/content-analytics";
 
 export type QualityTier = "viral" | "high-potential" | "weak";
@@ -172,15 +172,6 @@ export function buildQualitySummary(videos: ContentVideoWithQuality[]): QualityA
   };
 }
 
-function startOfWeek(date: Date) {
-  const copy = new Date(date);
-  const day = copy.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  copy.setDate(copy.getDate() + diff);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-}
-
 export function buildQualityTrends(videos: ContentVideoWithQuality[]): QualityTrendSeries {
   const buckets = new Map<
     string,
@@ -197,16 +188,16 @@ export function buildQualityTrends(videos: ContentVideoWithQuality[]): QualityTr
 
   for (const video of videos) {
     if (!video.postedAt) continue;
-    const posted = new Date(video.postedAt);
-    if (Number.isNaN(posted.getTime())) continue;
 
-    const weekStart = startOfWeek(posted);
-    const key = weekStart.toISOString().slice(0, 10);
-    const label = formatBeijingDateChinese(weekStart);
+    const weekStartMs = getBeijingWeekStartMs(video.postedAt);
+    if (weekStartMs === null) continue;
+
+    const key = getBeijingDateKey(weekStartMs);
+    const label = formatBeijingDateChinese(weekStartMs);
 
     const bucket = buckets.get(key) ?? {
       label,
-      sortKey: weekStart.getTime(),
+      sortKey: weekStartMs,
       engagement: [],
       viral: [],
       retention: [],

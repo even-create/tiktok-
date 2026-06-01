@@ -1,5 +1,9 @@
 import { formatCompact, type ApiAccount, type ApiVideo } from "@/lib/accounts";
-import { formatBeijingTime, formatBeijingTimeChinese } from "@/lib/format-beijing-time";
+import {
+  formatBeijingTime,
+  formatBeijingTimeChinese,
+  isWithinBeijingCalendarDays,
+} from "@/lib/format-beijing-time";
 
 export type DateRangeFilter = "7d" | "30d" | "all";
 
@@ -140,13 +144,8 @@ export function filterVideosByDateRange(videos: ContentVideo[], range: DateRange
   if (range === "all") return videos;
 
   const days = range === "7d" ? 7 : 30;
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
 
-  return videos.filter((video) => {
-    if (!video.postedAt) return false;
-    const time = new Date(video.postedAt).getTime();
-    return !Number.isNaN(time) && time >= cutoff;
-  });
+  return videos.filter((video) => isWithinBeijingCalendarDays(video.postedAt, days));
 }
 
 export function filterVideosBySearch(videos: ContentVideo[], query: string) {
