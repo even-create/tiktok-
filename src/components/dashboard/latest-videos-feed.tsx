@@ -136,8 +136,6 @@ function VideoFeedCard({
           className="aspect-[3/4] w-full"
         />
 
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-black/50 via-black/10 to-transparent" />
-
         <span
           className={`absolute left-1.5 top-1.5 z-10 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold shadow-sm ${tierStyle.badge}`}
         >
