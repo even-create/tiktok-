@@ -100,16 +100,93 @@ input {
   background: transparent;
 }
 
-@keyframes sync-runner-bob {
-  0%,
-  100% {
-    transform: translateY(0);
+/* Dashboard sync — pixel runner spritesheet (4 frames) */
+.sync-runner-sprite {
+  width: var(--sprite-w, 42px);
+  height: var(--sprite-h, 44px);
+  background-image: url("/sync/runner-spritesheet.png");
+  background-repeat: no-repeat;
+  background-size: calc(var(--sprite-w, 42px) * var(--sprite-frames, 4)) var(--sprite-h, 44px);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 1px 0 color-mix(in srgb, var(--space-cadet) 12%, transparent));
+  animation: sync-runner-run 0.36s steps(4) infinite;
+}
+
+.sync-runner-sprite--jump {
+  animation: sync-runner-jump 520ms ease-out forwards;
+}
+
+@keyframes sync-runner-run {
+  from {
+    background-position: 0 0;
   }
-  50% {
-    transform: translateY(-2px);
+  to {
+    background-position: 100% 0;
   }
 }
 
-@utility animate-sync-runner-bob {
-  animation: sync-runner-bob 0.45s ease-in-out infinite;
+@keyframes sync-runner-jump {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    transform: translateY(-9px) scale(1.04);
+  }
+  70% {
+    transform: translateY(-2px) scale(1);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+.sync-runner-dust {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+}
+
+.sync-runner-dust span {
+  position: absolute;
+  bottom: 0;
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--cadet-gray) 55%, transparent);
+  opacity: 0;
+  animation: sync-runner-dust 0.36s steps(2) infinite;
+}
+
+.sync-runner-dust span:nth-child(1) {
+  left: -10px;
+  animation-delay: 0s;
+}
+
+.sync-runner-dust span:nth-child(2) {
+  left: -4px;
+  animation-delay: 0.08s;
+}
+
+.sync-runner-dust span:nth-child(3) {
+  left: 2px;
+  animation-delay: 0.16s;
+}
+
+@keyframes sync-runner-dust {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(1);
+  }
+  30% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-4px, 2px) scale(0.6);
+  }
 }
