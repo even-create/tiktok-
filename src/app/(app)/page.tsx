@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import { GrowthOverview } from "@/components/dashboard/growth-overview";
 import { LatestVideosFeed } from "@/components/dashboard/latest-videos-feed";
 import type { ApiAccount, ApiVideo } from "@/lib/accounts";
 
@@ -257,6 +258,7 @@ export default function DashboardPage() {
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; handle: string } | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
+  const [growthRefreshKey, setGrowthRefreshKey] = useState(0);
 
   const loadAccounts = useCallback(async (preferredHandle?: string) => {
     setIsLoading(true);
@@ -272,6 +274,7 @@ export default function DashboardPage() {
 
       const rawAccounts = payload.accounts ?? [];
       setApiAccounts(rawAccounts);
+      setGrowthRefreshKey((key) => key + 1);
       const nextAccounts = rawAccounts.map((account, index) => mapApiAccount(account, index));
 
       if (nextAccounts.length) {
@@ -544,6 +547,8 @@ export default function DashboardPage() {
           </article>
         ))}
       </div>
+
+      <GrowthOverview refreshKey={growthRefreshKey} isLoading={isLoading} />
 
       <LatestVideosFeed apiAccounts={apiAccounts} isLoading={isLoading} />
 

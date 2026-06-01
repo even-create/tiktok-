@@ -1,3 +1,4 @@
+import { recordAccountDailySnapshot } from "@/lib/account-snapshots";
 import { supabase } from "@/lib/supabase";
 import type { NormalizedTikTokProfile } from "@/lib/tiktok/types";
 
@@ -200,9 +201,18 @@ export async function saveTikTokProfile(profile: NormalizedTikTokProfile) {
   await recalculateAccountTotals(account.id);
 
   const { data: refreshedAccount } = await supabase.from("accounts").select("*").eq("id", account.id).single();
+  const savedAccount = refreshedAccount ?? account;
+
+  await recordAccountDailySnapshot({
+    id: savedAccount.id,
+    followers_count: savedAccount.followers_count,
+    likes_count: savedAccount.likes_count,
+    total_views: savedAccount.total_views,
+    video_count: savedAccount.video_count,
+  });
 
   return {
-    account: refreshedAccount ?? account,
+    account: savedAccount,
     skippedColumns: accountResult.skippedColumns,
     videosProcessed: profile.videos.length,
     videosInserted,
