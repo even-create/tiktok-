@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownWideNarrow, Clock3, RefreshCw, Search, Users } from "lucide-react";
+import { ArrowDownWideNarrow, Clock3, Search, Users } from "lucide-react";
 import { AccountCard } from "@/components/accounts/account-card";
 import { AddAccountForm } from "@/components/accounts/add-account-form";
 import {
@@ -94,38 +94,28 @@ export default function AccountsPage() {
             </p>
           </div>
 
-          <AddAccountForm
-            disabled={isLoading || deletingHandle !== null}
-            onError={(message) => {
-              setSuccessMessage(null);
-              setErrorMessage(message);
-            }}
-            onAdded={(handle, videosCount) => {
-              setErrorMessage("");
-              setSuccessMessage(
-                handle
-                  ? `账号 @${handle} 已添加并同步，共 ${videosCount ?? 0} 条视频。`
-                  : `账号已添加并同步，共 ${videosCount ?? 0} 条视频。`,
-              );
-              void loadAccounts();
-            }}
-          />
-        </div>
-
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row lg:max-w-3xl">
-            <label className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="搜索账号名或 @handle"
-                className="h-11 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 pl-10 pr-4 text-sm text-[var(--space-cadet)] outline-none transition placeholder:text-[var(--cadet-gray)] focus:border-[var(--carolina-blue)] focus:bg-[var(--card)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)]"
-              />
-            </label>
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:max-w-2xl">
+            <AddAccountForm
+              className="min-w-0 flex-1"
+              disabled={isLoading || deletingHandle !== null}
+              onError={(message) => {
+                setSuccessMessage(null);
+                setErrorMessage(message);
+              }}
+              onAdded={(handle, videosCount) => {
+                setErrorMessage("");
+                setSuccessMessage(
+                  handle
+                    ? `账号 @${handle} 已添加并同步，共 ${videosCount ?? 0} 条视频。`
+                    : `账号已添加并同步，共 ${videosCount ?? 0} 条视频。`,
+                );
+                void loadAccounts();
+              }}
+            />
             <button
               type="button"
               onClick={() => setSortByFollowers((current) => !current)}
-              className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-medium transition duration-200 ${
+              className={`inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-medium transition duration-200 ${
                 sortByFollowers
                   ? "border-[color-mix(in_srgb,var(--carolina-blue)_45%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] text-[var(--space-cadet)]"
                   : "border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] text-[var(--cadet-gray)] hover:border-[var(--carolina-blue)] hover:text-[var(--space-cadet)]"
@@ -134,16 +124,18 @@ export default function AccountsPage() {
               <ArrowDownWideNarrow className="size-4" />
               粉丝排序
             </button>
-            <button
-              type="button"
-              onClick={() => void loadAccounts()}
-              disabled={isLoading}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-4 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)] disabled:opacity-60"
-            >
-              <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
-              刷新
-            </button>
+          </div>
         </div>
+
+        <label className="relative mt-4 block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="搜索账号名或 @handle"
+            className="h-11 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 pl-10 pr-4 text-sm text-[var(--space-cadet)] outline-none transition placeholder:text-[var(--cadet-gray)] focus:border-[var(--carolina-blue)] focus:bg-[var(--card)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)]"
+          />
+        </label>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[var(--cadet-gray)]">
           <span>

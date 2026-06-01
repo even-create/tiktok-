@@ -5,11 +5,12 @@ import { Clock3, Link2, Plus } from "lucide-react";
 
 type AddAccountFormProps = {
   disabled?: boolean;
+  className?: string;
   onAdded?: (handle?: string, videosCount?: number) => void;
   onError?: (message: string) => void;
 };
 
-export function AddAccountForm({ disabled = false, onAdded, onError }: AddAccountFormProps) {
+export function AddAccountForm({ disabled = false, className = "", onAdded, onError }: AddAccountFormProps) {
   const [tiktokUrl, setTiktokUrl] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -46,7 +47,10 @@ export function AddAccountForm({ disabled = false, onAdded, onError }: AddAccoun
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex w-full flex-col gap-2 sm:flex-row lg:max-w-xl">
+    <form
+      onSubmit={handleSubmit}
+      className={`flex w-full flex-col gap-2 sm:flex-row sm:items-center ${className}`.trim()}
+    >
       <label className="relative flex-1">
         <Link2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
         <input

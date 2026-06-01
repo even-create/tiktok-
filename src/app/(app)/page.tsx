@@ -381,35 +381,34 @@ export default function DashboardPage() {
   return (
     <>
       <header className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
-              <Activity className="size-4" />
-              Dashboard
-            </div>
-            <h1 className="mt-3 text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">TikTok 数据追踪后台</h1>
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
+            <Activity className="size-4" />
+            Dashboard
           </div>
-
-          <div className="flex w-full flex-col items-stretch gap-2 sm:items-end xl:max-w-md">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">TikTok 数据追踪后台</h1>
             <button
               type="button"
               onClick={() => void handleSyncAll()}
               disabled={isBusy}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--carolina-blue)] px-5 text-sm font-semibold text-[var(--space-cadet)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--carolina-blue)] px-4 text-sm font-semibold text-[var(--space-cadet)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSyncingAll ? <Clock3 className="size-4 animate-spin" /> : <CloudDownload className="size-4" />}
               {isSyncingAll ? "Syncing..." : "Sync Now"}
             </button>
-            <p className="text-xs text-[var(--cadet-gray)] sm:text-right">
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <p className="text-xs text-[var(--cadet-gray)]">
               Last synced at:{" "}
               <span className="font-medium text-[var(--space-cadet)]">
                 {lastSyncedAt ? formatBeijingTime(lastSyncedAt) : "—"}
               </span>
             </p>
           </div>
-        </div>
-
-        <div className="mt-4 space-y-2">
 
           {syncProgress ? (
             <p className="rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_8%,white)] px-3 py-2 text-sm text-[var(--space-cadet)]">
