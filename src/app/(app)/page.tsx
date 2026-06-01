@@ -1,15 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   CirclePlay,
   Clock3,
   CloudDownload,
   Eye,
-  Link2,
   MessageCircle,
-  Plus,
   Share2,
   ThumbsUp,
   TrendingUp,
@@ -229,8 +227,6 @@ export default function DashboardPage() {
   const [accounts, setAccounts] = useState<Account[]>(trackedAccounts);
   const [apiAccounts, setApiAccounts] = useState<ApiAccount[]>([]);
   const [selectedHandle, setSelectedHandle] = useState(trackedAccounts[0].handle);
-  const [tiktokUrl, setTiktokUrl] = useState("");
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSyncingAll, setIsSyncingAll] = useState(false);
@@ -296,7 +292,7 @@ export default function DashboardPage() {
   }, [loadAccounts]);
 
   async function handleSyncAll() {
-    if (isSyncingAll || isSyncing) return;
+    if (isSyncingAll) return;
 
     setErrorMessage("");
     setSyncSuccessMessage(null);
@@ -346,37 +342,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function handleAddAccount(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!tiktokUrl.trim()) return;
-
-    setIsSyncing(true);
-    setErrorMessage("");
-    try {
-      const response = await fetch("/api/sync-tiktok", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: tiktokUrl, force: true }),
-      });
-      const payload = (await response.json()) as { account?: { handle: string }; videosCount?: number; error?: string };
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "TikTok 同步失败");
-      }
-
-      const syncedHandle = payload.account?.handle;
-      setTiktokUrl("");
-      setLastSyncedAt(new Date());
-      setSyncSuccessMessage(`账号已添加并同步，共 ${payload.videosCount ?? 0} 条视频。`);
-      await loadAccounts(syncedHandle);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "TikTok 同步失败");
-    } finally {
-      setIsSyncing(false);
-    }
-  }
-
-  const isBusy = isLoading || isSyncing || isSyncingAll;
+  const isBusy = isLoading || isSyncingAll;
 
   const totals = useMemo(() => {
     let totalFollowers = 0;
@@ -424,45 +390,26 @@ export default function DashboardPage() {
             <h1 className="mt-3 text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">TikTok 数据追踪后台</h1>
           </div>
 
-          <form onSubmit={handleAddAccount} className="flex w-full flex-col gap-2 sm:flex-row xl:max-w-xl">
-            <label className="relative flex-1">
-              <Link2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
-              <input
-                value={tiktokUrl}
-                onChange={(event) => setTiktokUrl(event.target.value)}
-                placeholder="粘贴 TikTok 链接，例如 https://www.tiktok.com/@creator"
-                className="h-12 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 pl-10 pr-4 text-sm text-[var(--space-cadet)] outline-none transition placeholder:text-[var(--cadet-gray)] focus:border-[var(--carolina-blue)] focus:bg-[var(--card)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)]"
-              />
-            </label>
-            <button
-              type="submit"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--space-cadet)] px-5 text-sm font-semibold text-[var(--eggshell)] transition duration-200 hover:bg-[var(--jet)] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
-              disabled={isBusy}
-            >
-              {isSyncing ? <Clock3 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-              {isSyncing ? "抓取中" : "添加账号"}
-            </button>
-          </form>
-        </div>
-
-        <div className="mt-4 space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex w-full flex-col items-stretch gap-2 sm:items-end xl:max-w-md">
             <button
               type="button"
               onClick={() => void handleSyncAll()}
               disabled={isBusy}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--carolina-blue)] px-4 text-sm font-semibold text-[var(--space-cadet)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--carolina-blue)] px-5 text-sm font-semibold text-[var(--space-cadet)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSyncingAll ? <Clock3 className="size-4 animate-spin" /> : <CloudDownload className="size-4" />}
               {isSyncingAll ? "Syncing..." : "Sync Now"}
             </button>
-            <p className="text-xs text-[var(--cadet-gray)]">
+            <p className="text-xs text-[var(--cadet-gray)] sm:text-right">
               Last synced at:{" "}
               <span className="font-medium text-[var(--space-cadet)]">
                 {lastSyncedAt ? formatBeijingTime(lastSyncedAt) : "—"}
               </span>
             </p>
           </div>
+        </div>
+
+        <div className="mt-4 space-y-2">
 
           {syncProgress ? (
             <p className="rounded-xl border border-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_8%,white)] px-3 py-2 text-sm text-[var(--space-cadet)]">

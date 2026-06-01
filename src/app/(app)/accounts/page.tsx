@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDownWideNarrow, Clock3, RefreshCw, Search, Users } from "lucide-react";
 import { AccountCard } from "@/components/accounts/account-card";
+import { AddAccountForm } from "@/components/accounts/add-account-form";
 import {
   filterAccounts,
   mapApiAccount,
@@ -17,6 +18,7 @@ export default function AccountsPage() {
   const [sortByFollowers, setSortByFollowers] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [deletingHandle, setDeletingHandle] = useState<string | null>(null);
 
   const loadAccounts = useCallback(async () => {
@@ -80,7 +82,7 @@ export default function AccountsPage() {
   return (
     <div className="space-y-5">
       <header className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
               <Users className="size-4" />
@@ -92,7 +94,25 @@ export default function AccountsPage() {
             </p>
           </div>
 
-          <div className="flex w-full flex-col gap-2 sm:flex-row lg:max-w-xl">
+          <AddAccountForm
+            disabled={isLoading || deletingHandle !== null}
+            onError={(message) => {
+              setSuccessMessage(null);
+              setErrorMessage(message);
+            }}
+            onAdded={(handle, videosCount) => {
+              setErrorMessage("");
+              setSuccessMessage(
+                handle
+                  ? `账号 @${handle} 已添加并同步，共 ${videosCount ?? 0} 条视频。`
+                  : `账号已添加并同步，共 ${videosCount ?? 0} 条视频。`,
+              );
+              void loadAccounts();
+            }}
+          />
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row lg:max-w-3xl">
             <label className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
               <input
@@ -123,7 +143,6 @@ export default function AccountsPage() {
               <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
               刷新
             </button>
-          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[var(--cadet-gray)]">
@@ -137,6 +156,12 @@ export default function AccountsPage() {
           ) : null}
           {sortByFollowers ? <span className="text-[var(--carolina-blue)]">已按粉丝数排序</span> : null}
         </div>
+
+        {successMessage ? (
+          <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            {successMessage}
+          </p>
+        ) : null}
 
         {errorMessage ? (
           <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -174,7 +199,7 @@ export default function AccountsPage() {
           <p className="mt-2 text-sm text-[var(--cadet-gray)]">
             {searchQuery.trim()
               ? "试试其他关键词，或清空搜索条件。"
-              : "请先在 Dashboard 添加 TikTok 账号，然后回到这里查看。"}
+              : "请在右上角粘贴 TikTok 链接并添加账号。"}
           </p>
         </section>
       )}
