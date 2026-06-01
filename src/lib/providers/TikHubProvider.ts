@@ -46,7 +46,7 @@ export class TikHubProvider {
     });
   }
 
-  /** Enrich videos missing stats via fetch_one_video_v2 (batched with small delays). */
+  /** Enrich videos missing cover or stats via fetch_one_video_v2. */
   async enrichVideosWithDetails(
     videos: ReturnType<typeof mapProfilePayload>["videos"],
     handle: string,
@@ -55,16 +55,32 @@ export class TikHubProvider {
     let calls = 0;
     const enriched = [...videos];
 
-    for (let index = 0; index < enriched.length && calls < maxCalls; index += 1) {
+    const priorityIndices = enriched
+      .map((video, index) => ({ video, index }))
+      .filter(({ video }) => !video.thumbnailUrl || video.views <= 0 || video.likes <= 0)
+      .sort((left, right) => {
+        const leftScore = Number(!left.video.thumbnailUrl) * 2 + Number(left.video.views <= 0);
+        const rightScore = Number(!right.video.thumbnailUrl) * 2 + Number(right.video.views <= 0);
+        return rightScore - leftScore;
+      })
+      .slice(0, maxCalls)
+      .map(({ index }) => index);
+
+    for (const index of priorityIndices) {
+      if (calls >= maxCalls) break;
+
       const video = enriched[index];
-      if (video.views > 0 && video.likes > 0) continue;
 
       try {
         const payload = await this.fetchOneVideoV2(video.id);
         calls += 1;
         const mapped = mapOneVideoPayload(payload, handle);
         if (mapped) {
-          enriched[index] = { ...mapped, id: video.id };
+          enriched[index] = {
+            ...mapped,
+            id: video.id,
+            thumbnailUrl: mapped.thumbnailUrl ?? video.thumbnailUrl,
+          };
         }
       } catch (error) {
         console.warn(`[tikhub] fetch_one_video_v2 failed for ${video.id}`, error);
@@ -104,7 +120,7 @@ export class TikHubProvider {
       }
     }
 
-    const enrichBudget = Math.min(5, MAX_VIDEOS_PER_SYNC);
+    const enrichBudget = Math.min(12, accountData.videos.length);
     const enriched = await this.enrichVideosWithDetails(accountData.videos, handle, enrichBudget);
     apiCalls += enriched.apiCalls;
     accountData = { ...accountData, videos: enriched.videos };

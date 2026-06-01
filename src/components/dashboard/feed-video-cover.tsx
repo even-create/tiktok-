@@ -1,7 +1,7 @@
 "use client";
 
 import { CirclePlay } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type FeedVideoCoverProps = {
   title: string;
@@ -11,56 +11,82 @@ type FeedVideoCoverProps = {
 };
 
 export function FeedVideoCover({ title, thumbnailUrl, videoUrl, className = "aspect-[3/4] w-full" }: FeedVideoCoverProps) {
-  const [resolvedUrl, setResolvedUrl] = useState<string | null>(thumbnailUrl);
+  const [displayUrl, setDisplayUrl] = useState<string | null>(thumbnailUrl);
+  const [isLoading, setIsLoading] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [isLoading, setIsLoading] = useState(!thumbnailUrl && Boolean(videoUrl));
+  const remoteLoadedRef = useRef(false);
+
+  const fetchRemoteCover = useCallback(async () => {
+    if (!videoUrl || remoteLoadedRef.current) return null;
+
+    remoteLoadedRef.current = true;
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`/api/video-cover?url=${encodeURIComponent(videoUrl)}`, { cache: "no-store" });
+      if (!response.ok) return null;
+
+      const payload = (await response.json()) as { thumbnailUrl?: string };
+      return payload.thumbnailUrl?.trim() || null;
+    } catch {
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [videoUrl]);
 
   useEffect(() => {
-    setResolvedUrl(thumbnailUrl);
+    remoteLoadedRef.current = false;
+    setDisplayUrl(thumbnailUrl);
     setFailed(false);
-    setIsLoading(!thumbnailUrl && Boolean(videoUrl));
+    setIsLoading(false);
   }, [thumbnailUrl, videoUrl]);
 
   useEffect(() => {
-    if (resolvedUrl || !videoUrl || failed) return;
+    if (displayUrl || !videoUrl || failed || remoteLoadedRef.current) return;
 
     let cancelled = false;
 
-    void fetch(`/api/video-cover?url=${encodeURIComponent(videoUrl)}`)
-      .then(async (response) => {
-        if (!response.ok) return null;
-        const payload = (await response.json()) as { thumbnailUrl?: string };
-        return payload.thumbnailUrl ?? null;
-      })
-      .then((url) => {
-        if (cancelled) return;
-        if (url) {
-          setResolvedUrl(url);
-        } else {
-          setFailed(true);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+    void fetchRemoteCover().then((url) => {
+      if (cancelled) return;
+      if (url) {
+        setDisplayUrl(url);
+      } else {
+        setFailed(true);
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [resolvedUrl, videoUrl, failed]);
+  }, [displayUrl, videoUrl, failed, fetchRemoteCover]);
 
-  if (resolvedUrl && !failed) {
+  const handleImageError = () => {
+    if (!videoUrl || remoteLoadedRef.current) {
+      setFailed(true);
+      return;
+    }
+
+    setDisplayUrl(null);
+    void fetchRemoteCover().then((url) => {
+      if (url) {
+        setDisplayUrl(url);
+      } else {
+        setFailed(true);
+      }
+    });
+  };
+
+  if (displayUrl && !failed) {
     return (
       <img
-        src={resolvedUrl}
+        src={displayUrl}
         alt={title}
         className={`${className} rounded-none object-cover ring-1 ring-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)]`}
-        onError={() => setFailed(true)}
+        onError={handleImageError}
         referrerPolicy="no-referrer"
         loading="lazy"
+        decoding="async"
       />
     );
   }

@@ -7,10 +7,10 @@ import {
   Eye,
   Filter,
   Hash,
+  Heart,
   MessageCircle,
   Search,
   Share2,
-  ThumbsUp,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -49,20 +49,47 @@ const dateRangeOptions: Array<{ value: DateRangeFilter; label: string }> = [
 function FeedSkeleton() {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {Array.from({ length: 6 }).map((_, index) => (
+      {Array.from({ length: 8 }).map((_, index) => (
         <div
           key={index}
-          className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-[var(--card)]"
+          className="overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-[var(--card)]"
         >
-          <div className="aspect-[3/4] w-full animate-pulse bg-[var(--eggshell)]/60" />
-          <div className="space-y-2 p-2.5">
-            <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--eggshell)]" />
-            <div className="h-3 w-1/2 animate-pulse rounded bg-[var(--eggshell)]" />
-            <div className="flex gap-2">
-              <div className="h-6 w-16 animate-pulse rounded-full bg-[var(--eggshell)]" />
-              <div className="h-6 w-16 animate-pulse rounded-full bg-[var(--eggshell)]" />
+          <div className="flex">
+            <div className="aspect-[3/4] flex-1 animate-pulse bg-[var(--eggshell)]/60" />
+            <div className="flex w-[76px] flex-col items-center gap-2 border-l border-[color-mix(in_srgb,var(--cadet-gray)_20%,transparent)] py-3">
+              {Array.from({ length: 4 }).map((__, statIndex) => (
+                <div key={statIndex} className="size-9 animate-pulse rounded-full bg-[var(--eggshell)]" />
+              ))}
             </div>
           </div>
+          <div className="space-y-2 p-2.5">
+            <div className="h-3 w-full animate-pulse rounded bg-[var(--eggshell)]" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-[var(--eggshell)]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function VideoStatsRail({ video }: { video: ContentVideoWithQuality }) {
+  const stats = [
+    { icon: Eye, value: video.viewsLabel },
+    { icon: Heart, value: video.likesLabel },
+    { icon: MessageCircle, value: video.commentsLabel },
+    { icon: Share2, value: video.sharesLabel },
+  ];
+
+  return (
+    <div className="flex w-[76px] shrink-0 flex-col items-center justify-center gap-2.5 border-l border-[color-mix(in_srgb,var(--cadet-gray)_22%,transparent)] bg-[color-mix(in_srgb,var(--space-cadet)_4%,white)] py-3">
+      {stats.map((stat, index) => (
+        <div key={index} className="flex flex-col items-center gap-1">
+          <div className="grid size-9 place-items-center rounded-full bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)]">
+            <stat.icon className="size-4" strokeWidth={2.25} />
+          </div>
+          <span className="max-w-[68px] truncate text-center text-[11px] font-bold leading-none text-[var(--space-cadet)]">
+            {stat.value}
+          </span>
         </div>
       ))}
     </div>
@@ -98,29 +125,33 @@ function VideoFeedCard({
     <article
       className="group flex h-full flex-col overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--carolina-blue)_45%,transparent)] hover:shadow-md"
     >
-      <button
-        type="button"
-        onClick={() => onSelect(video)}
-        className="relative block w-full text-left"
-      >
-        <FeedVideoCover
-          title={video.title}
-          thumbnailUrl={video.thumbnailUrl}
-          videoUrl={video.videoUrl}
-          className="aspect-[3/4] w-full"
-        />
-        <span
-          className={`absolute left-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold shadow-sm ${tierStyle.badge}`}
+      <div className="flex min-h-0">
+        <button
+          type="button"
+          onClick={() => onSelect(video)}
+          className="relative min-w-0 flex-1 text-left"
         >
-          <span aria-hidden>{qualityTierEmoji[video.qualityTier]}</span>
-          <span className="hidden min-[420px]:inline">{qualityTierDisplayLabel[video.qualityTier]}</span>
-        </span>
-        <span className="absolute bottom-2 right-2 rounded-lg bg-[var(--space-cadet)]/85 px-2 py-1 text-[10px] font-medium text-[var(--eggshell)] opacity-0 transition group-hover:opacity-100">
-          查看详情
-        </span>
-      </button>
+          <FeedVideoCover
+            title={video.title}
+            thumbnailUrl={video.thumbnailUrl}
+            videoUrl={video.videoUrl}
+            className="aspect-[3/4] h-full w-full"
+          />
+          <span
+            className={`absolute left-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold shadow-sm ${tierStyle.badge}`}
+          >
+            <span aria-hidden>{qualityTierEmoji[video.qualityTier]}</span>
+            <span className="hidden min-[420px]:inline">{qualityTierDisplayLabel[video.qualityTier]}</span>
+          </span>
+          <span className="absolute bottom-2 left-2 rounded-lg bg-[var(--space-cadet)]/85 px-2 py-1 text-[10px] font-medium text-[var(--eggshell)] opacity-0 transition group-hover:opacity-100">
+            查看详情
+          </span>
+        </button>
 
-      <div className="flex flex-1 flex-col gap-2 p-2.5 sm:p-3">
+        <VideoStatsRail video={video} />
+      </div>
+
+      <div className="flex flex-1 flex-col gap-2 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] p-2.5 sm:p-3">
         <button type="button" onClick={() => onSelect(video)} className="text-left">
           <p className="line-clamp-2 text-xs font-medium leading-snug text-[var(--space-cadet)] transition group-hover:text-[var(--carolina-blue)]">
             {video.title}
@@ -140,26 +171,7 @@ function VideoFeedCard({
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-1 text-[9px] text-[var(--cadet-gray)]">
-          <span className="inline-flex items-center gap-1">
-            <Eye className="size-3 shrink-0" />
-            {video.viewsLabel}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <ThumbsUp className="size-3 shrink-0" />
-            {video.likesLabel}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <MessageCircle className="size-3 shrink-0" />
-            {video.commentsLabel}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Share2 className="size-3 shrink-0" />
-            {video.sharesLabel}
-          </span>
-        </div>
-
-        <div className="mt-auto flex items-center justify-between gap-1.5 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] pt-2">
+        <div className="mt-auto flex items-center justify-between gap-1.5 pt-1">
           <span className="inline-flex items-center gap-0.5 rounded-full bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)] px-2 py-0.5 text-[10px] font-semibold text-[var(--space-cadet)]">
             <TrendingUp className="size-2.5" />
             {video.engagementLabel}

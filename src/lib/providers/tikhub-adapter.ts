@@ -77,6 +77,37 @@ function parsePostedAt(aweme: UnknownRecord) {
   return null;
 }
 
+function pickCoverUrl(video: UnknownRecord, aweme: UnknownRecord) {
+  const urlListPaths = [
+    ["cover", "url_list"],
+    ["origin_cover", "url_list"],
+    ["dynamic_cover", "url_list"],
+    ["animated_cover", "url_list"],
+    ["cover", "url_list", "0"],
+    ["origin_cover", "url_list", "0"],
+    ["dynamic_cover", "url_list", "0"],
+  ];
+
+  for (const path of urlListPaths) {
+    const value = dig(video, [path]);
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (Array.isArray(value)) {
+      const first = value.find((item) => typeof item === "string" && item.trim());
+      if (typeof first === "string") return first.trim();
+    }
+  }
+
+  const flat = pickString(
+    aweme.cover,
+    aweme.origin_cover,
+    aweme.dynamic_cover,
+    dig(aweme, [["video", "cover", "url_list", "0"]]),
+    dig(aweme, [["video", "origin_cover", "url_list", "0"]]),
+  );
+
+  return flat;
+}
+
 function mapAwemeToVideo(aweme: UnknownRecord, fallbackHandle: string): UnifiedTikTokVideo | null {
   const statistics = (dig(aweme, [["statistics"]]) as UnknownRecord) ?? aweme;
   const video = (dig(aweme, [["video"]]) as UnknownRecord) ?? {};
@@ -87,18 +118,13 @@ function mapAwemeToVideo(aweme: UnknownRecord, fallbackHandle: string): UnifiedT
 
   const id = awemeId ?? fallbackVideoId(`${handle}-${desc ?? JSON.stringify(aweme)}`);
 
-  const playAddr = dig(video, [["play_addr", "url_list", "0"], ["download_addr", "url_list", "0"]]);
-  const cover = dig(video, [
-    ["cover", "url_list", "0"],
-    ["origin_cover", "url_list", "0"],
-    ["dynamic_cover", "url_list", "0"],
-  ]);
+  const cover = pickCoverUrl(video, aweme);
 
   return {
     id,
     title: titleFromDesc(desc),
     url: awemeId ? `https://www.tiktok.com/@${handle}/video/${awemeId}` : pickString(aweme.share_url, aweme.webVideoUrl),
-    thumbnailUrl: typeof cover === "string" ? cover : null,
+    thumbnailUrl: cover,
     views: toNumber(statistics.play_count ?? statistics.playCount),
     likes: toNumber(statistics.digg_count ?? statistics.diggCount),
     comments: toNumber(statistics.comment_count ?? statistics.commentCount),

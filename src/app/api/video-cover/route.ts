@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { resolveVideoCoverUrl } from "@/lib/video-cover";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   const videoUrl = new URL(request.url).searchParams.get("url")?.trim();
@@ -10,18 +12,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(videoUrl)}`;
-    const response = await fetch(oembedUrl, {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      return NextResponse.json({ error: "无法获取封面" }, { status: 502 });
-    }
-
-    const payload = (await response.json()) as { thumbnail_url?: string };
-    const thumbnailUrl = payload.thumbnail_url?.trim() || null;
+    const thumbnailUrl = await resolveVideoCoverUrl(videoUrl);
 
     if (!thumbnailUrl) {
       return NextResponse.json({ error: "封面为空" }, { status: 404 });
