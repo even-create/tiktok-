@@ -423,11 +423,6 @@ export default function DashboardPage() {
     };
   }, [apiAccounts]);
 
-  const sortedVideos = useMemo(() => {
-    const allVideos = accounts.flatMap((account) => account.videos);
-    return sortVideos(allVideos, "views");
-  }, [accounts]);
-
   return (
     <>
       <header className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
@@ -552,101 +547,6 @@ export default function DashboardPage() {
 
       <LatestVideosFeed apiAccounts={apiAccounts} isLoading={isLoading} />
 
-      <section className="mt-5 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
-          <div className="flex min-w-0 items-center gap-2">
-            <h2 className="truncate text-base font-semibold">全部账号视频数据</h2>
-            <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs">{sortedVideos.length} 条</span>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] border-collapse text-left">
-            <thead>
-              <tr className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/50 text-xs uppercase tracking-[0.16em] text-[var(--cadet-gray)]">
-                <th className="px-4 py-3 font-medium">Video</th>
-                <th className="px-4 py-3 font-medium">Views</th>
-                <th className="px-4 py-3 font-medium">Likes</th>
-                <th className="px-4 py-3 font-medium">Comments</th>
-                <th className="px-4 py-3 font-medium">Shares</th>
-                <th className="px-4 py-3 font-medium">互动率</th>
-                <th className="px-4 py-3 font-medium">Retention</th>
-                <th className="px-4 py-3 font-medium">Posted</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedVideos.map((video) => (
-                <tr
-                  key={video.id}
-                  className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] transition duration-200 last:border-0 hover:bg-[var(--eggshell)]/50"
-                >
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-3">
-                      {video.videoUrl ? (
-                        <a
-                          href={video.videoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="grid size-10 place-items-center rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] text-[var(--carolina-blue)] shadow-sm transition duration-200 hover:scale-105 hover:border-[var(--carolina-blue)] hover:shadow-md"
-                          aria-label={`打开视频：${video.title}`}
-                        >
-                          <CirclePlay className="size-5" />
-                        </a>
-                      ) : (
-                        <div className="grid size-10 place-items-center rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/60 text-[var(--cadet-gray)]">
-                          <CirclePlay className="size-5" />
-                        </div>
-                      )}
-                      <p className="max-w-sm truncate text-sm font-medium text-[var(--space-cadet)]">{video.title}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-[var(--jet)]">
-                    <span className="inline-flex items-center gap-1">
-                      <Eye className="size-3.5 text-[var(--cadet-gray)]" />
-                      {video.views}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-[var(--jet)]">
-                    <span className="inline-flex items-center gap-1">
-                      <ThumbsUp className="size-3.5 text-[var(--cadet-gray)]" />
-                      {video.likes}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-[var(--jet)]">
-                    <span className="inline-flex items-center gap-1">
-                      <MessageCircle className="size-3.5 text-[var(--cadet-gray)]" />
-                      {video.comments}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-[var(--jet)]">
-                    <span className="inline-flex items-center gap-1">
-                      <Share2 className="size-3.5 text-[var(--cadet-gray)]" />
-                      {video.shares}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className="inline-flex rounded-full bg-[color-mix(in_srgb,var(--carolina-blue)_15%,white)] px-2.5 py-1 text-sm font-medium text-[var(--space-cadet)]">
-                      {video.interactionRate}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)]">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-[var(--carolina-blue)] to-[var(--space-cadet)]"
-                          style={{ width: video.retention === "N/A" ? "0%" : video.retention }}
-                        />
-                      </div>
-                      <span className="text-sm text-[var(--cadet-gray)]">{video.retention}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-[var(--cadet-gray)]">{video.postedAt}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
     </>
   );
 }
