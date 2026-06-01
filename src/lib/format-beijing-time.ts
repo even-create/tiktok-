@@ -11,16 +11,39 @@ export type BeijingTimeFormat = "full" | "compact" | "chinese" | "chinese-date" 
 
 type TimeInput = string | number | Date | null | undefined;
 
+const HAS_TIMEZONE_SUFFIX = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+const ISO_LOCAL_PATTERN = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
+
 function parseBeijingDayjs(time: TimeInput) {
   if (time === null || time === undefined || time === "") return null;
 
   if (typeof time === "number") {
     const milliseconds = time < 1e12 ? time * 1000 : time;
-    const parsed = dayjs(milliseconds);
+    const parsed = dayjs.utc(milliseconds);
     return parsed.isValid() ? parsed : null;
   }
 
-  const parsed = dayjs(time);
+  if (time instanceof Date) {
+    const parsed = dayjs.utc(time.getTime());
+    return parsed.isValid() ? parsed : null;
+  }
+
+  const trimmed = time.trim();
+  if (!trimmed) return null;
+
+  if (HAS_TIMEZONE_SUFFIX.test(trimmed)) {
+    const parsed = dayjs(trimmed);
+    return parsed.isValid() ? parsed : null;
+  }
+
+  // Supabase timestamptz / TikTok ISO often omit Z — treat as UTC, then show in Beijing.
+  if (ISO_LOCAL_PATTERN.test(trimmed)) {
+    const normalized = trimmed.replace(" ", "T");
+    const parsed = dayjs.utc(normalized);
+    return parsed.isValid() ? parsed : null;
+  }
+
+  const parsed = dayjs(trimmed);
   return parsed.isValid() ? parsed : null;
 }
 

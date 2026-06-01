@@ -179,7 +179,9 @@ function VideoFeedCard({
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[11px] font-medium text-[var(--space-cadet)]">@{video.accountHandle}</p>
-            <p className="truncate text-[9px] text-[var(--cadet-gray)]">{video.postedLabel}</p>
+            <p className="truncate text-[9px] text-[var(--cadet-gray)]" title={video.postedAtFull}>
+              {video.postedLabel}
+            </p>
           </div>
         </div>
 
