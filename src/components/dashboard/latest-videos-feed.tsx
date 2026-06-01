@@ -223,26 +223,22 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
   const hasActiveFilters = accountFilter !== "all" || dateRange !== "all" || searchQuery.trim().length > 0;
 
   return (
-    <section className="mt-5 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
-      <div className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)] sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[color-mix(in_srgb,var(--carolina-blue)_80%,white)]">
-              <CirclePlay className="size-4" />
-              Latest Videos Feed
-            </div>
-            <h2 className="mt-2 text-xl font-semibold sm:text-2xl">最新视频动态</h2>
-            <p className="mt-1 text-sm text-white/75">全部追踪账号 · 按发布时间展示表现数据</p>
+    <section className="mt-5 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm">
+            <CirclePlay className="size-5" />
           </div>
-          {!isLoading ? (
-            <span className="w-fit rounded-full bg-white/10 px-3 py-1 text-xs font-medium">
-              {filteredVideos.length} / {allVideos.length} 条视频
-            </span>
-          ) : null}
+          <h2 className="text-lg font-semibold text-[var(--space-cadet)] sm:text-xl">最新视频动态</h2>
         </div>
+        {!isLoading ? (
+          <span className="rounded-full border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--eggshell)]/50 px-3 py-1 text-xs font-medium text-[var(--cadet-gray)]">
+            {filteredVideos.length} / {allVideos.length} 条视频
+          </span>
+        ) : null}
       </div>
 
-      <div className="space-y-4 border-b border-[color-mix(in_srgb,var(--cadet-gray)_20%,transparent)] bg-[var(--eggshell)]/25 p-4 sm:p-5">
+      <div className="space-y-4 border-t border-[color-mix(in_srgb,var(--cadet-gray)_20%,transparent)] bg-[var(--eggshell)]/25 p-4 sm:p-5">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
           <input
