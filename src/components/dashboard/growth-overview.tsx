@@ -2,10 +2,13 @@
 
 import { useMemo } from "react";
 import {
+  BarChart3,
+  CalendarDays,
+  ChevronDown,
   CirclePlay,
   Eye,
   Heart,
-  Sparkles,
+  Minus,
   TrendingDown,
   TrendingUp,
   Users,
@@ -28,44 +31,109 @@ const metricIcons: Record<string, typeof Users> = {
   likes: Heart,
   videos: Video,
   "active-accounts": CirclePlay,
-  "avg-views": Sparkles,
+  "avg-views": BarChart3,
 };
 
-const accentByMetric: Record<string, string> = {
-  followers: "from-[color-mix(in_srgb,#10b981_28%,transparent)] to-transparent",
-  views: "from-[color-mix(in_srgb,var(--carolina-blue)_30%,transparent)] to-transparent",
-  likes: "from-[color-mix(in_srgb,#f43f5e_18%,transparent)] to-transparent",
-  videos: "from-[color-mix(in_srgb,var(--space-cadet)_16%,transparent)] to-transparent",
-  "active-accounts": "from-[color-mix(in_srgb,var(--jet)_14%,transparent)] to-transparent",
-  "avg-views": "from-[color-mix(in_srgb,var(--carolina-blue)_22%,transparent)] to-transparent",
+const iconStyles: Record<string, string> = {
+  followers: "bg-[color-mix(in_srgb,var(--space-cadet)_12%,white)] text-[var(--space-cadet)]",
+  views: "bg-[color-mix(in_srgb,var(--carolina-blue)_18%,white)] text-[var(--carolina-blue)]",
+  likes: "bg-[color-mix(in_srgb,#f43f5e_12%,white)] text-rose-500",
+  videos: "bg-[color-mix(in_srgb,var(--space-cadet)_10%,white)] text-[var(--space-cadet)]",
+  "active-accounts": "bg-[color-mix(in_srgb,var(--carolina-blue)_15%,white)] text-[var(--carolina-blue)]",
+  "avg-views": "bg-[color-mix(in_srgb,var(--carolina-blue)_20%,white)] text-[var(--carolina-blue)]",
 };
-
-function trendClassName(trend: GrowthTrend) {
-  if (trend === "up") return "text-emerald-600";
-  if (trend === "down") return "text-rose-600";
-  if (trend === "flat") return "text-[var(--cadet-gray)]";
-  return "text-[var(--cadet-gray)]";
-}
 
 function valueClassName(metric: GrowthOverviewMetric) {
   if (metric.value === "N/A") return "text-[var(--cadet-gray)]";
-  if (metric.valueTrend === "up") return "text-emerald-600";
+  if (metric.valueTrend === "up") return "text-[var(--space-cadet)]";
   if (metric.valueTrend === "down") return "text-rose-600";
-  if (metric.valueTrend === "flat") return "text-[var(--cadet-gray)]";
   return "text-[var(--space-cadet)]";
 }
 
-function CompareBadge({ metric }: { metric: GrowthOverviewMetric }) {
-  if (!metric.compareLabel) {
-    return <p className="mt-2 text-xs text-[var(--cadet-gray)]">对比昨日：N/A</p>;
-  }
+function compareTrendClass(trend: GrowthTrend) {
+  if (trend === "up") return "text-[var(--carolina-blue)]";
+  if (trend === "down") return "text-rose-500";
+  return "text-[var(--cadet-gray)]";
+}
+
+function GrowthSparkline({ points, trend }: { points: number[]; trend: GrowthTrend }) {
+  const width = 140;
+  const height = 36;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+
+  const polyline = points
+    .map((point, index) => {
+      const x = (index / Math.max(points.length - 1, 1)) * width;
+      const y = height - ((point - min) / range) * (height - 6) - 3;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  const stroke =
+    trend === "down"
+      ? "var(--rose-500, #f43f5e)"
+      : trend === "flat" || trend === null
+        ? "var(--cadet-gray)"
+        : "var(--carolina-blue)";
 
   return (
-    <p className={`mt-2 flex items-center gap-1 text-xs font-medium ${trendClassName(metric.trend)}`}>
-      {metric.trend === "up" ? <TrendingUp className="size-3.5" /> : null}
-      {metric.trend === "down" ? <TrendingDown className="size-3.5" /> : null}
-      {metric.compareLabel}
-    </p>
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="mt-3 h-9 w-full"
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      <polyline
+        points={polyline}
+        fill="none"
+        stroke={stroke}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CompareRow({ metric }: { metric: GrowthOverviewMetric }) {
+  const percent = metric.comparePercent ?? "—";
+
+  return (
+    <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+      <span className="text-[var(--cadet-gray)]">较昨日</span>
+      {metric.trend === "up" ? (
+        <TrendingUp className={`size-3.5 ${compareTrendClass(metric.trend)}`} />
+      ) : metric.trend === "down" ? (
+        <TrendingDown className={`size-3.5 ${compareTrendClass(metric.trend)}`} />
+      ) : (
+        <Minus className="size-3.5 text-[var(--cadet-gray)]" />
+      )}
+      <span className={`font-semibold ${compareTrendClass(metric.trend)}`}>{percent}</span>
+    </div>
+  );
+}
+
+function GrowthStatCard({ metric }: { metric: GrowthOverviewMetric }) {
+  const Icon = metricIcons[metric.id] ?? BarChart3;
+  const iconStyle = iconStyles[metric.id] ?? iconStyles.followers;
+
+  return (
+    <article className="flex min-w-0 flex-col rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_22%,transparent)] bg-[var(--card)] p-4 shadow-sm transition duration-200 hover:border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] hover:shadow-md">
+      <div className="flex items-center gap-2.5">
+        <div className={`grid size-9 shrink-0 place-items-center rounded-full ${iconStyle}`}>
+          <Icon className="size-4" strokeWidth={2.25} />
+        </div>
+        <p className="truncate text-sm font-medium text-[var(--cadet-gray)]">{metric.titleZh}</p>
+      </div>
+
+      <p className={`mt-3 text-2xl font-bold tracking-tight ${valueClassName(metric)}`}>{metric.value}</p>
+
+      <CompareRow metric={metric} />
+
+      <GrowthSparkline points={metric.sparkline} trend={metric.trend} />
+    </article>
   );
 }
 
@@ -84,69 +152,48 @@ export function GrowthOverview({
   const metrics = overview.metrics;
 
   return (
-    <section className="mt-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[var(--card)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--carolina-blue)_12%,transparent)]">
-      <div className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] px-4 py-4 text-[var(--eggshell)] sm:px-5 sm:py-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[color-mix(in_srgb,var(--carolina-blue)_80%,white)]">
-              <Sparkles className="size-4" />
-              Growth Overview
-            </div>
-            <h2 className="mt-2 text-xl font-semibold sm:text-2xl">今日增长概览</h2>
-            <p className="mt-1 text-sm text-white/75">基于每日快照对比 · 关注今天涨了多少</p>
+    <section className="mt-2 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm">
+            <BarChart3 className="size-5" />
           </div>
-          <span className="w-fit rounded-full bg-white/10 px-3 py-1 text-xs font-medium">{overview.dateLabel}</span>
+          <h2 className="text-lg font-semibold text-[var(--space-cadet)] sm:text-xl">今日增长概览</h2>
+        </div>
+
+        <div
+          className="inline-flex w-fit items-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-sm font-medium text-[var(--space-cadet)]"
+          aria-label={`统计日期 ${overview.dateLabel}`}
+        >
+          <CalendarDays className="size-4 text-[var(--cadet-gray)]" />
+          <span>{overview.dateLabel}</span>
+          <ChevronDown className="size-4 text-[var(--cadet-gray)]" />
         </div>
       </div>
 
       {setupHint ? (
-        <p className="border-b border-[color-mix(in_srgb,var(--carolina-blue)_20%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)] px-4 py-3 text-sm text-[var(--space-cadet)] sm:px-5">
+        <p className="mt-3 rounded-lg bg-[color-mix(in_srgb,var(--carolina-blue)_8%,white)] px-3 py-2 text-xs leading-relaxed text-[var(--cadet-gray)] sm:text-sm">
           {setupHint}
         </p>
       ) : null}
 
-      <div className="grid gap-3 p-4 sm:grid-cols-2 sm:gap-4 sm:p-5 xl:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {showSkeleton
           ? Array.from({ length: 6 }).map((_, index) => (
-              <article
+              <div
                 key={index}
-                className="animate-pulse rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_22%,transparent)] bg-[var(--eggshell)]/30 p-4"
+                className="animate-pulse rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] bg-[var(--eggshell)]/30 p-4"
               >
-                <div className="h-4 w-24 rounded bg-[var(--cadet-gray)]/20" />
-                <div className="mt-6 h-8 w-20 rounded bg-[var(--cadet-gray)]/25" />
-                <div className="mt-3 h-3 w-28 rounded bg-[var(--cadet-gray)]/15" />
-              </article>
+                <div className="flex items-center gap-2">
+                  <div className="size-9 rounded-full bg-[var(--cadet-gray)]/15" />
+                  <div className="h-3 w-20 rounded bg-[var(--cadet-gray)]/15" />
+                </div>
+                <div className="mt-4 h-7 w-16 rounded bg-[var(--cadet-gray)]/20" />
+                <div className="mt-2 h-3 w-14 rounded bg-[var(--cadet-gray)]/10" />
+                <div className="mt-4 h-8 rounded bg-[var(--cadet-gray)]/10" />
+              </div>
             ))
-          : metrics.map((metric) => {
-              const Icon = metricIcons[metric.id] ?? Sparkles;
-              const accent = accentByMetric[metric.id] ?? accentByMetric.followers;
-
-              return (
-                <article
-                  key={metric.id}
-                  className="group relative overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--carolina-blue)_40%,transparent)] hover:shadow-md"
-                >
-                  <div className={`absolute inset-x-0 top-0 h-20 bg-gradient-to-b ${accent}`} />
-                  <div className="relative flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--carolina-blue)]">
-                        {metric.titleEn}
-                      </p>
-                      <p className="mt-1 text-sm text-[var(--cadet-gray)]">{metric.titleZh}</p>
-                    </div>
-                    <Icon className="size-5 shrink-0 text-[var(--space-cadet)]" />
-                  </div>
-                  <p className={`relative mt-5 text-3xl font-semibold tracking-tight ${valueClassName(metric)}`}>
-                    {metric.value}
-                  </p>
-                  {metric.id === "followers" || metric.id === "views" || metric.id === "likes" ? (
-                    <CompareBadge metric={metric} />
-                  ) : (
-                    <p className="relative mt-2 text-xs text-[var(--cadet-gray)]">今日实时统计</p>
-                  )}
-                </article>
-              );
-            })}
+          : metrics.map((metric) => <GrowthStatCard key={metric.id} metric={metric} />)}
       </div>
     </section>
   );

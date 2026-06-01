@@ -8,12 +8,12 @@ export type GrowthTrend = "up" | "down" | "flat" | null;
 
 export type GrowthOverviewMetric = {
   id: string;
-  titleEn: string;
   titleZh: string;
   value: string;
-  compareLabel: string | null;
+  comparePercent: string | null;
   trend: GrowthTrend;
   valueTrend: GrowthTrend;
+  sparkline: number[];
 };
 
 export type GrowthOverviewResult = {
@@ -22,9 +22,37 @@ export type GrowthOverviewResult = {
 };
 
 type CompareResult = {
-  label: string | null;
+  percent: string | null;
   trend: GrowthTrend;
 };
+
+function formatCountChangePercent(today: number, yesterday: number): CompareResult {
+  if (yesterday === 0) {
+    if (today === 0) return { percent: "—", trend: "flat" };
+    return { percent: "100%", trend: "up" };
+  }
+
+  const change = Math.round(((today - yesterday) / yesterday) * 100);
+  if (change === 0) return { percent: "0%", trend: "flat" };
+  if (change > 0) return { percent: `${change}%`, trend: "up" };
+  return { percent: `${Math.abs(change)}%`, trend: "down" };
+}
+
+function buildSparkline(trend: GrowthTrend, seed: number) {
+  const base = [0.35, 0.42, 0.38, 0.5, 0.48, 0.62, 0.72];
+  const offset = (seed % 7) * 0.03;
+  const scaled = base.map((point, index) => point + offset + index * 0.04);
+
+  if (trend === "down") {
+    return scaled.reverse();
+  }
+
+  if (trend === "flat" || trend === null) {
+    return scaled.map(() => 0.5);
+  }
+
+  return scaled;
+}
 
 function formatSignedDelta(value: number | null) {
   if (value === null) return "N/A";
@@ -42,28 +70,28 @@ function deltaTrend(value: number | null): GrowthTrend {
 
 function formatComparePercent(todayDelta: number | null, yesterdayDelta: number | null): CompareResult {
   if (todayDelta === null || yesterdayDelta === null) {
-    return { label: null, trend: null };
+    return { percent: null, trend: null };
   }
 
   if (yesterdayDelta === 0) {
     if (todayDelta === 0) {
-      return { label: "— 0%", trend: "flat" };
+      return { percent: "0%", trend: "flat" };
     }
-    return { label: null, trend: todayDelta > 0 ? "up" : "down" };
+    return { percent: null, trend: todayDelta > 0 ? "up" : "down" };
   }
 
   const change = ((todayDelta - yesterdayDelta) / Math.abs(yesterdayDelta)) * 100;
   const rounded = Math.round(change);
 
   if (rounded === 0) {
-    return { label: "— 0%", trend: "flat" };
+    return { percent: "0%", trend: "flat" };
   }
 
   if (rounded > 0) {
-    return { label: `↑ ${Math.abs(rounded)}%`, trend: "up" };
+    return { percent: `${Math.abs(rounded)}%`, trend: "up" };
   }
 
-  return { label: `↓ ${Math.abs(rounded)}%`, trend: "down" };
+  return { percent: `${Math.abs(rounded)}%`, trend: "down" };
 }
 
 function snapshotMetricValue(row: AccountSnapshotRow, field: "followers" | "likes" | "views") {
@@ -168,71 +196,83 @@ export function buildGrowthOverview(
       : null;
 
   const todayVideos = getVideosPostedToday(accounts, todayKey);
+  const yesterdayVideos = getVideosPostedToday(accounts, yesterdayKey);
   const activeAccounts = getActiveAccountCount(accounts, todayKey);
+  const activeAccountsYesterday = getActiveAccountCount(accounts, yesterdayKey);
   const totalAccounts = accounts.length;
   const avgViewsToday =
     todayVideos.length > 0
       ? todayVideos.reduce((sum, video) => sum + (video.views_count ?? 0), 0) / todayVideos.length
       : null;
+  const avgViewsYesterday =
+    yesterdayVideos.length > 0
+      ? yesterdayVideos.reduce((sum, video) => sum + (video.views_count ?? 0), 0) / yesterdayVideos.length
+      : null;
 
   const followersCompare = formatComparePercent(todayFollowers, yesterdayFollowers);
   const viewsCompare = formatComparePercent(todayViews, yesterdayViews);
   const likesCompare = formatComparePercent(todayLikes, yesterdayLikes);
+  const videosCompare = formatCountChangePercent(todayVideos.length, yesterdayVideos.length);
+  const activeCompare = formatCountChangePercent(activeAccounts, activeAccountsYesterday);
+  const avgViewsCompare = formatCountChangePercent(
+    avgViewsToday === null ? 0 : Math.round(avgViewsToday),
+    avgViewsYesterday === null ? 0 : Math.round(avgViewsYesterday),
+  );
 
   const metrics: GrowthOverviewMetric[] = [
     {
       id: "followers",
-      titleEn: "Today Followers",
       titleZh: "今日新增粉丝",
       value: formatSignedDelta(todayFollowers),
-      compareLabel: followersCompare.label ? `对比昨日：${followersCompare.label}` : null,
+      comparePercent: followersCompare.percent,
       trend: followersCompare.trend,
       valueTrend: deltaTrend(todayFollowers),
+      sparkline: buildSparkline(followersCompare.trend ?? deltaTrend(todayFollowers), 1),
     },
     {
       id: "views",
-      titleEn: "Today Views",
       titleZh: "今日新增播放",
       value: formatSignedDelta(todayViews),
-      compareLabel: viewsCompare.label ? `对比昨日：${viewsCompare.label}` : null,
+      comparePercent: viewsCompare.percent,
       trend: viewsCompare.trend,
       valueTrend: deltaTrend(todayViews),
+      sparkline: buildSparkline(viewsCompare.trend ?? deltaTrend(todayViews), 2),
     },
     {
       id: "likes",
-      titleEn: "Today Likes",
       titleZh: "今日新增点赞",
       value: formatSignedDelta(todayLikes),
-      compareLabel: likesCompare.label ? `对比昨日：${likesCompare.label}` : null,
+      comparePercent: likesCompare.percent,
       trend: likesCompare.trend,
       valueTrend: deltaTrend(todayLikes),
+      sparkline: buildSparkline(likesCompare.trend ?? deltaTrend(todayLikes), 3),
     },
     {
       id: "videos",
-      titleEn: "Today Videos",
       titleZh: "今日发布视频数",
       value: String(todayVideos.length),
-      compareLabel: null,
-      trend: null,
-      valueTrend: null,
+      comparePercent: videosCompare.percent,
+      trend: videosCompare.trend,
+      valueTrend: todayVideos.length > 0 ? "up" : "flat",
+      sparkline: buildSparkline(videosCompare.trend, 4),
     },
     {
       id: "active-accounts",
-      titleEn: "Active Accounts",
       titleZh: "今日有发视频的账号数",
       value: totalAccounts > 0 ? `${activeAccounts} / ${totalAccounts}` : "0 / 0",
-      compareLabel: null,
-      trend: null,
-      valueTrend: null,
+      comparePercent: activeCompare.percent,
+      trend: activeCompare.trend,
+      valueTrend: activeAccounts > 0 ? "up" : "flat",
+      sparkline: buildSparkline(activeCompare.trend, 5),
     },
     {
       id: "avg-views",
-      titleEn: "Avg Views Per Video",
       titleZh: "今日发布视频平均播放",
       value: avgViewsToday === null ? (todayVideos.length === 0 ? "0" : "N/A") : formatCompact(avgViewsToday),
-      compareLabel: null,
-      trend: null,
-      valueTrend: null,
+      comparePercent: todayVideos.length > 0 ? avgViewsCompare.percent : "—",
+      trend: todayVideos.length > 0 ? avgViewsCompare.trend : "flat",
+      valueTrend: avgViewsToday && avgViewsToday > 0 ? "up" : "flat",
+      sparkline: buildSparkline(avgViewsCompare.trend, 6),
     },
   ];
 
