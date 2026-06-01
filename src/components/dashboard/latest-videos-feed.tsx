@@ -48,14 +48,14 @@ const dateRangeOptions: Array<{ value: DateRangeFilter; label: string }> = [
 
 function FeedSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {Array.from({ length: 6 }).map((_, index) => (
         <div
           key={index}
           className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-[var(--card)]"
         >
           <div className="aspect-[3/4] w-full animate-pulse bg-[var(--eggshell)]/60" />
-          <div className="space-y-3 p-4">
+          <div className="space-y-2 p-2.5">
             <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--eggshell)]" />
             <div className="h-3 w-1/2 animate-pulse rounded bg-[var(--eggshell)]" />
             <div className="flex gap-2">
@@ -96,7 +96,7 @@ function VideoFeedCard({
 
   return (
     <article
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] shadow-sm transition duration-300 hover:-translate-y-1 hover:border-[color-mix(in_srgb,var(--carolina-blue)_45%,transparent)] hover:shadow-lg"
+      className="group flex h-full flex-col overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--carolina-blue)_45%,transparent)] hover:shadow-md"
     >
       <button
         type="button"
@@ -110,37 +110,37 @@ function VideoFeedCard({
           className="aspect-[3/4] w-full"
         />
         <span
-          className={`absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold shadow-sm ${tierStyle.badge}`}
+          className={`absolute left-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold shadow-sm ${tierStyle.badge}`}
         >
           <span aria-hidden>{qualityTierEmoji[video.qualityTier]}</span>
-          {qualityTierDisplayLabel[video.qualityTier]}
+          <span className="hidden min-[420px]:inline">{qualityTierDisplayLabel[video.qualityTier]}</span>
         </span>
         <span className="absolute bottom-2 right-2 rounded-lg bg-[var(--space-cadet)]/85 px-2 py-1 text-[10px] font-medium text-[var(--eggshell)] opacity-0 transition group-hover:opacity-100">
           查看详情
         </span>
       </button>
 
-      <div className="flex flex-1 flex-col gap-3 p-4">
+      <div className="flex flex-1 flex-col gap-2 p-2.5 sm:p-3">
         <button type="button" onClick={() => onSelect(video)} className="text-left">
-          <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-[var(--space-cadet)] transition group-hover:text-[var(--carolina-blue)]">
+          <p className="line-clamp-2 text-xs font-medium leading-snug text-[var(--space-cadet)] transition group-hover:text-[var(--carolina-blue)]">
             {video.title}
           </p>
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <AccountAvatar
             name={video.accountDisplayName}
             avatarUrl={video.accountAvatarUrl}
             initialsText={video.accountHandle.slice(0, 2).toUpperCase()}
-            className="size-7 rounded-full text-[10px]"
+            className="size-6 rounded-full text-[9px]"
           />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium text-[var(--space-cadet)]">@{video.accountHandle}</p>
-            <p className="truncate text-[10px] text-[var(--cadet-gray)]">{video.postedLabel}</p>
+            <p className="truncate text-[11px] font-medium text-[var(--space-cadet)]">@{video.accountHandle}</p>
+            <p className="truncate text-[9px] text-[var(--cadet-gray)]">{video.postedLabel}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-[11px] text-[var(--cadet-gray)] sm:grid-cols-4">
+        <div className="grid grid-cols-4 gap-1 text-[9px] text-[var(--cadet-gray)]">
           <span className="inline-flex items-center gap-1">
             <Eye className="size-3 shrink-0" />
             {video.viewsLabel}
@@ -159,9 +159,9 @@ function VideoFeedCard({
           </span>
         </div>
 
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] pt-3">
-          <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)] px-2.5 py-1 text-xs font-semibold text-[var(--space-cadet)]">
-            <TrendingUp className="size-3" />
+        <div className="mt-auto flex items-center justify-between gap-1.5 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] pt-2">
+          <span className="inline-flex items-center gap-0.5 rounded-full bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)] px-2 py-0.5 text-[10px] font-semibold text-[var(--space-cadet)]">
+            <TrendingUp className="size-2.5" />
             {video.engagementLabel}
           </span>
           {video.videoUrl ? (
@@ -170,11 +170,10 @@ function VideoFeedCard({
               target="_blank"
               rel="noreferrer"
               onClick={(event) => event.stopPropagation()}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 text-xs font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)]"
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-2 text-[10px] font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)]"
               aria-label={`在 TikTok 打开：${video.title}`}
             >
-              <TikTokIcon className="size-3.5" />
-              <span className="hidden sm:inline">TikTok</span>
+              <TikTokIcon className="size-3" />
             </a>
           ) : null}
         </div>
@@ -325,7 +324,7 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
         {isLoading ? (
           <FeedSkeleton />
         ) : filteredVideos.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {filteredVideos.map((video) => (
               <VideoFeedCard key={video.id} video={video} onSelect={setSelectedVideo} />
             ))}
