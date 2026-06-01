@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { GrowthOverview } from "@/components/dashboard/growth-overview";
 import { LatestVideosFeed } from "@/components/dashboard/latest-videos-feed";
+import { formatBeijingTime } from "@/lib/format-beijing-time";
 import type { ApiAccount, ApiVideo } from "@/lib/accounts";
 import type { AccountSnapshotRow } from "@/lib/account-snapshots";
 
@@ -130,29 +131,6 @@ function formatCompact(value: number) {
   return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 }
 
-function formatPostedAt(value: string | null) {
-  if (!value) return "Unknown";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown";
-
-  return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(
-    date,
-  );
-}
-
-function formatLastSyncedDisplay(value: Date | string) {
-  const date = typeof value === "string" ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
 function pickLatestSyncTime(accountList: Account[]) {
   let latest = 0;
   for (const account of accountList) {
@@ -205,7 +183,7 @@ function mapApiVideo(video: ApiVideo, sortOrder: number): VideoItem {
     shares: formatCompact(sharesCount),
     interactionRate: interaction.label,
     interactionRateValue: interaction.value,
-    postedAt: formatPostedAt(video.posted_at),
+    postedAt: formatBeijingTime(video.posted_at, "Unknown"),
     retention: video.retention_rate ? `${video.retention_rate}%` : "N/A",
     sortOrder,
   };
@@ -481,7 +459,7 @@ export default function DashboardPage() {
             <p className="text-xs text-[var(--cadet-gray)]">
               Last synced at:{" "}
               <span className="font-medium text-[var(--space-cadet)]">
-                {lastSyncedAt ? formatLastSyncedDisplay(lastSyncedAt) : "—"}
+                {lastSyncedAt ? formatBeijingTime(lastSyncedAt) : "—"}
               </span>
             </p>
           </div>

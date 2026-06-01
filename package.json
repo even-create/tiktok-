@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
     "@tailwindcss/postcss": "^4.1.17",
+    "dayjs": "^1.11.21",
     "lucide-react": "^0.475.0",
     "next": "16.2.6",
     "react": "19.2.6",

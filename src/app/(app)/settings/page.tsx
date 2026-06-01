@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAppSettings } from "@/components/settings/theme-provider";
 import type { AppSettingsPublic, ThemeMode } from "@/lib/app-settings";
+import { formatBeijingTime } from "@/lib/format-beijing-time";
 
 type FormState = {
   tikhubApiKey: string;
@@ -383,9 +384,7 @@ export default function SettingsPage() {
 
           {settings?.updatedAt ? (
             <p className="text-center text-xs text-[var(--cadet-gray)]">
-              上次保存：{new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(
-                new Date(settings.updatedAt),
-              )}
+              上次保存：{formatBeijingTime(settings.updatedAt)}
             </p>
           ) : null}
         </form>

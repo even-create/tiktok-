@@ -1,4 +1,5 @@
 import { ArrowUpRight, CalendarDays, Tag } from "lucide-react";
+import { formatBeijingTimeChinese } from "@/lib/format-beijing-time";
 import type { GrowthFeedItem } from "@/lib/growth-feed/types";
 
 const sourceStyles: Record<GrowthFeedItem["source"], string> = {
@@ -13,12 +14,7 @@ type FeedCardProps = {
 };
 
 export function FeedCard({ item }: FeedCardProps) {
-  const publishedLabel = new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(item.publishedAt));
+  const publishedLabel = formatBeijingTimeChinese(item.publishedAt);
 
   return (
     <article className="group flex h-full flex-col rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--carolina-blue)_40%,transparent)] hover:shadow-md">

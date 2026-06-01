@@ -1,4 +1,5 @@
 import type { LineChartPoint } from "@/components/dashboard/line-chart";
+import { formatBeijingDateChinese } from "@/lib/format-beijing-time";
 import type { ContentVideo } from "@/lib/content-analytics";
 
 export type QualityTier = "viral" | "high-potential" | "weak";
@@ -201,7 +202,7 @@ export function buildQualityTrends(videos: ContentVideoWithQuality[]): QualityTr
 
     const weekStart = startOfWeek(posted);
     const key = weekStart.toISOString().slice(0, 10);
-    const label = new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric" }).format(weekStart);
+    const label = formatBeijingDateChinese(weekStart);
 
     const bucket = buckets.get(key) ?? {
       label,

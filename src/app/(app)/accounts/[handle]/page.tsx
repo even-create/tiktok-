@@ -19,19 +19,7 @@ import {
 import { AccountAvatar } from "@/components/account-avatar";
 import { LineChart } from "@/components/dashboard/line-chart";
 import { buildViewsTrendPoints, formatCompact, mapApiAccount, type ApiAccount } from "@/lib/accounts";
-
-function formatPostedAt(value: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
+import { formatBeijingTime } from "@/lib/format-beijing-time";
 
 function calcInteractionRate(likes: number, comments: number, shares: number, views: number) {
   if (views <= 0) return "0%";
@@ -297,7 +285,7 @@ export default function AccountDetailPage() {
                           {calcInteractionRate(likes, comments, shares, views)}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-sm text-[var(--cadet-gray)]">{formatPostedAt(video.posted_at)}</td>
+                      <td className="px-4 py-4 text-sm text-[var(--cadet-gray)]">{formatBeijingTime(video.posted_at)}</td>
                     </tr>
                   );
                 })}

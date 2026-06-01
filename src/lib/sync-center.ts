@@ -8,6 +8,7 @@ import {
 } from "@/lib/sync-config";
 import type { AccountRow } from "@/lib/tiktok-data";
 import type { SyncAccountResult } from "@/lib/sync-all-accounts";
+import { formatBeijingTime } from "@/lib/format-beijing-time";
 import { insertSyncLog } from "@/lib/sync-logs";
 
 export type AccountSyncStatus = "never" | "synced" | "stale" | "syncing";
@@ -35,18 +36,7 @@ export type ApiUsageStatus = {
 };
 
 function formatLastSynced(value: string | null) {
-  if (!value) return "从未同步";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "从未同步";
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatBeijingTime(value, "从未同步");
 }
 
 export function getAccountSyncStatus(lastSyncedAt: string | null): AccountSyncStatus {

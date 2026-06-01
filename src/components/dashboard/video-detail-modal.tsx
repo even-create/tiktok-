@@ -61,7 +61,7 @@ export function VideoDetailModal({ video, onClose }: VideoDetailModalProps) {
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-[var(--jet)]">{video.title}</p>
             <p className="mt-2 text-sm text-[var(--cadet-gray)]">
-              @{video.accountHandle} · {video.postedLabel}
+              @{video.accountHandle} · {video.postedAtFull}
             </p>
           </div>
 

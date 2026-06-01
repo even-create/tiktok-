@@ -1,4 +1,5 @@
 import { formatCompact, type ApiAccount, type ApiVideo } from "@/lib/accounts";
+import { formatBeijingChartDay } from "@/lib/format-beijing-time";
 import type { LineChartPoint } from "@/components/dashboard/line-chart";
 
 export type TrendsRange = "7d" | "30d" | "90d";
@@ -109,11 +110,8 @@ function buildDayBuckets(range: TrendsRange): DayBucket[] {
   for (let index = 0; index < bucketCount; index += 1) {
     const start = rangeStart + index * step * 24 * 60 * 60 * 1000;
     const end = Math.min(rangeStart + (index + 1) * step * 24 * 60 * 60 * 1000, rangeEnd + 1);
-    const labelDate = new Date(end - 1);
-    const label =
-      range === "90d"
-        ? `${labelDate.getMonth() + 1}/${labelDate.getDate()}`
-        : new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(labelDate);
+    const labelDate = end - 1;
+    const label = formatBeijingChartDay(labelDate);
 
     buckets.push({
       key: `${start}-${end}`,

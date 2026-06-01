@@ -1,3 +1,5 @@
+import { formatBeijingTime } from "@/lib/format-beijing-time";
+
 export type ApiVideo = {
   id: string;
   title: string;
@@ -60,18 +62,7 @@ export function formatCompact(value: number) {
 }
 
 export function formatLastSynced(value: string | null) {
-  if (!value) return "未同步";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "未同步";
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatBeijingTime(value, "未同步");
 }
 
 export function initialsFromName(value: string) {

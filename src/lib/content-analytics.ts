@@ -1,4 +1,5 @@
 import { formatCompact, type ApiAccount, type ApiVideo } from "@/lib/accounts";
+import { formatBeijingTime, formatBeijingTimeChinese } from "@/lib/format-beijing-time";
 
 export type DateRangeFilter = "7d" | "30d" | "all";
 
@@ -22,6 +23,7 @@ export type ContentVideo = {
   performanceScore: number;
   postedAt: string | null;
   postedLabel: string;
+  postedAtFull: string;
   tags: string[];
   viewsLabel: string;
   likesLabel: string;
@@ -74,19 +76,6 @@ export function extractTagsFromTitle(title: string) {
   return [...new Set(words)];
 }
 
-function formatPostedAt(value: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
 export function flattenVideosFromAccounts(accounts: ApiAccount[]): ContentVideo[] {
   const items: ContentVideo[] = [];
 
@@ -136,7 +125,8 @@ export function mapApiVideoToContentVideo(
     engagementRate,
     performanceScore: calcPerformanceScore(viewsCount, likesCount, commentsCount, sharesCount, engagementRate),
     postedAt: video.posted_at,
-    postedLabel: formatPostedAt(video.posted_at),
+    postedLabel: formatBeijingTimeChinese(video.posted_at),
+    postedAtFull: formatBeijingTime(video.posted_at),
     tags: extractTagsFromTitle(video.title),
     viewsLabel: formatCompact(viewsCount),
     likesLabel: formatCompact(likesCount),

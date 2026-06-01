@@ -124,7 +124,7 @@ export function VideoDataTable({ videos }: VideoDataTableProps) {
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-4 text-sm text-[var(--cadet-gray)]">{video.postedLabel}</td>
+                <td className="px-4 py-4 text-sm text-[var(--cadet-gray)]">{video.postedAtFull}</td>
               </tr>
             ))}
           </tbody>

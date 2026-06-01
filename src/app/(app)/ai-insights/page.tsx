@@ -17,6 +17,7 @@ import {
 import { InsightSection } from "@/components/ai-insights/insight-section";
 import { formatCompact } from "@/lib/accounts";
 import type { AiInsightsPayload } from "@/lib/ai-insights";
+import { formatBeijingTime } from "@/lib/format-beijing-time";
 
 export default function AiInsightsPage() {
   const [insights, setInsights] = useState<AiInsightsPayload | null>(null);
@@ -137,12 +138,7 @@ export default function AiInsightsPage() {
                 <span className="rounded-full bg-[var(--eggshell)] px-2.5 py-1">{modelName}</span>
                 <span className="inline-flex items-center gap-1">
                   <Wand2 className="size-3.5" />
-                  {new Intl.DateTimeFormat("zh-CN", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }).format(new Date(insights.generatedAt))}
+                  {formatBeijingTime(insights.generatedAt)}
                 </span>
               </div>
             </div>
