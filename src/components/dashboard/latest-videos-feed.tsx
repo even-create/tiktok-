@@ -54,11 +54,10 @@ function FeedSkeleton() {
           key={index}
           className="overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-[var(--card)]"
         >
-          <div className="flex">
-            <div className="aspect-[3/4] flex-1 animate-pulse bg-[var(--eggshell)]/60" />
-            <div className="flex w-[76px] flex-col items-center gap-2 border-l border-[color-mix(in_srgb,var(--cadet-gray)_20%,transparent)] py-3">
+          <div className="relative aspect-[3/4] w-full animate-pulse bg-[var(--eggshell)]/60">
+            <div className="absolute inset-y-0 right-2 flex flex-col justify-center gap-2">
               {Array.from({ length: 4 }).map((__, statIndex) => (
-                <div key={statIndex} className="size-9 animate-pulse rounded-full bg-[var(--eggshell)]" />
+                <div key={statIndex} className="size-8 rounded-full bg-white/20" />
               ))}
             </div>
           </div>
@@ -72,7 +71,7 @@ function FeedSkeleton() {
   );
 }
 
-function VideoStatsRail({ video }: { video: ContentVideoWithQuality }) {
+function VideoCoverStatsOverlay({ video }: { video: ContentVideoWithQuality }) {
   const stats = [
     { icon: Eye, value: video.viewsLabel },
     { icon: Heart, value: video.likesLabel },
@@ -81,13 +80,13 @@ function VideoStatsRail({ video }: { video: ContentVideoWithQuality }) {
   ];
 
   return (
-    <div className="flex w-[76px] shrink-0 flex-col items-center justify-center gap-2.5 border-l border-[color-mix(in_srgb,var(--cadet-gray)_22%,transparent)] bg-[color-mix(in_srgb,var(--space-cadet)_4%,white)] py-3">
+    <div className="pointer-events-none absolute inset-y-0 right-1.5 z-10 flex flex-col items-center justify-center gap-2 py-3 sm:right-2 sm:gap-2.5">
       {stats.map((stat, index) => (
-        <div key={index} className="flex flex-col items-center gap-1">
-          <div className="grid size-9 place-items-center rounded-full bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)]">
-            <stat.icon className="size-4" strokeWidth={2.25} />
+        <div key={index} className="flex flex-col items-center gap-0.5">
+          <div className="grid size-8 place-items-center rounded-full bg-black/45 text-white shadow-md backdrop-blur-[2px] sm:size-9">
+            <stat.icon className="size-3.5 sm:size-4" strokeWidth={2.25} />
           </div>
-          <span className="max-w-[68px] truncate text-center text-[11px] font-bold leading-none text-[var(--space-cadet)]">
+          <span className="max-w-[52px] truncate text-center text-[10px] font-bold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] sm:text-[11px]">
             {stat.value}
           </span>
         </div>
@@ -125,31 +124,46 @@ function VideoFeedCard({
     <article
       className="group flex h-full flex-col overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--carolina-blue)_45%,transparent)] hover:shadow-md"
     >
-      <div className="flex min-h-0">
-        <button
-          type="button"
-          onClick={() => onSelect(video)}
-          className="relative min-w-0 flex-1 text-left"
-        >
-          <FeedVideoCover
-            title={video.title}
-            thumbnailUrl={video.thumbnailUrl}
-            videoUrl={video.videoUrl}
-            className="aspect-[3/4] h-full w-full"
-          />
-          <span
-            className={`absolute left-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold shadow-sm ${tierStyle.badge}`}
-          >
-            <span aria-hidden>{qualityTierEmoji[video.qualityTier]}</span>
-            <span className="hidden min-[420px]:inline">{qualityTierDisplayLabel[video.qualityTier]}</span>
-          </span>
-          <span className="absolute bottom-2 left-2 rounded-lg bg-[var(--space-cadet)]/85 px-2 py-1 text-[10px] font-medium text-[var(--eggshell)] opacity-0 transition group-hover:opacity-100">
-            查看详情
-          </span>
-        </button>
+      <button
+        type="button"
+        onClick={() => onSelect(video)}
+        className="relative block w-full overflow-hidden text-left"
+      >
+        <FeedVideoCover
+          title={video.title}
+          thumbnailUrl={video.thumbnailUrl}
+          videoUrl={video.videoUrl}
+          className="aspect-[3/4] w-full"
+        />
 
-        <VideoStatsRail video={video} />
-      </div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-black/50 via-black/10 to-transparent" />
+
+        <span
+          className={`absolute left-1.5 top-1.5 z-10 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold shadow-sm ${tierStyle.badge}`}
+        >
+          <span aria-hidden>{qualityTierEmoji[video.qualityTier]}</span>
+          <span className="hidden min-[420px]:inline">{qualityTierDisplayLabel[video.qualityTier]}</span>
+        </span>
+
+        <VideoCoverStatsOverlay video={video} />
+
+        <span className="absolute bottom-2 left-2 z-10 rounded-lg bg-black/55 px-2 py-1 text-[10px] font-medium text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100">
+          查看详情
+        </span>
+
+        {video.videoUrl ? (
+          <a
+            href={video.videoUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(event) => event.stopPropagation()}
+            className="absolute bottom-2 right-2 z-10 grid size-8 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm transition hover:bg-black/70"
+            aria-label={`在 TikTok 打开：${video.title}`}
+          >
+            <TikTokIcon className="size-3.5" />
+          </a>
+        ) : null}
+      </button>
 
       <div className="flex flex-1 flex-col gap-2 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] p-2.5 sm:p-3">
         <button type="button" onClick={() => onSelect(video)} className="text-left">
@@ -171,23 +185,11 @@ function VideoFeedCard({
           </div>
         </div>
 
-        <div className="mt-auto flex items-center justify-between gap-1.5 pt-1">
+        <div className="mt-auto flex items-center pt-1">
           <span className="inline-flex items-center gap-0.5 rounded-full bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)] px-2 py-0.5 text-[10px] font-semibold text-[var(--space-cadet)]">
             <TrendingUp className="size-2.5" />
             {video.engagementLabel}
           </span>
-          {video.videoUrl ? (
-            <a
-              href={video.videoUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(event) => event.stopPropagation()}
-              className="inline-flex h-7 items-center gap-1 rounded-md border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-2 text-[10px] font-medium text-[var(--space-cadet)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)]"
-              aria-label={`在 TikTok 打开：${video.title}`}
-            >
-              <TikTokIcon className="size-3" />
-            </a>
-          ) : null}
         </div>
       </div>
     </article>
