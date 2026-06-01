@@ -11,16 +11,18 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SRC = (
     Path.home()
-    / ".cursor/projects/Users-zhaoyiwen-Documents-tiktok/assets/fc07a489a9be66710f1b1148405a06b1-aa62d197-12f7-4bce-8248-8198424769c0.png"
+    / ".cursor/projects/Users-zhaoyiwen-Documents-tiktok/assets/__-dfa42f55-1f9b-48fb-acf7-363bf99cb70f.png"
 )
 OUT_DIR = ROOT / "public" / "sync"
-TARGET_H = 40
+TARGET_H = 36
 
 
 def is_background(rgba: tuple[int, int, int, int]) -> bool:
-    if rgba[3] < 10:
+    if rgba[3] < 12:
         return True
     r, g, b, a = rgba
+    if r < 40 and g < 40 and b < 40 and a > 200:
+        return True
     if b > 130 and r < 130 and g < 200 and a > 180:
         return True
     if g > 90 and r < 100 and b < 120 and a > 180:

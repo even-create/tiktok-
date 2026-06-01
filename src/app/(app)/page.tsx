@@ -421,17 +421,26 @@ export default function DashboardPage() {
             <Activity className="size-4" />
             Dashboard
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-wrap items-end gap-3">
             <h1 className="text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">TikTok 数据追踪后台</h1>
-            <button
-              type="button"
-              onClick={() => void handleSyncAll()}
-              disabled={isBusy}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--carolina-blue)] px-4 text-sm font-semibold text-[var(--space-cadet)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSyncingAll ? <Clock3 className="size-4 animate-spin" /> : <CloudDownload className="size-4" />}
-              {isSyncingAll ? "Syncing..." : "Sync Now"}
-            </button>
+            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2 sm:max-w-xl">
+              <button
+                type="button"
+                onClick={() => void handleSyncAll()}
+                disabled={isBusy}
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--carolina-blue)] px-4 text-sm font-semibold text-[var(--space-cadet)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSyncingAll ? <Clock3 className="size-4 animate-spin" /> : <CloudDownload className="size-4" />}
+                {isSyncingAll ? "Syncing..." : "Sync Now"}
+              </button>
+              {syncUiVisible && syncProgress ? (
+                <SyncRunnerProgress
+                  phase={syncPhase}
+                  percent={syncPercent}
+                  label={`Syncing ${syncProgress.handle === "全部账号" ? "all accounts" : `@${syncProgress.handle}`}`}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -444,14 +453,6 @@ export default function DashboardPage() {
               </span>
             </p>
           </div>
-
-          {syncUiVisible && syncProgress ? (
-            <SyncRunnerProgress
-              phase={syncPhase}
-              percent={syncPercent}
-              label={`Syncing ${syncProgress.handle === "全部账号" ? "all accounts" : `@${syncProgress.handle}`}`}
-            />
-          ) : null}
 
           {syncSuccessMessage ? (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
