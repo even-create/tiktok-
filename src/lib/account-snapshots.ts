@@ -52,13 +52,29 @@ export async function recordAccountDailySnapshot(account: SnapshotAccount) {
     { onConflict: "account_id,snapshot_date" },
   );
 
-  if (error && !error.message.includes("account_daily_snapshots")) {
+  if (error) {
     console.warn("[account-snapshots] record failed:", error.message);
+    return false;
   }
+
+  return true;
+}
+
+export async function recordAllAccountSnapshots(accounts: SnapshotAccount[]) {
+  if (!accounts.length) return { tableReady: true, recorded: 0 };
+
+  const results = await Promise.all(accounts.map((account) => recordAccountDailySnapshot(account)));
+
+  return {
+    tableReady: results.some(Boolean),
+    recorded: results.filter(Boolean).length,
+  };
 }
 
 export async function fetchSnapshotsForDates(dates: string[]) {
-  if (!dates.length) return [] as AccountSnapshotRow[];
+  if (!dates.length) {
+    return { rows: [] as AccountSnapshotRow[], tableReady: true };
+  }
 
   const { data, error } = await supabase
     .from("account_daily_snapshots")
@@ -66,13 +82,15 @@ export async function fetchSnapshotsForDates(dates: string[]) {
     .in("snapshot_date", dates);
 
   if (error) {
-    if (error.message.includes("account_daily_snapshots")) {
-      return [] as AccountSnapshotRow[];
-    }
-    throw new Error(error.message);
+    const missingTable =
+      error.message.includes("account_daily_snapshots") ||
+      error.message.includes("schema cache") ||
+      error.code === "42P01";
+
+    return { rows: [] as AccountSnapshotRow[], tableReady: !missingTable };
   }
 
-  return (data ?? []) as AccountSnapshotRow[];
+  return { rows: (data ?? []) as AccountSnapshotRow[], tableReady: true };
 }
 
 export function groupSnapshotsByDate(rows: AccountSnapshotRow[]) {

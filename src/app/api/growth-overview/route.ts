@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchSnapshotsForDates, groupSnapshotsByDate } from "@/lib/account-snapshots";
+import { fetchSnapshotsForDates, groupSnapshotsByDate, recordAllAccountSnapshots } from "@/lib/account-snapshots";
 import { buildGrowthOverview } from "@/lib/growth-overview";
 import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
 import { supabase } from "@/lib/supabase";
@@ -20,16 +20,33 @@ export async function GET() {
     const yesterdayKey = addDaysToDateKey(todayKey, -1);
     const dayBeforeKey = addDaysToDateKey(todayKey, -2);
 
-    const snapshots = await fetchSnapshotsForDates([yesterdayKey, dayBeforeKey]);
-    const overview = buildGrowthOverview(accounts, snapshots);
+    await recordAllAccountSnapshots(
+      accounts.map((account) => ({
+        id: account.id,
+        followers_count: account.followers_count,
+        likes_count: account.likes_count,
+        total_views: account.total_views,
+        video_count: account.video_count,
+      })),
+    );
+
+    const snapshotRead = await fetchSnapshotsForDates([yesterdayKey, dayBeforeKey]);
+    const overview = buildGrowthOverview(accounts, snapshotRead.rows);
+    const hasYesterday = (groupSnapshotsByDate(snapshotRead.rows).get(yesterdayKey)?.length ?? 0) > 0;
 
     return NextResponse.json({
       ...overview,
+      growthSnapshots: snapshotRead.rows,
       snapshotDays: {
         today: todayKey,
         yesterday: yesterdayKey,
-        hasYesterday: (groupSnapshotsByDate(snapshots).get(yesterdayKey)?.length ?? 0) > 0,
+        hasYesterday,
       },
+      setupHint: !snapshotRead.tableReady
+        ? "请在 Supabase 执行 migration：account_daily_snapshots，然后重新 Sync。"
+        : !hasYesterday
+          ? "已记录今日快照。明天 Sync 后可显示粉丝/播放/点赞的日增长对比。"
+          : null,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "增长概览加载失败";
@@ -37,6 +54,7 @@ export async function GET() {
       {
         metrics: buildGrowthOverview([], []).metrics,
         dateLabel: getSnapshotDateKey(),
+        growthSnapshots: [],
         error: message,
       },
       { status: 200 },

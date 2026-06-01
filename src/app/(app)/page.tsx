@@ -18,6 +18,7 @@ import {
 import { GrowthOverview } from "@/components/dashboard/growth-overview";
 import { LatestVideosFeed } from "@/components/dashboard/latest-videos-feed";
 import type { ApiAccount, ApiVideo } from "@/lib/accounts";
+import type { AccountSnapshotRow } from "@/lib/account-snapshots";
 
 type VideoItem = {
   id: string;
@@ -258,7 +259,8 @@ export default function DashboardPage() {
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; handle: string } | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
-  const [growthRefreshKey, setGrowthRefreshKey] = useState(0);
+  const [growthSnapshots, setGrowthSnapshots] = useState<AccountSnapshotRow[]>([]);
+  const [growthSetupHint, setGrowthSetupHint] = useState<string | null>(null);
 
   const loadAccounts = useCallback(async (preferredHandle?: string) => {
     setIsLoading(true);
@@ -266,7 +268,12 @@ export default function DashboardPage() {
 
     try {
       const response = await fetch("/api/accounts", { cache: "no-store" });
-      const payload = (await response.json()) as { accounts?: ApiAccount[]; error?: string };
+      const payload = (await response.json()) as {
+        accounts?: ApiAccount[];
+        growthSnapshots?: AccountSnapshotRow[];
+        growthMeta?: { setupHint?: string | null };
+        error?: string;
+      };
 
       if (!response.ok) {
         throw new Error(payload.error ?? "读取 Supabase 数据失败");
@@ -274,7 +281,8 @@ export default function DashboardPage() {
 
       const rawAccounts = payload.accounts ?? [];
       setApiAccounts(rawAccounts);
-      setGrowthRefreshKey((key) => key + 1);
+      setGrowthSnapshots(payload.growthSnapshots ?? []);
+      setGrowthSetupHint(payload.growthMeta?.setupHint ?? null);
       const nextAccounts = rawAccounts.map((account, index) => mapApiAccount(account, index));
 
       if (nextAccounts.length) {
@@ -548,7 +556,12 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <GrowthOverview refreshKey={growthRefreshKey} isLoading={isLoading} />
+      <GrowthOverview
+        apiAccounts={apiAccounts}
+        growthSnapshots={growthSnapshots}
+        setupHint={growthSetupHint}
+        isLoading={isLoading}
+      />
 
       <LatestVideosFeed apiAccounts={apiAccounts} isLoading={isLoading} />
 

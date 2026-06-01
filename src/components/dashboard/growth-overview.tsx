@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import {
   CirclePlay,
   Eye,
@@ -11,15 +11,14 @@ import {
   Users,
   Video,
 } from "lucide-react";
-import type { GrowthOverviewMetric, GrowthTrend } from "@/lib/growth-overview";
-
-type GrowthOverviewResponse = {
-  metrics: GrowthOverviewMetric[];
-  dateLabel: string;
-};
+import type { ApiAccount } from "@/lib/accounts";
+import type { AccountSnapshotRow } from "@/lib/account-snapshots";
+import { buildGrowthOverview, type GrowthOverviewMetric, type GrowthTrend } from "@/lib/growth-overview";
 
 type GrowthOverviewProps = {
-  refreshKey?: number;
+  apiAccounts: ApiAccount[];
+  growthSnapshots: AccountSnapshotRow[];
+  setupHint?: string | null;
   isLoading?: boolean;
 };
 
@@ -70,43 +69,22 @@ function CompareBadge({ metric }: { metric: GrowthOverviewMetric }) {
   );
 }
 
-export function GrowthOverview({ refreshKey = 0, isLoading = false }: GrowthOverviewProps) {
-  const [data, setData] = useState<GrowthOverviewResponse | null>(null);
-  const [isFetching, setIsFetching] = useState(true);
+export function GrowthOverview({
+  apiAccounts,
+  growthSnapshots,
+  setupHint = null,
+  isLoading = false,
+}: GrowthOverviewProps) {
+  const overview = useMemo(
+    () => buildGrowthOverview(apiAccounts, growthSnapshots),
+    [apiAccounts, growthSnapshots],
+  );
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setIsFetching(true);
-      try {
-        const response = await fetch("/api/growth-overview", { cache: "no-store" });
-        const payload = (await response.json()) as GrowthOverviewResponse;
-        if (!cancelled) {
-          setData(payload);
-        }
-      } catch {
-        if (!cancelled) {
-          setData(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsFetching(false);
-        }
-      }
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshKey]);
-
-  const showSkeleton = isLoading || (isFetching && !data);
-  const metrics = data?.metrics ?? [];
+  const showSkeleton = isLoading && apiAccounts.length === 0;
+  const metrics = overview.metrics;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
+    <section className="mt-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[var(--card)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--carolina-blue)_12%,transparent)]">
       <div className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] px-4 py-4 text-[var(--eggshell)] sm:px-5 sm:py-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -117,11 +95,15 @@ export function GrowthOverview({ refreshKey = 0, isLoading = false }: GrowthOver
             <h2 className="mt-2 text-xl font-semibold sm:text-2xl">今日增长概览</h2>
             <p className="mt-1 text-sm text-white/75">基于每日快照对比 · 关注今天涨了多少</p>
           </div>
-          {data?.dateLabel ? (
-            <span className="w-fit rounded-full bg-white/10 px-3 py-1 text-xs font-medium">{data.dateLabel}</span>
-          ) : null}
+          <span className="w-fit rounded-full bg-white/10 px-3 py-1 text-xs font-medium">{overview.dateLabel}</span>
         </div>
       </div>
+
+      {setupHint ? (
+        <p className="border-b border-[color-mix(in_srgb,var(--carolina-blue)_20%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)] px-4 py-3 text-sm text-[var(--space-cadet)] sm:px-5">
+          {setupHint}
+        </p>
+      ) : null}
 
       <div className="grid gap-3 p-4 sm:grid-cols-2 sm:gap-4 sm:p-5 xl:grid-cols-3">
         {showSkeleton
