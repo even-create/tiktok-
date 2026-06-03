@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Play, RefreshCw } from "lucide-react";
 import type { AnimeJobRecord } from "@/lib/anime/jobs";
+import { resolveCharacterName } from "@/lib/anime/character-names";
 import {
   filterJobsByTab,
   getJobDisplayStatus,
@@ -10,7 +11,7 @@ import {
   getJobStatusLabel,
   type AnimeJobTab,
 } from "@/lib/anime/job-status";
-import { ANIME_CHARACTERS } from "@/lib/vidmor/config";
+import { VideoDownloadButton } from "@/components/anime/video-download-button";
 import { formatBeijingTime } from "@/lib/format-beijing-time";
 
 const TABS: Array<{ id: AnimeJobTab; label: string }> = [
@@ -21,18 +22,16 @@ const TABS: Array<{ id: AnimeJobTab; label: string }> = [
 
 type AnimeJobListProps = {
   jobs: AnimeJobRecord[];
+  characterNames?: Record<string, string>;
   selectedJobId?: string | null;
   onSelectJob?: (job: AnimeJobRecord) => void;
   onSyncJob?: (jobId: string) => void;
   syncingJobId?: string | null;
 };
 
-function characterLabel(characterId: string) {
-  return ANIME_CHARACTERS.find((character) => character.id === characterId)?.name ?? characterId;
-}
-
 export function AnimeJobList({
   jobs,
+  characterNames,
   selectedJobId,
   onSelectJob,
   onSyncJob,
@@ -104,7 +103,7 @@ export function AnimeJobList({
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium text-[var(--space-cadet)]">
-                        {characterLabel(job.character_id)} · {job.action}
+                        {resolveCharacterName(job.character_id, characterNames)} · {job.action}
                       </p>
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
@@ -148,15 +147,18 @@ export function AnimeJobList({
                       </button>
                     ) : null}
                     {job.video_url ? (
-                      <a
-                        href={job.video_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex h-8 items-center gap-1 rounded-lg bg-[var(--carolina-blue)] px-3 text-xs font-medium text-white"
-                      >
-                        <Play className="size-3.5" />
-                        查看成片
-                      </a>
+                      <>
+                        <a
+                          href={job.video_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-[var(--carolina-blue)] px-3 text-xs font-medium text-white"
+                        >
+                          <Play className="size-3.5" />
+                          查看成片
+                        </a>
+                        <VideoDownloadButton job={job} characterNames={characterNames} />
+                      </>
                     ) : null}
                   </div>
                 </div>

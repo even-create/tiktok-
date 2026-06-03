@@ -13,7 +13,13 @@ import {
   Wand2,
 } from "lucide-react";
 import { AnimeJobList } from "@/components/anime/anime-job-list";
+import { VideoDownloadButton } from "@/components/anime/video-download-button";
 import { ANIME_CHARACTERS } from "@/lib/vidmor/config";
+import {
+  loadStoredCharacterNames,
+  resolveCharacterName,
+  saveStoredCharacterNames,
+} from "@/lib/anime/character-names";
 import {
   buildImageToImagePrompt,
   buildImageToVideoPrompt,
@@ -77,6 +83,7 @@ export default function AiAnimePage() {
   const [action, setAction] = useState("脱下手套");
   const [params, setParams] = useState<StoredParams>(DEFAULT_PARAMS);
   const [customRefUrls, setCustomRefUrls] = useState<Record<string, string>>({});
+  const [characterNames, setCharacterNames] = useState<Record<string, string>>({});
   const [selectedJob, setSelectedJob] = useState<AnimeJobRecord | null>(null);
   const [recentJobs, setRecentJobs] = useState<AnimeJobRecord[]>([]);
   const [configured, setConfigured] = useState(true);
@@ -109,6 +116,7 @@ export default function AiAnimePage() {
   useEffect(() => {
     setCustomRefUrls(loadStoredRefs());
     setParams(loadStoredParams());
+    setCharacterNames(loadStoredCharacterNames());
   }, []);
 
   const refreshJobs = useCallback(async () => {
@@ -246,6 +254,14 @@ export default function AiAnimePage() {
     });
   }, []);
 
+  const updateCharacterName = useCallback((id: string, name: string) => {
+    setCharacterNames((current) => {
+      const next = { ...current, [id]: name };
+      saveStoredCharacterNames(next);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     void refreshJobs().catch((error) => {
       setErrorMessage(error instanceof Error ? error.message : "读取任务失败");
@@ -338,12 +354,27 @@ export default function AiAnimePage() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 truncate text-sm font-medium text-[var(--space-cadet)]">{character.name}</p>
+                  <p className="mt-2 truncate text-sm font-medium text-[var(--space-cadet)]">
+                    {resolveCharacterName(character.id, characterNames)}
+                  </p>
                   <p className="truncate text-[11px] text-[var(--cadet-gray)]">{character.accountLabel}</p>
                 </button>
               );
             })}
           </div>
+
+          <label className="mt-4 block">
+            <span className="text-sm font-medium text-[var(--space-cadet)]">角色名称</span>
+            <input
+              value={characterNames[characterId] ?? selectedCharacter?.name ?? ""}
+              onChange={(event) => updateCharacterName(characterId, event.target.value)}
+              className="mt-2 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-4 py-2.5 text-sm outline-none ring-[var(--carolina-blue)] focus:ring-2"
+              placeholder="例如：紫发西装"
+            />
+            <p className="mt-1 text-xs text-[var(--cadet-gray)]">
+              修改后会在任务列表与下载文件名中显示，保存在本浏览器。
+            </p>
+          </label>
 
           <div className="mt-4 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] bg-[var(--eggshell)]/30 p-4">
             <div className="flex items-center justify-between gap-3">
@@ -531,15 +562,22 @@ export default function AiAnimePage() {
               <div>
                 <p className="mb-2 text-sm font-medium text-[var(--space-cadet)]">成片</p>
                 <video src={selectedJob.video_url} controls className="aspect-video w-full rounded-xl bg-black" />
-                <a
-                  href={selectedJob.video_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex items-center gap-2 text-sm text-[var(--carolina-blue)]"
-                >
-                  <Play className="size-4" />
-                  打开视频链接
-                </a>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <a
+                    href={selectedJob.video_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-[var(--carolina-blue)]"
+                  >
+                    <Play className="size-4" />
+                    打开视频链接
+                  </a>
+                  <VideoDownloadButton
+                    job={selectedJob}
+                    characterNames={characterNames}
+                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-3 text-sm text-[var(--space-cadet)] hover:bg-[var(--eggshell)]/70 disabled:opacity-60"
+                  />
+                </div>
               </div>
             ) : null}
           </div>
@@ -548,6 +586,7 @@ export default function AiAnimePage() {
 
       <AnimeJobList
         jobs={recentJobs}
+        characterNames={characterNames}
         selectedJobId={selectedJob?.id}
         onSelectJob={setSelectedJob}
         onSyncJob={(jobId) => void syncJob(jobId)}
