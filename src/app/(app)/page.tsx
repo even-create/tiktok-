@@ -421,8 +421,15 @@ export default function DashboardPage() {
             <Activity className="size-4" />
             Dashboard
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">TikTok 数据追踪后台</h1>
+          <div className="mt-3 flex flex-wrap items-start gap-3">
+            <div className="w-fit">
+              <h1 className="text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">TikTok 数据追踪后台</h1>
+              <div className="relative mt-1.5 h-9 w-full">
+                {syncUiVisible && syncProgress ? (
+                  <SyncRunnerProgress phase={syncPhase} percent={syncPercent} />
+                ) : null}
+              </div>
+            </div>
             <button
               type="button"
               onClick={() => void handleSyncAll()}
@@ -434,12 +441,6 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
-
-        {syncUiVisible && syncProgress ? (
-          <div className="pointer-events-none absolute inset-x-5 bottom-5 h-9">
-            <SyncRunnerProgress phase={syncPhase} percent={syncPercent} />
-          </div>
-        ) : null}
 
         <div className="mt-4 space-y-2">
           <div className="flex flex-wrap items-center justify-end gap-3">
