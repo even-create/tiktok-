@@ -17,7 +17,7 @@ export function buildSpeechAction(action: string) {
 export function buildImageToVideoPrompt(action: string) {
   const motionAction = normalizeAction(action);
   const speechAction = buildSpeechAction(action);
-  return `他一边（${motionAction}）一边重复了两遍"我正在（${speechAction}）"。第一次语速正常，第二次语速放慢，两句话之间停顿了一秒钟。请不要移动摄像机。`;
+  return `As he (${motionAction}), he repeats twice: "I am (${speechAction})." The first time at normal speed, the second time slower, with a one-second pause between the two sentences. Please do not move the camera.`;
 }
 
 export function buildImageToImagePrompt(action: string) {
