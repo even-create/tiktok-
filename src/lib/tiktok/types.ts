@@ -18,6 +18,7 @@ export type UnifiedTikTokVideo = {
   likes: number;
   comments: number;
   shares: number;
+  collects: number;
   postedAt: string | null;
 };
 
@@ -42,6 +43,7 @@ export type NormalizedTikTokProfile = {
     likesCount: number;
     commentsCount: number;
     sharesCount: number;
+    collectsCount: number;
     postedAt: string | null;
   }>;
 };

@@ -129,6 +129,12 @@ function mapAwemeToVideo(aweme: UnknownRecord, fallbackHandle: string): UnifiedT
     likes: toNumber(statistics.digg_count ?? statistics.diggCount),
     comments: toNumber(statistics.comment_count ?? statistics.commentCount),
     shares: toNumber(statistics.share_count ?? statistics.shareCount),
+    collects: toNumber(
+      statistics.collect_count ??
+        statistics.collectCount ??
+        statistics.favorite_count ??
+        statistics.favoriteCount,
+    ),
     postedAt: parsePostedAt(aweme),
   };
 }
@@ -235,6 +241,7 @@ export function toNormalizedProfile(data: UnifiedTikTokAccountData, maxVideos: n
       likesCount: video.likes,
       commentsCount: video.comments,
       sharesCount: video.shares,
+      collectsCount: video.collects,
       postedAt: video.postedAt,
     })),
   };

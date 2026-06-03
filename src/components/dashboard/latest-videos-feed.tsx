@@ -11,7 +11,7 @@ import {
   Heart,
   MessageCircle,
   Search,
-  Share2,
+  Bookmark,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -157,7 +157,7 @@ function VideoCoverStatsOverlay({ video }: { video: ContentVideoWithQuality }) {
     { icon: Eye, value: video.viewsLabel },
     { icon: Heart, value: video.likesLabel },
     { icon: MessageCircle, value: video.commentsLabel },
-    { icon: Share2, value: video.sharesLabel },
+    { icon: Bookmark, value: video.collectsLabel },
   ];
 
   return (

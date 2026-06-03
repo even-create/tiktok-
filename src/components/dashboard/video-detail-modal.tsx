@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, MessageCircle, Share2, ThumbsUp, TrendingUp, X } from "lucide-react";
+import { Bookmark, Eye, MessageCircle, ThumbsUp, TrendingUp, X } from "lucide-react";
 import { FeedVideoCover } from "@/components/dashboard/feed-video-cover";
 import { TikTokIcon } from "@/components/dashboard/tiktok-icon";
 import {
@@ -70,7 +70,7 @@ export function VideoDetailModal({ video, onClose }: VideoDetailModalProps) {
               { label: "Views", value: video.viewsLabel, icon: Eye },
               { label: "Likes", value: video.likesLabel, icon: ThumbsUp },
               { label: "Comments", value: video.commentsLabel, icon: MessageCircle },
-              { label: "Shares", value: video.sharesLabel, icon: Share2 },
+              { label: "收藏", value: video.collectsLabel, icon: Bookmark },
             ].map((item) => (
               <div
                 key={item.label}

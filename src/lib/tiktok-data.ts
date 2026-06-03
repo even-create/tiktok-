@@ -27,6 +27,7 @@ export type VideoRow = {
   likes_count: number;
   comments_count: number;
   shares_count: number;
+  collects_count: number;
   retention_rate: number | null;
   posted_at: string | null;
   created_at: string;

@@ -23,6 +23,7 @@ export type ContentVideo = {
   likesCount: number;
   commentsCount: number;
   sharesCount: number;
+  collectsCount: number;
   retentionRate: number | null;
   engagementRate: number;
   performanceScore: number;
@@ -34,6 +35,7 @@ export type ContentVideo = {
   likesLabel: string;
   commentsLabel: string;
   sharesLabel: string;
+  collectsLabel: string;
   engagementLabel: string;
 };
 
@@ -108,6 +110,7 @@ export function mapApiVideoToContentVideo(
   const likesCount = video.likes_count ?? 0;
   const commentsCount = video.comments_count ?? 0;
   const sharesCount = video.shares_count ?? 0;
+  const collectsCount = video.collects_count ?? 0;
   const engagementRate = calcEngagementRate(likesCount, commentsCount, sharesCount, viewsCount);
 
   return {
@@ -123,6 +126,7 @@ export function mapApiVideoToContentVideo(
     likesCount,
     commentsCount,
     sharesCount,
+    collectsCount,
     retentionRate:
       typeof video.retention_rate === "number" && Number.isFinite(video.retention_rate)
         ? video.retention_rate
@@ -137,6 +141,7 @@ export function mapApiVideoToContentVideo(
     likesLabel: formatCompact(likesCount),
     commentsLabel: formatCompact(commentsCount),
     sharesLabel: formatCompact(sharesCount),
+    collectsLabel: formatCompact(collectsCount),
     engagementLabel: `${engagementRate.toFixed(2)}%`,
   };
 }

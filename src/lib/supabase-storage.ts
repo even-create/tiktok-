@@ -188,6 +188,7 @@ export async function saveTikTokProfile(profile: NormalizedTikTokProfile) {
       likes_count: video.likesCount,
       comments_count: video.commentsCount,
       shares_count: video.sharesCount,
+      collects_count: video.collectsCount,
       posted_at: video.postedAt,
     };
   });
