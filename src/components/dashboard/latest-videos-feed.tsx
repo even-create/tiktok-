@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Search,
   Bookmark,
+  ExternalLink,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -264,9 +265,19 @@ function VideoFeedCard({
               {video.postedLabel}
             </p>
           </div>
+          <a
+            href={video.accountProfileUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--eggshell)]/40 px-2 py-1 text-[10px] font-medium text-[var(--cadet-gray)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)]"
+            aria-label={`打开 @${video.accountHandle} 的 TikTok 主页`}
+          >
+            <ExternalLink className="size-3" />
+            主页
+          </a>
         </div>
 
-        <div className="mt-auto flex items-center pt-1">
+        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
           <span className="inline-flex items-center gap-0.5 rounded-full bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)] px-2 py-0.5 text-[10px] font-semibold text-[var(--space-cadet)]">
             <TrendingUp className="size-2.5" />
             {video.engagementLabel}
