@@ -34,6 +34,7 @@ export default function AiAnimePage() {
   const [missingEnvVars, setMissingEnvVars] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,6 +74,31 @@ export default function AiAnimePage() {
     setMissingEnvVars(payload.config?.missing ?? []);
   }, []);
 
+  const syncJob = useCallback(
+    async (jobId: string) => {
+      setIsSyncing(true);
+      try {
+        const response = await fetch(`/api/anime/jobs/${jobId}/sync`, { method: "POST" });
+        const payload = (await response.json()) as { job?: AnimeJobRecord; error?: string };
+
+        if (!response.ok || !payload.job) {
+          throw new Error(payload.error ?? "同步失败");
+        }
+
+        setActiveJob(payload.job);
+
+        if (payload.job.status === "success" || payload.job.status === "failed") {
+          await refreshJobs();
+        }
+
+        return payload.job;
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [refreshJobs],
+  );
+
   const pollJob = useCallback(async (jobId: string) => {
     const response = await fetch(`/api/anime/jobs/${jobId}`);
     const payload = (await response.json()) as { job?: AnimeJobRecord; error?: string };
@@ -92,6 +118,25 @@ export default function AiAnimePage() {
 
     await refreshJobs();
   }, [refreshJobs]);
+
+  useEffect(() => {
+    if (!activeJob) {
+      return;
+    }
+
+    if (activeJob.status !== "running" || activeJob.stage !== "image_to_video" || activeJob.video_url) {
+      return;
+    }
+
+    void syncJob(activeJob.id);
+    const timer = window.setInterval(() => {
+      void syncJob(activeJob.id);
+    }, 15_000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [activeJob, syncJob]);
 
   const handleUploadRef = useCallback(
     async (file: File) => {
@@ -363,8 +408,28 @@ export default function AiAnimePage() {
               <p className="mt-2 text-sm text-[var(--cadet-gray)]">
                 状态：{activeJob.status} · 阶段：{activeJob.stage} · 进度：{activeJob.progress}%
               </p>
+              <p className="mt-2 text-xs leading-5 text-[var(--cadet-gray)]">
+                成片请在 Tracker 达到 100% 后在此播放或下载。若 Vidmor 已有视频但此处仍卡在 85%，请点击下方同步按钮。
+              </p>
               {activeJob.error_message ? (
-                <p className="mt-2 text-sm text-red-600">{activeJob.error_message}</p>
+                <p
+                  className={`mt-2 text-sm ${
+                    activeJob.status === "running" ? "text-amber-700" : "text-red-600"
+                  }`}
+                >
+                  {activeJob.error_message}
+                </p>
+              ) : null}
+              {activeJob.status === "running" && activeJob.stage === "image_to_video" && !activeJob.video_url ? (
+                <button
+                  type="button"
+                  disabled={isSyncing}
+                  onClick={() => void syncJob(activeJob.id)}
+                  className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-3 text-sm text-[var(--space-cadet)] transition hover:bg-[var(--eggshell)]/70 disabled:opacity-60"
+                >
+                  {isSyncing ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                  {isSyncing ? "同步中…" : "从 Vidmor 同步成片"}
+                </button>
               ) : null}
               {activeJob.image_url ? (
                 <div className="mt-4">

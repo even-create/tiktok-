@@ -18,6 +18,8 @@ export type AnimeJobRecord = {
   progress: number;
   image_url: string | null;
   video_url: string | null;
+  image_task_id: string | null;
+  video_task_id: string | null;
   error_message: string | null;
   created_at: string;
   updated_at: string;
@@ -45,7 +47,19 @@ export async function createAnimeJob(characterId: string, action: string) {
 
 export async function updateAnimeJob(
   id: string,
-  patch: Partial<Pick<AnimeJobRecord, "status" | "stage" | "progress" | "image_url" | "video_url" | "error_message">>,
+  patch: Partial<
+    Pick<
+      AnimeJobRecord,
+      | "status"
+      | "stage"
+      | "progress"
+      | "image_url"
+      | "video_url"
+      | "image_task_id"
+      | "video_task_id"
+      | "error_message"
+    >
+  >,
 ) {
   const { data, error } = await supabase
     .from("anime_jobs")

@@ -50,7 +50,7 @@ export async function runAnimePipeline(
     token,
   );
 
-  await updateAnimeJob(jobId, { progress: 20 });
+  await updateAnimeJob(jobId, { progress: 20, image_task_id: imageTaskId });
 
   const generatedImageUrl = await pollUntilComplete(GPT_IMAGE_20.pollMethod, imageTaskId, {
     token,
@@ -81,9 +81,15 @@ export async function runAnimePipeline(
     token,
   );
 
+  await updateAnimeJob(jobId, {
+    stage: "image_to_video",
+    progress: 70,
+    video_task_id: videoTaskId,
+  });
+
   const generatedVideoUrl = await pollUntilComplete(SEEDANCE_20.pollMethod, videoTaskId, {
     token,
-    timeoutMs: 240_000,
+    timeoutMs: 280_000,
     onTick: async (status) => {
       if (status === "processing" || status === "pending" || status === "running") {
         await updateAnimeJob(jobId, { progress: 85 });
@@ -109,12 +115,17 @@ export async function runAnimePipelineSafe(
     await runAnimePipeline(jobId, characterId, action, referenceImageUrl);
   } catch (error) {
     const raw = error instanceof Error ? error.message : "生成失败";
+    const isTimeout = /生成超时|timeout/i.test(raw);
     const message = /server internal error/i.test(raw)
       ? "图生图阶段失败：Vidmor 服务端报错（参数或参考图问题）。请重新上传参考图后再试，或在 vidmor.ai 用同模型验证。"
-      : raw;
+      : isTimeout
+        ? "图生视频仍在 Vidmor 后台生成，请点击「从 Vidmor 同步」或稍后在 Tracker 中查看成片。"
+        : raw;
+
     await updateAnimeJob(jobId, {
-      status: "failed",
-      stage: "failed",
+      status: isTimeout ? "running" : "failed",
+      stage: isTimeout ? "image_to_video" : "failed",
+      progress: isTimeout ? 85 : undefined,
       error_message: message,
     });
   }
