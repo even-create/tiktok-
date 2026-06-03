@@ -66,6 +66,15 @@ export function getAnimeCharacter(id: string) {
 }
 
 export function resolveVidmorToken() {
+  const encoded = process.env.VIDMOR_TOKEN_B64?.trim();
+  if (encoded) {
+    try {
+      return Buffer.from(encoded, "base64").toString("utf8").trim() || null;
+    } catch {
+      return null;
+    }
+  }
+
   return process.env.VIDMOR_TOKEN?.trim() || null;
 }
 
@@ -78,15 +87,17 @@ export function isVidmorConfigured() {
 }
 
 export function getVidmorConfigStatus() {
-  const hasToken = Boolean(resolveVidmorToken());
+  const token = resolveVidmorToken();
+  const hasToken = Boolean(token);
   const hasUserCode = Boolean(resolveVidmorUserCode());
   const missing: string[] = [];
-  if (!hasToken) missing.push("VIDMOR_TOKEN");
+  if (!hasToken) missing.push("VIDMOR_TOKEN or VIDMOR_TOKEN_B64");
   if (!hasUserCode) missing.push("VIDMOR_USER_CODE");
   return {
     configured: missing.length === 0,
     hasToken,
     hasUserCode,
+    tokenLength: token?.length ?? 0,
     missing,
   };
 }
