@@ -36,6 +36,10 @@ function parseVidmorErrorMessage(status: number, body: VidmorEnvelope, raw: stri
     return body.msg || "Vidmor 积分不足";
   }
 
+  if (body.code === 2) {
+    return "Vidmor 模型参数异常，请稍后重试或联系管理员检查 defineModelName / method 配置";
+  }
+
   if (status >= 500) {
     return "Vidmor 服务暂时不可用，请稍后重试";
   }
@@ -180,50 +184,83 @@ export async function uploadImageFromUrl(imageUrl: string, token?: string | null
   }
 
   const blob = await imageResponse.blob();
-  return uploadImageBlob(blob, "reference.png", token);
+  const extension =
+    blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+  return uploadImageBlob(blob, `reference.${extension}`, token);
+}
+
+export async function ensureVidmorReferenceUrl(imageUrl: string, token?: string | null) {
+  return uploadImageFromUrl(imageUrl, token);
+}
+
+async function withVidmorRetry<T>(operation: () => Promise<T>, retries = 3) {
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      const retryable = /server internal error|暂时不可用|timeout/i.test(lastError.message);
+      if (!retryable || attempt === retries - 1) {
+        throw lastError;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+    }
+  }
+
+  throw lastError ?? new Error("Vidmor 请求失败");
 }
 
 export async function queryCoinCost(payload: Record<string, unknown>, token?: string | null) {
-  const result = await vidmorRequest<{ costCoin?: number }>({
-    path: "/api/ai/cost/coin",
-    data: payload,
-    token,
+  return withVidmorRetry(async () => {
+    const result = await vidmorRequest<{ costCoin?: number }>({
+      path: "/api/ai/cost/coin",
+      data: payload,
+      token,
+    });
+
+    if (result.body.code !== 0) {
+      throw new Error(parseVidmorErrorMessage(result.status, result.body, ""));
+    }
+
+    return result.body.data?.costCoin ?? 0;
   });
-
-  if (result.body.code !== 0) {
-    throw new Error(result.body.msg || "积分查询失败");
-  }
-
-  return result.body.data?.costCoin ?? 0;
 }
 
 export async function submitGeneration(payload: Record<string, unknown>, token?: string | null) {
-  const result = await vidmorRequest<{
-    taskId?: string;
-    id?: string;
-    domainId?: string;
-    msg?: string;
-    code?: number;
-  }>({
-    path: "/generate/api/interface/request",
-    data: payload,
-    token,
+  return withVidmorRetry(async () => {
+    const result = await vidmorRequest<{
+      taskId?: string;
+      id?: string;
+      domainId?: string;
+      msg?: string;
+      code?: number;
+    }>({
+      path: "/generate/api/interface/request",
+      data: payload,
+      token,
+    });
+
+    if (result.body.code !== 0) {
+      throw new Error(
+        parseVidmorErrorMessage(result.status, result.body, "") ||
+          result.body.data?.msg ||
+          "生成任务提交失败",
+      );
+    }
+
+    const taskId =
+      result.body.data?.taskId ||
+      result.body.data?.id ||
+      result.body.data?.domainId;
+
+    if (!taskId) {
+      throw new Error("生成任务未返回 taskId");
+    }
+
+    return String(taskId);
   });
-
-  if (result.body.code !== 0) {
-    throw new Error(result.body.msg || result.body.data?.msg || "生成任务提交失败");
-  }
-
-  const taskId =
-    result.body.data?.taskId ||
-    result.body.data?.id ||
-    result.body.data?.domainId;
-
-  if (!taskId) {
-    throw new Error("生成任务未返回 taskId");
-  }
-
-  return String(taskId);
 }
 
 export async function pollGenerationStatus(
@@ -316,12 +353,13 @@ export function buildImageToImageRequest({
     method: GPT_IMAGE_20.submitMethod,
     appId: VIDMOR_DEFAULTS.appId,
     sourcePlat: "WEB",
-    defineModelName: GPT_IMAGE_20.defineModelName,
+    defineModelName: GPT_IMAGE_20.apiDefineModelName,
     costCoin,
     params: {
       model: GPT_IMAGE_20.model,
       prompt,
       imageUrl,
+      number: 1,
       imageList: [{ image: imageUrl, imageUrl }],
       quality: "medium",
       size: GPT_IMAGE_20.aspectSize,

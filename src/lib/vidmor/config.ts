@@ -13,7 +13,9 @@ export const GPT_IMAGE_20 = {
   submitMethod: "azure.imageEditAsync",
   pollMethod: "azure.imageEditAsyncResult",
   defineModelName: "GPT Image 2.0",
-  aspectSize: "1024x1792",
+  /** Vidmor coin/generate APIs expect the short model key, not the display label. */
+  apiDefineModelName: "GPT",
+  aspectSize: "auto",
 } as const;
 
 export const SEEDANCE_20 = {

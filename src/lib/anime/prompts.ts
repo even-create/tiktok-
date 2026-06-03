@@ -36,7 +36,7 @@ export function buildImageCostPayload(prompt: string) {
     method: GPT_IMAGE_20.submitMethod,
     prompt,
     number: 1,
-    defineModelName: GPT_IMAGE_20.defineModelName,
+    defineModelName: GPT_IMAGE_20.apiDefineModelName,
   };
 }
 
