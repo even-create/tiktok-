@@ -194,3 +194,50 @@ export function buildGrowthOverview(
     dateLabel: todayKey,
   };
 }
+
+export type AccountGrowthMetric = {
+  key: string;
+  label: string;
+  value: string;
+};
+
+function sumVideoCollects(videos: Array<{ collects_count?: number | null }>) {
+  return videos.reduce((sum, video) => sum + (video.collects_count ?? 0), 0);
+}
+
+function computeAccountMetricDelta(
+  current: number,
+  baseline: AccountSnapshotRow | null,
+  field: "followers" | "likes" | "views" | "collects",
+): number | null {
+  if (!baseline) return null;
+
+  const baselineValue =
+    field === "followers"
+      ? baseline.followers_count ?? 0
+      : field === "likes"
+        ? baseline.likes_count ?? 0
+        : field === "views"
+          ? baseline.total_views ?? 0
+          : baseline.collects_count ?? 0;
+
+  return current - baselineValue;
+}
+
+export function buildAccountGrowthMetrics(
+  account: Pick<ApiAccount, "followers_count" | "likes_count" | "total_views">,
+  videos: Array<{ collects_count?: number | null }>,
+  baseline: AccountSnapshotRow | null,
+): AccountGrowthMetric[] {
+  const followersDelta = computeAccountMetricDelta(account.followers_count ?? 0, baseline, "followers");
+  const viewsDelta = computeAccountMetricDelta(account.total_views ?? 0, baseline, "views");
+  const likesDelta = computeAccountMetricDelta(account.likes_count ?? 0, baseline, "likes");
+  const collectsDelta = computeAccountMetricDelta(sumVideoCollects(videos), baseline, "collects");
+
+  return [
+    { key: "followers", label: "新增粉丝", value: formatSignedDelta(followersDelta) },
+    { key: "views", label: "新增播放", value: formatSignedDelta(viewsDelta) },
+    { key: "likes", label: "新增点赞", value: formatSignedDelta(likesDelta) },
+    { key: "collects", label: "新增收藏", value: formatSignedDelta(collectsDelta) },
+  ];
+}

@@ -218,12 +218,15 @@ export async function saveTikTokProfile(profile: NormalizedTikTokProfile) {
   const { data: refreshedAccount } = await supabase.from("accounts").select("*").eq("id", account.id).single();
   const savedAccount = refreshedAccount ?? account;
 
+  const collectsCount = profile.videos.reduce((sum, video) => sum + (video.collectsCount ?? 0), 0);
+
   await recordAccountDailySnapshot({
     id: savedAccount.id,
     followers_count: savedAccount.followers_count,
     likes_count: savedAccount.likes_count,
     total_views: savedAccount.total_views,
     video_count: savedAccount.video_count,
+    collects_count: collectsCount,
   });
 
   return {

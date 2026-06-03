@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  Bookmark,
   CirclePlay,
   Clock3,
   ExternalLink,
@@ -14,8 +15,10 @@ import {
   ThumbsUp,
   Trash2,
   TrendingUp,
+  UserPlus,
   Users,
 } from "lucide-react";
+import type { AccountGrowthMetric } from "@/lib/growth-overview";
 import { AccountAvatar } from "@/components/account-avatar";
 import { LineChart } from "@/components/dashboard/line-chart";
 import { buildViewsTrendPoints, formatCompact, mapApiAccount, type ApiAccount } from "@/lib/accounts";
@@ -33,6 +36,7 @@ export default function AccountDetailPage() {
 
   const [account, setAccount] = useState<ReturnType<typeof mapApiAccount> | null>(null);
   const [videos, setVideos] = useState<NonNullable<ApiAccount["videos"]>>([]);
+  const [growthMetrics, setGrowthMetrics] = useState<AccountGrowthMetric[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -45,7 +49,11 @@ export default function AccountDetailPage() {
 
     try {
       const response = await fetch(`/api/accounts/${encodeURIComponent(handle)}`, { cache: "no-store" });
-      const payload = (await response.json()) as { account?: ApiAccount; error?: string };
+      const payload = (await response.json()) as {
+        account?: ApiAccount;
+        growthMetrics?: AccountGrowthMetric[];
+        error?: string;
+      };
 
       if (!response.ok) {
         throw new Error(payload.error ?? "读取账号详情失败");
@@ -57,10 +65,12 @@ export default function AccountDetailPage() {
 
       setAccount(mapApiAccount(payload.account));
       setVideos(payload.account.videos ?? []);
+      setGrowthMetrics(payload.growthMetrics ?? []);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "读取账号详情失败");
       setAccount(null);
       setVideos([]);
+      setGrowthMetrics([]);
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +119,15 @@ export default function AccountDetailPage() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <div
-              key={index}
+              key={`total-${index}`}
+              className="h-24 animate-pulse rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-[var(--card)]"
+            />
+          ))}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={`growth-${index}`}
               className="h-24 animate-pulse rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-[var(--card)]"
             />
           ))}
@@ -211,6 +229,48 @@ export default function AccountDetailPage() {
             <p className="mt-3 text-3xl font-semibold text-[var(--space-cadet)]">{metric.value}</p>
           </article>
         ))}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {(
+          growthMetrics.length
+            ? growthMetrics
+            : [
+                { key: "followers", label: "新增粉丝", value: "N/A" },
+                { key: "views", label: "新增播放", value: "N/A" },
+                { key: "likes", label: "新增点赞", value: "N/A" },
+                { key: "collects", label: "新增收藏", value: "N/A" },
+              ]
+        ).map((metric) => {
+          const growthIcons = {
+            followers: UserPlus,
+            views: Eye,
+            likes: ThumbsUp,
+            collects: Bookmark,
+          } as const;
+          const Icon = growthIcons[metric.key as keyof typeof growthIcons] ?? TrendingUp;
+          const valueClassName =
+            metric.value === "N/A"
+              ? "text-[var(--cadet-gray)]"
+              : metric.value.startsWith("+")
+                ? "text-[var(--space-cadet)]"
+                : metric.value.startsWith("-")
+                  ? "text-rose-600"
+                  : "text-[var(--space-cadet)]";
+
+          return (
+            <article
+              key={metric.label}
+              className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-4 shadow-sm transition duration-300 hover:shadow-md"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-[var(--cadet-gray)]">{metric.label}</p>
+                <Icon className="size-5 text-[var(--space-cadet)]" />
+              </div>
+              <p className={`mt-3 text-3xl font-semibold ${valueClassName}`}>{metric.value}</p>
+            </article>
+          );
+        })}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">

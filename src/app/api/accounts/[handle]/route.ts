@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { fetchSnapshotForAccount } from "@/lib/account-snapshots";
+import { buildAccountGrowthMetrics } from "@/lib/growth-overview";
+import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
 import { supabase } from "@/lib/supabase";
 
 type RouteContext = {
@@ -33,5 +36,9 @@ export async function GET(_request: Request, context: RouteContext) {
     return rightTime - leftTime;
   });
 
-  return NextResponse.json({ account: { ...data, videos } });
+  const yesterdayKey = addDaysToDateKey(getSnapshotDateKey(), -1);
+  const { row: growthBaseline } = await fetchSnapshotForAccount(data.id, yesterdayKey);
+  const growthMetrics = buildAccountGrowthMetrics(data, videos, growthBaseline);
+
+  return NextResponse.json({ account: { ...data, videos }, growthMetrics });
 }

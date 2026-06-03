@@ -8,6 +8,7 @@ export type AccountSnapshotRow = {
   likes_count: number;
   total_views: number;
   video_count: number;
+  collects_count?: number;
 };
 
 export type AccountSnapshotTotals = {
@@ -23,6 +24,7 @@ type SnapshotAccount = {
   likes_count?: number | null;
   total_views?: number | null;
   video_count?: number | null;
+  collects_count?: number | null;
 };
 
 export function sumSnapshotTotals(rows: AccountSnapshotRow[]): AccountSnapshotTotals {
@@ -48,6 +50,7 @@ export async function recordAccountDailySnapshot(account: SnapshotAccount) {
       likes_count: account.likes_count ?? 0,
       total_views: account.total_views ?? 0,
       video_count: account.video_count ?? 0,
+      collects_count: account.collects_count ?? 0,
     },
     { onConflict: "account_id,snapshot_date" },
   );
@@ -78,7 +81,9 @@ export async function fetchSnapshotsForDates(dates: string[]) {
 
   const { data, error } = await supabase
     .from("account_daily_snapshots")
-    .select("account_id, snapshot_date, followers_count, likes_count, total_views, video_count")
+    .select(
+      "account_id, snapshot_date, followers_count, likes_count, total_views, video_count, collects_count",
+    )
     .in("snapshot_date", dates);
 
   if (error) {
@@ -87,7 +92,24 @@ export async function fetchSnapshotsForDates(dates: string[]) {
       error.message.includes("schema cache") ||
       error.code === "42P01";
 
-    return { rows: [] as AccountSnapshotRow[], tableReady: !missingTable };
+    if (missingTable) {
+      return { rows: [] as AccountSnapshotRow[], tableReady: false };
+    }
+
+    if (error.message.includes("collects_count")) {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("account_daily_snapshots")
+        .select("account_id, snapshot_date, followers_count, likes_count, total_views, video_count")
+        .in("snapshot_date", dates);
+
+      if (fallbackError) {
+        return { rows: [] as AccountSnapshotRow[], tableReady: true };
+      }
+
+      return { rows: (fallbackData ?? []) as AccountSnapshotRow[], tableReady: true };
+    }
+
+    return { rows: [] as AccountSnapshotRow[], tableReady: true };
   }
 
   return { rows: (data ?? []) as AccountSnapshotRow[], tableReady: true };
@@ -104,4 +126,45 @@ export function groupSnapshotsByDate(rows: AccountSnapshotRow[]) {
   }
 
   return map;
+}
+
+export async function fetchSnapshotForAccount(accountId: string, snapshotDate: string) {
+  const { data, error } = await supabase
+    .from("account_daily_snapshots")
+    .select(
+      "account_id, snapshot_date, followers_count, likes_count, total_views, video_count, collects_count",
+    )
+    .eq("account_id", accountId)
+    .eq("snapshot_date", snapshotDate)
+    .maybeSingle();
+
+  if (error) {
+    const missingTable =
+      error.message.includes("account_daily_snapshots") ||
+      error.message.includes("schema cache") ||
+      error.code === "42P01";
+
+    if (missingTable) {
+      return { row: null as AccountSnapshotRow | null, tableReady: false };
+    }
+
+    if (error.message.includes("collects_count")) {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("account_daily_snapshots")
+        .select("account_id, snapshot_date, followers_count, likes_count, total_views, video_count")
+        .eq("account_id", accountId)
+        .eq("snapshot_date", snapshotDate)
+        .maybeSingle();
+
+      if (fallbackError) {
+        return { row: null as AccountSnapshotRow | null, tableReady: true };
+      }
+
+      return { row: (fallbackData ?? null) as AccountSnapshotRow | null, tableReady: true };
+    }
+
+    return { row: null as AccountSnapshotRow | null, tableReady: true };
+  }
+
+  return { row: (data ?? null) as AccountSnapshotRow | null, tableReady: true };
 }
