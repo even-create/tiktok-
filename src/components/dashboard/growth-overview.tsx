@@ -3,14 +3,12 @@
 import { useMemo } from "react";
 import {
   BarChart3,
-  CirclePlay,
   Eye,
   Heart,
   Minus,
   TrendingDown,
   TrendingUp,
   Users,
-  Video,
 } from "lucide-react";
 import type { ApiAccount } from "@/lib/accounts";
 import type { AccountSnapshotRow } from "@/lib/account-snapshots";
@@ -27,18 +25,12 @@ const metricIcons: Record<string, typeof Users> = {
   followers: Users,
   views: Eye,
   likes: Heart,
-  videos: Video,
-  "active-accounts": CirclePlay,
-  "avg-views": BarChart3,
 };
 
 const iconStyles: Record<string, string> = {
   followers: "bg-[color-mix(in_srgb,var(--space-cadet)_12%,white)] text-[var(--space-cadet)]",
   views: "bg-[color-mix(in_srgb,var(--carolina-blue)_18%,white)] text-[var(--carolina-blue)]",
   likes: "bg-[color-mix(in_srgb,#f43f5e_12%,white)] text-rose-500",
-  videos: "bg-[color-mix(in_srgb,var(--space-cadet)_10%,white)] text-[var(--space-cadet)]",
-  "active-accounts": "bg-[color-mix(in_srgb,var(--carolina-blue)_15%,white)] text-[var(--carolina-blue)]",
-  "avg-views": "bg-[color-mix(in_srgb,var(--carolina-blue)_20%,white)] text-[var(--carolina-blue)]",
 };
 
 function valueClassName(metric: GrowthOverviewMetric) {
@@ -164,9 +156,9 @@ export function GrowthOverview({
         </p>
       ) : null}
 
-      <div className="mt-4 grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {showSkeleton
-          ? Array.from({ length: 6 }).map((_, index) => (
+          ? Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={index}
                 className="animate-pulse rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] bg-[var(--eggshell)]/30 p-4"

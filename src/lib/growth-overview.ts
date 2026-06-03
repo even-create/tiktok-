@@ -1,8 +1,8 @@
-import type { ApiAccount, ApiVideo } from "@/lib/accounts";
+import type { ApiAccount } from "@/lib/accounts";
 import { formatCompact } from "@/lib/accounts";
-import type { AccountSnapshotRow, AccountSnapshotTotals } from "@/lib/account-snapshots";
+import type { AccountSnapshotRow } from "@/lib/account-snapshots";
 import { sumSnapshotTotals } from "@/lib/account-snapshots";
-import { addDaysToDateKey, getSnapshotDateKey, isPostedOnDateKey } from "@/lib/snapshot-date";
+import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
 
 export type GrowthTrend = "up" | "down" | "flat" | null;
 
@@ -25,18 +25,6 @@ type CompareResult = {
   percent: string | null;
   trend: GrowthTrend;
 };
-
-function formatCountChangePercent(today: number, yesterday: number): CompareResult {
-  if (yesterday === 0) {
-    if (today === 0) return { percent: "—", trend: "flat" };
-    return { percent: "100%", trend: "up" };
-  }
-
-  const change = Math.round(((today - yesterday) / yesterday) * 100);
-  if (change === 0) return { percent: "0%", trend: "flat" };
-  if (change > 0) return { percent: `${change}%`, trend: "up" };
-  return { percent: `${Math.abs(change)}%`, trend: "down" };
-}
 
 function buildSparkline(trend: GrowthTrend, seed: number) {
   const base = [0.35, 0.42, 0.38, 0.5, 0.48, 0.62, 0.72];
@@ -133,34 +121,6 @@ function computeDeltaFromSnapshots(
   return matched > 0 ? delta : null;
 }
 
-function getVideosPostedToday(accounts: ApiAccount[], todayKey: string) {
-  const videos: ApiVideo[] = [];
-
-  for (const account of accounts) {
-    for (const video of account.videos ?? []) {
-      if (isPostedOnDateKey(video.posted_at, todayKey)) {
-        videos.push(video);
-      }
-    }
-  }
-
-  return videos;
-}
-
-function getActiveAccountCount(accounts: ApiAccount[], todayKey: string) {
-  const active = new Set<string>();
-
-  for (const account of accounts) {
-    for (const video of account.videos ?? []) {
-      if (isPostedOnDateKey(video.posted_at, todayKey)) {
-        active.add(account.id);
-      }
-    }
-  }
-
-  return active.size;
-}
-
 export function buildGrowthOverview(
   accounts: ApiAccount[],
   snapshots: AccountSnapshotRow[],
@@ -195,34 +155,14 @@ export function buildGrowthOverview(
       ? yesterdayTotals.likes - dayBeforeTotals.likes
       : null;
 
-  const todayVideos = getVideosPostedToday(accounts, todayKey);
-  const yesterdayVideos = getVideosPostedToday(accounts, yesterdayKey);
-  const activeAccounts = getActiveAccountCount(accounts, todayKey);
-  const activeAccountsYesterday = getActiveAccountCount(accounts, yesterdayKey);
-  const totalAccounts = accounts.length;
-  const avgViewsToday =
-    todayVideos.length > 0
-      ? todayVideos.reduce((sum, video) => sum + (video.views_count ?? 0), 0) / todayVideos.length
-      : null;
-  const avgViewsYesterday =
-    yesterdayVideos.length > 0
-      ? yesterdayVideos.reduce((sum, video) => sum + (video.views_count ?? 0), 0) / yesterdayVideos.length
-      : null;
-
   const followersCompare = formatComparePercent(todayFollowers, yesterdayFollowers);
   const viewsCompare = formatComparePercent(todayViews, yesterdayViews);
   const likesCompare = formatComparePercent(todayLikes, yesterdayLikes);
-  const videosCompare = formatCountChangePercent(todayVideos.length, yesterdayVideos.length);
-  const activeCompare = formatCountChangePercent(activeAccounts, activeAccountsYesterday);
-  const avgViewsCompare = formatCountChangePercent(
-    avgViewsToday === null ? 0 : Math.round(avgViewsToday),
-    avgViewsYesterday === null ? 0 : Math.round(avgViewsYesterday),
-  );
 
   const metrics: GrowthOverviewMetric[] = [
     {
       id: "followers",
-      titleZh: "今日新增粉丝",
+      titleZh: "新增粉丝",
       value: formatSignedDelta(todayFollowers),
       comparePercent: followersCompare.percent,
       trend: followersCompare.trend,
@@ -231,7 +171,7 @@ export function buildGrowthOverview(
     },
     {
       id: "views",
-      titleZh: "今日新增播放",
+      titleZh: "新增播放",
       value: formatSignedDelta(todayViews),
       comparePercent: viewsCompare.percent,
       trend: viewsCompare.trend,
@@ -240,39 +180,12 @@ export function buildGrowthOverview(
     },
     {
       id: "likes",
-      titleZh: "今日新增点赞",
+      titleZh: "新增点赞",
       value: formatSignedDelta(todayLikes),
       comparePercent: likesCompare.percent,
       trend: likesCompare.trend,
       valueTrend: deltaTrend(todayLikes),
       sparkline: buildSparkline(likesCompare.trend ?? deltaTrend(todayLikes), 3),
-    },
-    {
-      id: "videos",
-      titleZh: "今日发布视频数",
-      value: String(todayVideos.length),
-      comparePercent: videosCompare.percent,
-      trend: videosCompare.trend,
-      valueTrend: todayVideos.length > 0 ? "up" : "flat",
-      sparkline: buildSparkline(videosCompare.trend, 4),
-    },
-    {
-      id: "active-accounts",
-      titleZh: "今日有发视频的账号数",
-      value: totalAccounts > 0 ? `${activeAccounts} / ${totalAccounts}` : "0 / 0",
-      comparePercent: activeCompare.percent,
-      trend: activeCompare.trend,
-      valueTrend: activeAccounts > 0 ? "up" : "flat",
-      sparkline: buildSparkline(activeCompare.trend, 5),
-    },
-    {
-      id: "avg-views",
-      titleZh: "今日发布视频平均播放",
-      value: avgViewsToday === null ? (todayVideos.length === 0 ? "0" : "N/A") : formatCompact(avgViewsToday),
-      comparePercent: todayVideos.length > 0 ? avgViewsCompare.percent : "—",
-      trend: todayVideos.length > 0 ? avgViewsCompare.trend : "flat",
-      valueTrend: avgViewsToday && avgViewsToday > 0 ? "up" : "flat",
-      sparkline: buildSparkline(avgViewsCompare.trend, 6),
     },
   ];
 
