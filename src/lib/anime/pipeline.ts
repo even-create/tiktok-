@@ -1,8 +1,8 @@
 import {
   buildImageCostPayload,
   buildImageToImagePrompt,
+  buildImageToVideoPrompt,
   buildVideoCostPayload,
-  DEFAULT_I2V_PROMPT,
 } from "@/lib/anime/prompts";
 import { updateAnimeJob } from "@/lib/anime/jobs";
 import {
@@ -15,7 +15,12 @@ import {
 } from "@/lib/vidmor/client";
 import { getAnimeCharacter, getPublicAssetUrl, resolveVidmorToken, GPT_IMAGE_20, SEEDANCE_20 } from "@/lib/vidmor/config";
 
-export async function runAnimePipeline(jobId: string, characterId: string, action: string) {
+export async function runAnimePipeline(
+  jobId: string,
+  characterId: string,
+  action: string,
+  referenceImageUrl?: string | null,
+) {
   const token = resolveVidmorToken();
   if (!token) {
     throw new Error("未配置 VIDMOR_TOKEN");
@@ -28,8 +33,9 @@ export async function runAnimePipeline(jobId: string, characterId: string, actio
 
   await updateAnimeJob(jobId, { status: "running", stage: "uploading", progress: 5 });
 
-  const referenceUrl = getPublicAssetUrl(character.refImagePath);
-  const uploadedReferenceUrl = await uploadImageFromUrl(referenceUrl, token);
+  const uploadedReferenceUrl = referenceImageUrl?.trim()
+    ? referenceImageUrl.trim()
+    : await uploadImageFromUrl(getPublicAssetUrl(character.refImagePath), token);
 
   const imagePrompt = buildImageToImagePrompt(action);
   const imageCost = await queryCoinCost(buildImageCostPayload(imagePrompt), token);
@@ -60,10 +66,11 @@ export async function runAnimePipeline(jobId: string, characterId: string, actio
     image_url: generatedImageUrl,
   });
 
-  const videoCost = await queryCoinCost(buildVideoCostPayload(DEFAULT_I2V_PROMPT), token);
+  const videoPrompt = buildImageToVideoPrompt(action);
+  const videoCost = await queryCoinCost(buildVideoCostPayload(videoPrompt), token);
   const videoTaskId = await submitGeneration(
     buildImageToVideoRequest({
-      prompt: DEFAULT_I2V_PROMPT,
+      prompt: videoPrompt,
       imageUrl: generatedImageUrl,
       costCoin: videoCost,
     }),
@@ -88,9 +95,14 @@ export async function runAnimePipeline(jobId: string, characterId: string, actio
   });
 }
 
-export async function runAnimePipelineSafe(jobId: string, characterId: string, action: string) {
+export async function runAnimePipelineSafe(
+  jobId: string,
+  characterId: string,
+  action: string,
+  referenceImageUrl?: string | null,
+) {
   try {
-    await runAnimePipeline(jobId, characterId, action);
+    await runAnimePipeline(jobId, characterId, action, referenceImageUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : "生成失败";
     await updateAnimeJob(jobId, {

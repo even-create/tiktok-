@@ -30,9 +30,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as { characterId?: string; action?: string };
+    const body = (await request.json()) as {
+      characterId?: string;
+      action?: string;
+      referenceImageUrl?: string;
+    };
     const characterId = body.characterId?.trim();
     const action = body.action?.trim();
+    const referenceImageUrl = body.referenceImageUrl?.trim() || null;
 
     if (!characterId || !action) {
       return NextResponse.json({ error: "请选择角色并填写动作" }, { status: 400 });
@@ -41,7 +46,7 @@ export async function POST(request: Request) {
     const job = await createAnimeJob(characterId, action);
 
     after(async () => {
-      await runAnimePipelineSafe(job.id, characterId, action);
+      await runAnimePipelineSafe(job.id, characterId, action, referenceImageUrl);
     });
 
     return NextResponse.json({ jobId: job.id, job });

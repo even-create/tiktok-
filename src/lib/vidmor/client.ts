@@ -108,15 +108,9 @@ export async function vidmorRequest<T = unknown>({
   }
 }
 
-export async function uploadImageFromUrl(imageUrl: string, token?: string | null) {
-  const imageResponse = await fetch(imageUrl);
-  if (!imageResponse.ok) {
-    throw new Error(`无法读取参考图：${imageResponse.status}`);
-  }
-
-  const blob = await imageResponse.blob();
+export async function uploadImageBlob(blob: Blob, filename: string, token?: string | null) {
   const form = new FormData();
-  form.append("file", blob, "reference.png");
+  form.append("file", blob, filename);
 
   const result = await vidmorRequest<{ url?: string }>({
     path: "/ai/common/file/uploadV2",
@@ -129,6 +123,16 @@ export async function uploadImageFromUrl(imageUrl: string, token?: string | null
   }
 
   return result.body.data.url;
+}
+
+export async function uploadImageFromUrl(imageUrl: string, token?: string | null) {
+  const imageResponse = await fetch(imageUrl);
+  if (!imageResponse.ok) {
+    throw new Error(`无法读取参考图：${imageResponse.status}`);
+  }
+
+  const blob = await imageResponse.blob();
+  return uploadImageBlob(blob, "reference.png", token);
 }
 
 export async function queryCoinCost(payload: Record<string, unknown>, token?: string | null) {

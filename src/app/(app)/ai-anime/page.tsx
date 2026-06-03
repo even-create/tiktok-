@@ -1,27 +1,59 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Clapperboard, LoaderCircle, Play, RefreshCw, Sparkles, Wand2 } from "lucide-react";
+import { Clapperboard, LoaderCircle, Play, RefreshCw, Sparkles, Upload, Wand2 } from "lucide-react";
 import { ANIME_CHARACTERS } from "@/lib/vidmor/config";
-import { DEFAULT_I2V_PROMPT, EXAMPLE_ACTIONS } from "@/lib/anime/prompts";
+import { buildImageToVideoPrompt, EXAMPLE_ACTIONS } from "@/lib/anime/prompts";
 import type { AnimeJobRecord } from "@/lib/anime/jobs";
 import { formatBeijingTime } from "@/lib/format-beijing-time";
 
+const REF_STORAGE_KEY = "anime-character-refs";
+
+function loadStoredRefs(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(REF_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveStoredRefs(refs: Record<string, string>) {
+  window.localStorage.setItem(REF_STORAGE_KEY, JSON.stringify(refs));
+}
+
 export default function AiAnimePage() {
   const [characterId, setCharacterId] = useState(ANIME_CHARACTERS[0]?.id ?? "");
-  const [action, setAction] = useState("戴手套");
+  const [action, setAction] = useState("脱下手套");
+  const [customRefUrls, setCustomRefUrls] = useState<Record<string, string>>({});
   const [activeJob, setActiveJob] = useState<AnimeJobRecord | null>(null);
   const [recentJobs, setRecentJobs] = useState<AnimeJobRecord[]>([]);
   const [configured, setConfigured] = useState(true);
   const [missingEnvVars, setMissingEnvVars] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedCharacter = useMemo(
     () => ANIME_CHARACTERS.find((character) => character.id === characterId) ?? ANIME_CHARACTERS[0],
     [characterId],
   );
+
+  const videoPromptPreview = useMemo(() => buildImageToVideoPrompt(action), [action]);
+
+  const currentRefPreview = useMemo(() => {
+    if (!selectedCharacter) return "";
+    return customRefUrls[selectedCharacter.id] || selectedCharacter.refImagePath;
+  }, [customRefUrls, selectedCharacter]);
+
+  const currentReferenceImageUrl = selectedCharacter ? customRefUrls[selectedCharacter.id] : undefined;
+
+  useEffect(() => {
+    setCustomRefUrls(loadStoredRefs());
+  }, []);
 
   const refreshJobs = useCallback(async () => {
     const response = await fetch("/api/anime/generate");
@@ -61,6 +93,41 @@ export default function AiAnimePage() {
     await refreshJobs();
   }, [refreshJobs]);
 
+  const handleUploadRef = useCallback(
+    async (file: File) => {
+      if (!selectedCharacter) return;
+
+      setIsUploading(true);
+      setErrorMessage("");
+
+      try {
+        const form = new FormData();
+        form.append("file", file);
+
+        const response = await fetch("/api/anime/upload-ref", {
+          method: "POST",
+          body: form,
+        });
+
+        const payload = (await response.json()) as { url?: string; error?: string };
+        if (!response.ok || !payload.url) {
+          throw new Error(payload.error ?? "上传失败");
+        }
+
+        setCustomRefUrls((previous) => {
+          const next = { ...previous, [selectedCharacter.id]: payload.url! };
+          saveStoredRefs(next);
+          return next;
+        });
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "上传失败");
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [selectedCharacter],
+  );
+
   const handleGenerate = useCallback(async () => {
     setIsSubmitting(true);
     setErrorMessage("");
@@ -69,7 +136,11 @@ export default function AiAnimePage() {
       const response = await fetch("/api/anime/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ characterId, action }),
+        body: JSON.stringify({
+          characterId,
+          action,
+          referenceImageUrl: currentReferenceImageUrl,
+        }),
       });
 
       const payload = (await response.json()) as {
@@ -95,7 +166,7 @@ export default function AiAnimePage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [action, characterId, pollJob]);
+  }, [action, characterId, currentReferenceImageUrl, pollJob]);
 
   useEffect(() => {
     void refreshJobs().catch((error) => {
@@ -114,8 +185,8 @@ export default function AiAnimePage() {
             </div>
             <h1 className="mt-2 text-2xl font-semibold text-[var(--space-cadet)]">一键动漫成片</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cadet-gray)]">
-              固定四位角色参考图，自动执行 GPT Image 2.0 图生图与 Seedance 2.0 图生视频（720p / 5s）。
-              你只需选择角色并填写动作，其余流程在 Tracker 内完成。
+              为四个账号分别上传角色参考图，填写动作后自动完成 GPT Image 2.0 图生图与 Seedance 2.0
+              图生视频（720p / 5s）。图生视频台词会随动作自动替换。
             </p>
           </div>
           <button
@@ -137,10 +208,6 @@ export default function AiAnimePage() {
               当前缺少：<code>{missingEnvVars.join(", ")}</code>
             </p>
           ) : null}
-          <p className="mt-2 leading-6">
-            请在 Vercel → Settings → Environment Variables 添加变量，并勾选{" "}
-            <strong>Production</strong>，保存后对 Production 再 Redeploy 一次。
-          </p>
         </section>
       ) : null}
 
@@ -151,6 +218,9 @@ export default function AiAnimePage() {
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {ANIME_CHARACTERS.map((character) => {
               const active = character.id === characterId;
+              const preview = customRefUrls[character.id] || character.refImagePath;
+              const hasCustom = Boolean(customRefUrls[character.id]);
+
               return (
                 <button
                   key={character.id}
@@ -163,13 +233,17 @@ export default function AiAnimePage() {
                   }`}
                 >
                   <div className="relative aspect-[9/16] overflow-hidden rounded-xl bg-[var(--eggshell)]">
-                    <Image
-                      src={character.refImagePath}
-                      alt={character.name}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
+                    {preview.startsWith("http") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={preview} alt={character.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <Image src={preview} alt={character.name} fill className="object-cover" unoptimized />
+                    )}
+                    {hasCustom ? (
+                      <span className="absolute left-2 top-2 rounded-full bg-[var(--space-cadet)] px-2 py-0.5 text-[10px] text-white">
+                        已上传
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-3 text-sm font-medium text-[var(--space-cadet)]">{character.name}</p>
                   <p className="text-xs text-[var(--cadet-gray)]">{character.accountLabel}</p>
@@ -178,13 +252,49 @@ export default function AiAnimePage() {
             })}
           </div>
 
+          <div className="mt-4 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] bg-[var(--eggshell)]/30 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-[var(--space-cadet)]">
+                  上传 {selectedCharacter?.accountLabel} 参考图
+                </p>
+                <p className="mt-1 text-xs text-[var(--cadet-gray)]">JPG / PNG / WEBP，最大 10MB，建议 9:16</p>
+              </div>
+              <button
+                type="button"
+                disabled={isUploading || !configured}
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-4 text-sm text-[var(--space-cadet)] transition hover:bg-white disabled:opacity-60"
+              >
+                {isUploading ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                {isUploading ? "上传中…" : "选择照片"}
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void handleUploadRef(file);
+                event.target.value = "";
+              }}
+            />
+            {currentRefPreview ? (
+              <p className="mt-3 truncate text-xs text-[var(--cadet-gray)]">
+                当前参考：{currentReferenceImageUrl ? "已上传至 Vidmor" : "使用默认占位图"}
+              </p>
+            ) : null}
+          </div>
+
           <label className="mt-5 block">
             <span className="text-sm font-medium text-[var(--space-cadet)]">漫画动作</span>
             <input
               value={action}
               onChange={(event) => setAction(event.target.value)}
               className="mt-2 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-4 py-3 text-sm outline-none ring-[var(--carolina-blue)] focus:ring-2"
-              placeholder="例如：戴手套"
+              placeholder="例如：脱下手套"
             />
           </label>
 
@@ -211,9 +321,7 @@ export default function AiAnimePage() {
             生成漫画视频
           </button>
 
-          {errorMessage ? (
-            <p className="mt-3 text-sm text-red-600">{errorMessage}</p>
-          ) : null}
+          {errorMessage ? <p className="mt-3 text-sm text-red-600">{errorMessage}</p> : null}
         </section>
 
         <section className="space-y-5">
@@ -244,9 +352,9 @@ export default function AiAnimePage() {
           <div className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
             <div className="flex items-center gap-2 text-sm font-semibold text-[var(--space-cadet)]">
               <Sparkles className="size-4 text-[var(--carolina-blue)]" />
-              图生视频提示词
+              图生视频提示词（随动作变化）
             </div>
-            <p className="mt-3 text-sm leading-6 text-[var(--cadet-gray)]">{DEFAULT_I2V_PROMPT}</p>
+            <p className="mt-3 text-sm leading-6 text-[var(--cadet-gray)]">{videoPromptPreview}</p>
           </div>
 
           {activeJob ? (

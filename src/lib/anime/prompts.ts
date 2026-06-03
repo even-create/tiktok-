@@ -1,10 +1,27 @@
 import { GPT_IMAGE_20, SEEDANCE_20 } from "@/lib/vidmor/config";
 
-export const DEFAULT_I2V_PROMPT =
-  'He repeated "I\'m taking off my gloves" twice as he removed them. The first time he spoke at a normal pace, the second time he slowed down, pausing for a second between the two sentences. Please do not move the camera.';
+const SPEECH_ACTION_OVERRIDES: Record<string, string> = {
+  脱下手套: "脱掉手套",
+};
+
+function normalizeAction(action: string) {
+  return action.trim();
+}
+
+/** 台词括号内动作，可与画面动作略有不同（如 脱下手套 → 脱掉手套） */
+export function buildSpeechAction(action: string) {
+  const normalized = normalizeAction(action);
+  return SPEECH_ACTION_OVERRIDES[normalized] ?? normalized;
+}
+
+export function buildImageToVideoPrompt(action: string) {
+  const motionAction = normalizeAction(action);
+  const speechAction = buildSpeechAction(action);
+  return `他一边（${motionAction}）一边重复了两遍"我正在（${speechAction}）"。第一次语速正常，第二次语速放慢，两句话之间停顿了一秒钟。请不要移动摄像机。`;
+}
 
 export function buildImageToImagePrompt(action: string) {
-  const normalizedAction = action.trim();
+  const normalizedAction = normalizeAction(action);
   return [
     "帮我生成一张与这个照片风格类似的漫画，画面中不要有文字，画面比例为9:16，",
     "背景可以改变，背景和人物动作要符合漫画内容，主角为我给你发的这个人，",
