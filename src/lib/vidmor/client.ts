@@ -425,11 +425,18 @@ export function buildImageToVideoRequest({
   prompt,
   imageUrl,
   costCoin,
+  duration,
+  resolution,
 }: {
   prompt: string;
   imageUrl: string;
   costCoin: number;
+  duration?: number;
+  resolution?: string;
 }) {
+  const resolvedDuration = duration ?? SEEDANCE_20.duration;
+  const resolvedResolution = resolution ?? SEEDANCE_20.resolution;
+
   return {
     method: SEEDANCE_20.submitMethod,
     appId: VIDMOR_DEFAULTS.appId,
@@ -438,9 +445,9 @@ export function buildImageToVideoRequest({
     costCoin,
     params: {
       prompt,
-      duration: SEEDANCE_20.duration,
-      quality: SEEDANCE_20.resolution,
-      resolution: SEEDANCE_20.resolution,
+      duration: resolvedDuration,
+      quality: resolvedResolution,
+      resolution: resolvedResolution,
       model: SEEDANCE_20.model,
       imageUrl,
       imageList: [{ image: imageUrl, imageUrl }],

@@ -1,16 +1,20 @@
-import { after } from "next/server";
 import { NextResponse } from "next/server";
-import { createAnimeJob, listRecentAnimeJobs } from "@/lib/anime/jobs";
-import { runAnimePipelineSafe } from "@/lib/anime/pipeline";
+import { createAnimeJob, listRecentAnimeJobs, resolveMaxConcurrentAnimeJobs } from "@/lib/anime/jobs";
+import { processAnimeJobQueue } from "@/lib/anime/queue";
 import { getVidmorConfigStatus, isVidmorConfigured } from "@/lib/vidmor/config";
 
 export const maxDuration = 300;
 
 export async function GET() {
   try {
-    const jobs = await listRecentAnimeJobs(12);
+    const jobs = await listRecentAnimeJobs(50);
     const config = getVidmorConfigStatus();
-    return NextResponse.json({ jobs, configured: config.configured, config });
+    return NextResponse.json({
+      jobs,
+      configured: config.configured,
+      config,
+      maxConcurrent: resolveMaxConcurrentAnimeJobs(),
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "读取任务失败" },
@@ -34,6 +38,10 @@ export async function POST(request: Request) {
       characterId?: string;
       action?: string;
       referenceImageUrl?: string;
+      imagePromptTemplate?: string;
+      videoPromptTemplate?: string;
+      videoDuration?: number;
+      videoResolution?: string;
     };
     const characterId = body.characterId?.trim();
     const action = body.action?.trim();
@@ -43,13 +51,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "请选择角色并填写动作" }, { status: 400 });
     }
 
-    const job = await createAnimeJob(characterId, action);
-
-    after(async () => {
-      await runAnimePipelineSafe(job.id, characterId, action, referenceImageUrl);
+    const job = await createAnimeJob({
+      characterId,
+      action,
+      referenceImageUrl,
+      imagePromptTemplate: body.imagePromptTemplate,
+      videoPromptTemplate: body.videoPromptTemplate,
+      videoDuration: body.videoDuration,
+      videoResolution: body.videoResolution,
     });
 
-    return NextResponse.json({ jobId: job.id, job });
+    const queueResult = await processAnimeJobQueue();
+
+    return NextResponse.json({ jobId: job.id, job, queue: queueResult });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "创建任务失败" },

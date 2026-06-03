@@ -3,8 +3,11 @@ import {
   buildImageToImagePrompt,
   buildImageToVideoPrompt,
   buildVideoCostPayload,
+  DEFAULT_IMAGE_PROMPT_TEMPLATE,
+  DEFAULT_VIDEO_PROMPT_TEMPLATE,
 } from "@/lib/anime/prompts";
-import { updateAnimeJob } from "@/lib/anime/jobs";
+import { getAnimeJob, updateAnimeJob } from "@/lib/anime/jobs";
+import { processAnimeJobQueue } from "@/lib/anime/queue";
 import {
   buildImageToImageRequest,
   buildImageToVideoRequest,
@@ -15,28 +18,34 @@ import {
 } from "@/lib/vidmor/client";
 import { getAnimeCharacter, getPublicAssetUrl, resolveVidmorToken, GPT_IMAGE_20, SEEDANCE_20 } from "@/lib/vidmor/config";
 
-export async function runAnimePipeline(
-  jobId: string,
-  characterId: string,
-  action: string,
-  referenceImageUrl?: string | null,
-) {
+export async function runAnimePipeline(jobId: string) {
+  const job = await getAnimeJob(jobId);
+  if (!job) {
+    throw new Error("任务不存在");
+  }
+
   const token = resolveVidmorToken();
   if (!token) {
     throw new Error("未配置 VIDMOR_TOKEN");
   }
 
-  const character = getAnimeCharacter(characterId);
+  const character = getAnimeCharacter(job.character_id);
   if (!character) {
     throw new Error("未找到角色配置");
   }
 
+  const imageTemplate = job.image_prompt_template || DEFAULT_IMAGE_PROMPT_TEMPLATE;
+  const videoTemplate = job.video_prompt_template || DEFAULT_VIDEO_PROMPT_TEMPLATE;
+  const videoDuration = job.video_duration || SEEDANCE_20.duration;
+  const videoResolution = job.video_resolution || SEEDANCE_20.resolution;
+
   await updateAnimeJob(jobId, { status: "running", stage: "uploading", progress: 5 });
 
-  const referenceSourceUrl = referenceImageUrl?.trim() || getPublicAssetUrl(character.refImagePath);
+  const referenceSourceUrl =
+    job.reference_image_url?.trim() || getPublicAssetUrl(character.refImagePath);
   const uploadedReferenceUrl = await ensureVidmorReferenceUrl(referenceSourceUrl, token);
 
-  const imagePrompt = buildImageToImagePrompt(action);
+  const imagePrompt = buildImageToImagePrompt(job.action, imageTemplate);
   await updateAnimeJob(jobId, { stage: "image_to_image", progress: 15 });
 
   const imageCost = await queryCoinCost(buildImageCostPayload(imagePrompt), token);
@@ -70,13 +79,18 @@ export async function runAnimePipeline(
     image_url: generatedImageUrl,
   });
 
-  const videoPrompt = buildImageToVideoPrompt(action);
-  const videoCost = await queryCoinCost(buildVideoCostPayload(videoPrompt), token);
+  const videoPrompt = buildImageToVideoPrompt(job.action, videoTemplate);
+  const videoCost = await queryCoinCost(
+    buildVideoCostPayload(videoPrompt, { duration: videoDuration, resolution: videoResolution }),
+    token,
+  );
   const videoTaskId = await submitGeneration(
     buildImageToVideoRequest({
       prompt: videoPrompt,
       imageUrl: generatedImageUrl,
       costCoin: videoCost,
+      duration: videoDuration,
+      resolution: videoResolution,
     }),
     token,
   );
@@ -105,21 +119,16 @@ export async function runAnimePipeline(
   });
 }
 
-export async function runAnimePipelineSafe(
-  jobId: string,
-  characterId: string,
-  action: string,
-  referenceImageUrl?: string | null,
-) {
+export async function runAnimePipelineSafe(jobId: string) {
   try {
-    await runAnimePipeline(jobId, characterId, action, referenceImageUrl);
+    await runAnimePipeline(jobId);
   } catch (error) {
     const raw = error instanceof Error ? error.message : "生成失败";
     const isTimeout = /生成超时|timeout/i.test(raw);
     const message = /server internal error/i.test(raw)
       ? "图生图阶段失败：Vidmor 服务端报错（参数或参考图问题）。请重新上传参考图后再试，或在 vidmor.ai 用同模型验证。"
       : isTimeout
-        ? "图生视频仍在 Vidmor 后台生成，请点击「从 Vidmor 同步」或稍后在 Tracker 中查看成片。"
+        ? "图生视频仍在 Vidmor 后台生成，系统会自动同步成片。"
         : raw;
 
     await updateAnimeJob(jobId, {
@@ -128,5 +137,7 @@ export async function runAnimePipelineSafe(
       progress: isTimeout ? 85 : undefined,
       error_message: message,
     });
+  } finally {
+    await processAnimeJobQueue();
   }
 }

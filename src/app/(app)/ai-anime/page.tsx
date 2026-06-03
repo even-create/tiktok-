@@ -2,13 +2,46 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Clapperboard, LoaderCircle, Play, RefreshCw, Sparkles, Upload, Wand2 } from "lucide-react";
+import {
+  Clapperboard,
+  LoaderCircle,
+  Play,
+  RefreshCw,
+  RotateCcw,
+  Sparkles,
+  Upload,
+  Wand2,
+} from "lucide-react";
+import { AnimeJobList } from "@/components/anime/anime-job-list";
 import { ANIME_CHARACTERS } from "@/lib/vidmor/config";
-import { buildImageToVideoPrompt, EXAMPLE_ACTIONS } from "@/lib/anime/prompts";
+import {
+  buildImageToImagePrompt,
+  buildImageToVideoPrompt,
+  DEFAULT_IMAGE_PROMPT_TEMPLATE,
+  DEFAULT_VIDEO_PROMPT_TEMPLATE,
+  EXAMPLE_ACTIONS,
+  VIDEO_DURATION_OPTIONS,
+  VIDEO_RESOLUTION_OPTIONS,
+} from "@/lib/anime/prompts";
 import type { AnimeJobRecord } from "@/lib/anime/jobs";
-import { formatBeijingTime } from "@/lib/format-beijing-time";
+import { getJobDisplayStatus } from "@/lib/anime/job-status";
 
 const REF_STORAGE_KEY = "anime-character-refs";
+const PARAMS_STORAGE_KEY = "anime-generation-params";
+
+type StoredParams = {
+  imagePromptTemplate: string;
+  videoPromptTemplate: string;
+  videoDuration: number;
+  videoResolution: string;
+};
+
+const DEFAULT_PARAMS: StoredParams = {
+  imagePromptTemplate: DEFAULT_IMAGE_PROMPT_TEMPLATE,
+  videoPromptTemplate: DEFAULT_VIDEO_PROMPT_TEMPLATE,
+  videoDuration: 5,
+  videoResolution: "720p",
+};
 
 function loadStoredRefs(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -24,17 +57,35 @@ function saveStoredRefs(refs: Record<string, string>) {
   window.localStorage.setItem(REF_STORAGE_KEY, JSON.stringify(refs));
 }
 
+function loadStoredParams(): StoredParams {
+  if (typeof window === "undefined") return DEFAULT_PARAMS;
+  try {
+    const raw = window.localStorage.getItem(PARAMS_STORAGE_KEY);
+    if (!raw) return DEFAULT_PARAMS;
+    return { ...DEFAULT_PARAMS, ...(JSON.parse(raw) as Partial<StoredParams>) };
+  } catch {
+    return DEFAULT_PARAMS;
+  }
+}
+
+function saveStoredParams(params: StoredParams) {
+  window.localStorage.setItem(PARAMS_STORAGE_KEY, JSON.stringify(params));
+}
+
 export default function AiAnimePage() {
   const [characterId, setCharacterId] = useState(ANIME_CHARACTERS[0]?.id ?? "");
   const [action, setAction] = useState("脱下手套");
+  const [params, setParams] = useState<StoredParams>(DEFAULT_PARAMS);
   const [customRefUrls, setCustomRefUrls] = useState<Record<string, string>>({});
-  const [activeJob, setActiveJob] = useState<AnimeJobRecord | null>(null);
+  const [selectedJob, setSelectedJob] = useState<AnimeJobRecord | null>(null);
   const [recentJobs, setRecentJobs] = useState<AnimeJobRecord[]>([]);
   const [configured, setConfigured] = useState(true);
   const [missingEnvVars, setMissingEnvVars] = useState<string[]>([]);
+  const [maxConcurrent, setMaxConcurrent] = useState(2);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncingJobId, setSyncingJobId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,17 +94,21 @@ export default function AiAnimePage() {
     [characterId],
   );
 
-  const videoPromptPreview = useMemo(() => buildImageToVideoPrompt(action), [action]);
+  const imagePromptPreview = useMemo(
+    () => buildImageToImagePrompt(action, params.imagePromptTemplate),
+    [action, params.imagePromptTemplate],
+  );
 
-  const currentRefPreview = useMemo(() => {
-    if (!selectedCharacter) return "";
-    return customRefUrls[selectedCharacter.id] || selectedCharacter.refImagePath;
-  }, [customRefUrls, selectedCharacter]);
+  const videoPromptPreview = useMemo(
+    () => buildImageToVideoPrompt(action, params.videoPromptTemplate),
+    [action, params.videoPromptTemplate],
+  );
 
   const currentReferenceImageUrl = selectedCharacter ? customRefUrls[selectedCharacter.id] : undefined;
 
   useEffect(() => {
     setCustomRefUrls(loadStoredRefs());
+    setParams(loadStoredParams());
   }, []);
 
   const refreshJobs = useCallback(async () => {
@@ -62,6 +117,7 @@ export default function AiAnimePage() {
       jobs?: AnimeJobRecord[];
       configured?: boolean;
       config?: { missing?: string[] };
+      maxConcurrent?: number;
       error?: string;
     };
 
@@ -72,10 +128,19 @@ export default function AiAnimePage() {
     setRecentJobs(payload.jobs ?? []);
     setConfigured(payload.configured ?? false);
     setMissingEnvVars(payload.config?.missing ?? []);
+    setMaxConcurrent(payload.maxConcurrent ?? 2);
+
+    setSelectedJob((current) => {
+      if (!current) {
+        return current;
+      }
+      return payload.jobs?.find((job) => job.id === current.id) ?? current;
+    });
   }, []);
 
   const syncJob = useCallback(
     async (jobId: string) => {
+      setSyncingJobId(jobId);
       setIsSyncing(true);
       try {
         const response = await fetch(`/api/anime/jobs/${jobId}/sync`, { method: "POST" });
@@ -85,58 +150,16 @@ export default function AiAnimePage() {
           throw new Error(payload.error ?? "同步失败");
         }
 
-        setActiveJob(payload.job);
-
-        if (payload.job.status === "success" || payload.job.status === "failed") {
-          await refreshJobs();
-        }
-
+        setSelectedJob(payload.job);
+        await refreshJobs();
         return payload.job;
       } finally {
         setIsSyncing(false);
+        setSyncingJobId(null);
       }
     },
     [refreshJobs],
   );
-
-  const pollJob = useCallback(async (jobId: string) => {
-    const response = await fetch(`/api/anime/jobs/${jobId}`);
-    const payload = (await response.json()) as { job?: AnimeJobRecord; error?: string };
-
-    if (!response.ok || !payload.job) {
-      throw new Error(payload.error ?? "读取任务状态失败");
-    }
-
-    setActiveJob(payload.job);
-
-    if (payload.job.status === "pending" || payload.job.status === "running") {
-      window.setTimeout(() => {
-        void pollJob(jobId);
-      }, 2500);
-      return;
-    }
-
-    await refreshJobs();
-  }, [refreshJobs]);
-
-  useEffect(() => {
-    if (!activeJob) {
-      return;
-    }
-
-    if (activeJob.status !== "running" || activeJob.stage !== "image_to_video" || activeJob.video_url) {
-      return;
-    }
-
-    void syncJob(activeJob.id);
-    const timer = window.setInterval(() => {
-      void syncJob(activeJob.id);
-    }, 15_000);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [activeJob, syncJob]);
 
   const handleUploadRef = useCallback(
     async (file: File) => {
@@ -176,6 +199,7 @@ export default function AiAnimePage() {
   const handleGenerate = useCallback(async () => {
     setIsSubmitting(true);
     setErrorMessage("");
+    saveStoredParams(params);
 
     try {
       const response = await fetch("/api/anime/generate", {
@@ -185,6 +209,10 @@ export default function AiAnimePage() {
           characterId,
           action,
           referenceImageUrl: currentReferenceImageUrl,
+          imagePromptTemplate: params.imagePromptTemplate,
+          videoPromptTemplate: params.videoPromptTemplate,
+          videoDuration: params.videoDuration,
+          videoResolution: params.videoResolution,
         }),
       });
 
@@ -199,19 +227,24 @@ export default function AiAnimePage() {
       }
 
       if (payload.job) {
-        setActiveJob(payload.job);
+        setSelectedJob(payload.job);
       }
 
-      const jobId = payload.jobId ?? payload.job?.id;
-      if (jobId) {
-        void pollJob(jobId);
-      }
+      await refreshJobs();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "创建任务失败");
     } finally {
       setIsSubmitting(false);
     }
-  }, [action, characterId, currentReferenceImageUrl, pollJob]);
+  }, [action, characterId, currentReferenceImageUrl, params, refreshJobs]);
+
+  const updateParams = useCallback((patch: Partial<StoredParams>) => {
+    setParams((current) => {
+      const next = { ...current, ...patch };
+      saveStoredParams(next);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     void refreshJobs().catch((error) => {
@@ -219,9 +252,22 @@ export default function AiAnimePage() {
     });
   }, [refreshJobs]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void refreshJobs().catch(() => undefined);
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [refreshJobs]);
+
+  const activeCount = recentJobs.filter((job) => {
+    const status = getJobDisplayStatus(job);
+    return status === "queued" || status === "running";
+  }).length;
+
   return (
     <div className="space-y-5">
-      <header className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
+      <header className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
@@ -230,8 +276,7 @@ export default function AiAnimePage() {
             </div>
             <h1 className="mt-2 text-2xl font-semibold text-[var(--space-cadet)]">一键动漫成片</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cadet-gray)]">
-              为四个账号分别上传角色参考图，填写动作后自动完成 GPT Image 2.0 图生图与 Seedance 2.0
-              图生视频（720p / 5s）。图生视频台词会随动作自动替换。
+              支持多任务并行（最多 {maxConcurrent} 个同时生成，其余自动排队）。切换页面不会中断后台任务。
             </p>
           </div>
           <button
@@ -256,11 +301,14 @@ export default function AiAnimePage() {
         </section>
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-[var(--space-cadet)]">选择角色与动作</h2>
+      <div className="grid gap-5 xl:grid-cols-12 xl:items-start">
+        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm xl:col-span-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-[var(--space-cadet)]">选择角色</h2>
+            <span className="text-xs text-[var(--cadet-gray)]">{activeCount} 个活跃任务</span>
+          </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-2 gap-3">
             {ANIME_CHARACTERS.map((character) => {
               const active = character.id === characterId;
               const preview = customRefUrls[character.id] || character.refImagePath;
@@ -271,48 +319,48 @@ export default function AiAnimePage() {
                   key={character.id}
                   type="button"
                   onClick={() => setCharacterId(character.id)}
-                  className={`rounded-2xl border p-3 text-left transition ${
+                  className={`rounded-xl border p-2 text-left transition ${
                     active
                       ? "border-[var(--carolina-blue)] bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)]"
                       : "border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] hover:bg-[var(--eggshell)]/60"
                   }`}
                 >
-                  <div className="relative aspect-[9/16] overflow-hidden rounded-xl bg-[var(--eggshell)]">
+                  <div className="relative aspect-video overflow-hidden rounded-lg bg-[var(--eggshell)]">
                     {preview.startsWith("http") ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={preview} alt={character.name} className="h-full w-full object-cover" />
+                      <img src={preview} alt={character.name} className="h-full w-full object-cover object-top" />
                     ) : (
-                      <Image src={preview} alt={character.name} fill className="object-cover" unoptimized />
+                      <Image src={preview} alt={character.name} fill className="object-cover object-top" unoptimized />
                     )}
                     {hasCustom ? (
-                      <span className="absolute left-2 top-2 rounded-full bg-[var(--space-cadet)] px-2 py-0.5 text-[10px] text-white">
+                      <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--space-cadet)] px-1.5 py-0.5 text-[10px] text-white">
                         已上传
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-3 text-sm font-medium text-[var(--space-cadet)]">{character.name}</p>
-                  <p className="text-xs text-[var(--cadet-gray)]">{character.accountLabel}</p>
+                  <p className="mt-2 truncate text-sm font-medium text-[var(--space-cadet)]">{character.name}</p>
+                  <p className="truncate text-[11px] text-[var(--cadet-gray)]">{character.accountLabel}</p>
                 </button>
               );
             })}
           </div>
 
           <div className="mt-4 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] bg-[var(--eggshell)]/30 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-[var(--space-cadet)]">
                   上传 {selectedCharacter?.accountLabel} 参考图
                 </p>
-                <p className="mt-1 text-xs text-[var(--cadet-gray)]">JPG / PNG / WEBP，最大 10MB，建议 9:16</p>
+                <p className="mt-1 text-xs text-[var(--cadet-gray)]">JPG / PNG / WEBP · 最大 10MB</p>
               </div>
               <button
                 type="button"
                 disabled={isUploading || !configured}
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-4 text-sm text-[var(--space-cadet)] transition hover:bg-white disabled:opacity-60"
+                className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-3 text-xs text-[var(--space-cadet)] transition hover:bg-white disabled:opacity-60"
               >
-                {isUploading ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                {isUploading ? "上传中…" : "选择照片"}
+                {isUploading ? <LoaderCircle className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+                选择照片
               </button>
             </div>
             <input
@@ -326,14 +374,13 @@ export default function AiAnimePage() {
                 event.target.value = "";
               }}
             />
-            {currentRefPreview ? (
-              <p className="mt-3 truncate text-xs text-[var(--cadet-gray)]">
-                当前参考：{currentReferenceImageUrl ? "已上传至 Vidmor" : "使用默认占位图"}
-              </p>
-            ) : null}
           </div>
+        </section>
 
-          <label className="mt-5 block">
+        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm xl:col-span-4">
+          <h2 className="text-lg font-semibold text-[var(--space-cadet)]">动作与生成</h2>
+
+          <label className="mt-4 block">
             <span className="text-sm font-medium text-[var(--space-cadet)]">漫画动作</span>
             <input
               value={action}
@@ -363,135 +410,149 @@ export default function AiAnimePage() {
             className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--space-cadet)] to-[var(--jet)] text-sm font-medium text-[var(--eggshell)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? <LoaderCircle className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
-            生成漫画视频
+            提交生成任务
           </button>
 
           {errorMessage ? <p className="mt-3 text-sm text-red-600">{errorMessage}</p> : null}
         </section>
 
-        <section className="space-y-5">
-          <div className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-[var(--space-cadet)]">当前参数</h2>
-            <dl className="mt-4 space-y-3 text-sm">
-              <div>
-                <dt className="text-[var(--cadet-gray)]">图生图模型</dt>
-                <dd className="font-medium text-[var(--space-cadet)]">GPT Image 2.0</dd>
-              </div>
-              <div>
-                <dt className="text-[var(--cadet-gray)]">图生视频模型</dt>
-                <dd className="font-medium text-[var(--space-cadet)]">Seedance 2.0</dd>
-              </div>
-              <div>
-                <dt className="text-[var(--cadet-gray)]">视频参数</dt>
-                <dd className="font-medium text-[var(--space-cadet)]">720p · 5s · 固定镜头</dd>
-              </div>
-              <div>
-                <dt className="text-[var(--cadet-gray)]">当前角色</dt>
-                <dd className="font-medium text-[var(--space-cadet)]">
-                  {selectedCharacter?.name}（{selectedCharacter?.accountLabel}）
-                </dd>
-              </div>
-            </dl>
+        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm xl:col-span-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-[var(--space-cadet)]">生成参数</h2>
+            <button
+              type="button"
+              onClick={() => updateParams(DEFAULT_PARAMS)}
+              className="inline-flex items-center gap-1 text-xs text-[var(--cadet-gray)] hover:text-[var(--space-cadet)]"
+            >
+              <RotateCcw className="size-3.5" />
+              恢复默认
+            </button>
           </div>
 
-          <div className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--space-cadet)]">
-              <Sparkles className="size-4 text-[var(--carolina-blue)]" />
-              图生视频提示词（随动作变化）
-            </div>
-            <p className="mt-3 text-sm leading-6 text-[var(--cadet-gray)]">{videoPromptPreview}</p>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs text-[var(--cadet-gray)]">视频时长</span>
+              <select
+                value={params.videoDuration}
+                onChange={(event) => updateParams({ videoDuration: Number(event.target.value) })}
+                className="mt-1 w-full rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-sm"
+              >
+                {VIDEO_DURATION_OPTIONS.map((duration) => (
+                  <option key={duration} value={duration}>
+                    {duration}s
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs text-[var(--cadet-gray)]">视频分辨率</span>
+              <select
+                value={params.videoResolution}
+                onChange={(event) => updateParams({ videoResolution: event.target.value })}
+                className="mt-1 w-full rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-sm"
+              >
+                {VIDEO_RESOLUTION_OPTIONS.map((resolution) => (
+                  <option key={resolution} value={resolution}>
+                    {resolution}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
-          {activeJob ? (
-            <div className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-[var(--space-cadet)]">当前任务</h2>
-              <p className="mt-2 text-sm text-[var(--cadet-gray)]">
-                状态：{activeJob.status} · 阶段：{activeJob.stage} · 进度：{activeJob.progress}%
-              </p>
-              <p className="mt-2 text-xs leading-5 text-[var(--cadet-gray)]">
-                成片请在 Tracker 达到 100% 后在此播放或下载。若 Vidmor 已有视频但此处仍卡在 85%，请点击下方同步按钮。
-              </p>
-              {activeJob.error_message ? (
-                <p
-                  className={`mt-2 text-sm ${
-                    activeJob.status === "running" ? "text-amber-700" : "text-red-600"
-                  }`}
-                >
-                  {activeJob.error_message}
-                </p>
-              ) : null}
-              {activeJob.status === "running" && activeJob.stage === "image_to_video" && !activeJob.video_url ? (
-                <button
-                  type="button"
-                  disabled={isSyncing}
-                  onClick={() => void syncJob(activeJob.id)}
-                  className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-3 text-sm text-[var(--space-cadet)] transition hover:bg-[var(--eggshell)]/70 disabled:opacity-60"
-                >
-                  {isSyncing ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                  {isSyncing ? "同步中…" : "从 Vidmor 同步成片"}
-                </button>
-              ) : null}
-              {activeJob.image_url ? (
-                <div className="mt-4">
-                  <p className="mb-2 text-sm font-medium text-[var(--space-cadet)]">漫画图</p>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={activeJob.image_url} alt="Generated comic" className="max-h-80 rounded-xl object-contain" />
-                </div>
-              ) : null}
-              {activeJob.video_url ? (
-                <div className="mt-4">
-                  <p className="mb-2 text-sm font-medium text-[var(--space-cadet)]">成片</p>
-                  <video src={activeJob.video_url} controls className="w-full rounded-xl" />
-                  <a
-                    href={activeJob.video_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-flex items-center gap-2 text-sm text-[var(--carolina-blue)]"
-                  >
-                    <Play className="size-4" />
-                    打开视频链接
-                  </a>
-                </div>
-              ) : null}
+          <label className="mt-4 block">
+            <span className="text-xs text-[var(--cadet-gray)]">图生图模板（可用 {"{action}"}）</span>
+            <textarea
+              value={params.imagePromptTemplate}
+              onChange={(event) => updateParams({ imagePromptTemplate: event.target.value })}
+              rows={4}
+              className="mt-1 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-xs leading-5 outline-none ring-[var(--carolina-blue)] focus:ring-2"
+            />
+          </label>
+
+          <label className="mt-3 block">
+            <span className="text-xs text-[var(--cadet-gray)]">
+              图生视频模板（可用 {"{motionAction}"} / {"{speechAction}"}）
+            </span>
+            <textarea
+              value={params.videoPromptTemplate}
+              onChange={(event) => updateParams({ videoPromptTemplate: event.target.value })}
+              rows={4}
+              className="mt-1 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-xs leading-5 outline-none ring-[var(--carolina-blue)] focus:ring-2"
+            />
+          </label>
+
+          <div className="mt-4 rounded-xl bg-[var(--eggshell)]/40 p-3">
+            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--space-cadet)]">
+              <Sparkles className="size-3.5 text-[var(--carolina-blue)]" />
+              预览
             </div>
-          ) : null}
+            <p className="mt-2 text-[11px] leading-5 text-[var(--cadet-gray)]">{imagePromptPreview}</p>
+            <p className="mt-2 border-t border-[color-mix(in_srgb,var(--cadet-gray)_20%,transparent)] pt-2 text-[11px] leading-5 text-[var(--cadet-gray)]">
+              {videoPromptPreview}
+            </p>
+          </div>
         </section>
       </div>
 
-      <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-[var(--space-cadet)]">最近任务</h2>
-        <div className="mt-4 space-y-3">
-          {recentJobs.length === 0 ? (
-            <p className="text-sm text-[var(--cadet-gray)]">还没有生成记录。</p>
-          ) : (
-            recentJobs.map((job) => (
-              <div
-                key={job.id}
-                className="flex flex-col gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_20%,transparent)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="text-sm font-medium text-[var(--space-cadet)]">
-                    {job.character_id} · {job.action}
-                  </p>
-                  <p className="text-xs text-[var(--cadet-gray)]">
-                    {formatBeijingTime(job.created_at)} · {job.status} · {job.stage}
-                  </p>
+      {selectedJob ? (
+        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-[var(--space-cadet)]">任务详情</h2>
+          <p className="mt-2 text-sm text-[var(--cadet-gray)]">
+            {getJobDisplayStatus(selectedJob) === "queued" ? "排队中" : getJobDisplayStatus(selectedJob) === "running" ? "进行中" : getJobDisplayStatus(selectedJob) === "success" ? "已完成" : "失败"}
+            {" · "}
+            {selectedJob.stage} · {selectedJob.progress}%
+          </p>
+          {selectedJob.error_message ? (
+            <p className="mt-2 text-sm text-amber-700">{selectedJob.error_message}</p>
+          ) : null}
+          {selectedJob.status === "running" && selectedJob.stage === "image_to_video" && !selectedJob.video_url ? (
+            <button
+              type="button"
+              disabled={isSyncing}
+              onClick={() => void syncJob(selectedJob.id)}
+              className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-3 text-sm text-[var(--space-cadet)] transition hover:bg-[var(--eggshell)]/70 disabled:opacity-60"
+            >
+              {isSyncing ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+              从 Vidmor 同步成片
+            </button>
+          ) : null}
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            {selectedJob.image_url ? (
+              <div>
+                <p className="mb-2 text-sm font-medium text-[var(--space-cadet)]">漫画图</p>
+                <div className="aspect-video overflow-hidden rounded-xl bg-[var(--eggshell)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={selectedJob.image_url} alt="Generated comic" className="h-full w-full object-contain" />
                 </div>
-                {job.video_url ? (
-                  <a
-                    href={job.video_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-[var(--carolina-blue)]"
-                  >
-                    查看成片
-                  </a>
-                ) : null}
               </div>
-            ))
-          )}
-        </div>
-      </section>
+            ) : null}
+            {selectedJob.video_url ? (
+              <div>
+                <p className="mb-2 text-sm font-medium text-[var(--space-cadet)]">成片</p>
+                <video src={selectedJob.video_url} controls className="aspect-video w-full rounded-xl bg-black" />
+                <a
+                  href={selectedJob.video_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex items-center gap-2 text-sm text-[var(--carolina-blue)]"
+                >
+                  <Play className="size-4" />
+                  打开视频链接
+                </a>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      <AnimeJobList
+        jobs={recentJobs}
+        selectedJobId={selectedJob?.id}
+        onSelectJob={setSelectedJob}
+        onSyncJob={(jobId) => void syncJob(jobId)}
+        syncingJobId={syncingJobId}
+      />
     </div>
   );
 }
