@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BrainCircuit,
+  Clapperboard,
   CloudDownload,
   Flame,
   LayoutDashboard,
@@ -27,6 +28,7 @@ const navItems: NavItem[] = [
   { label: "Content Analytics", href: "/content-analytics", icon: LineChart },
   { label: "Trends", href: "/trends", icon: Sparkles },
   { label: "AI Insights", href: "/ai-insights", icon: BrainCircuit },
+  { label: "AI Anime", href: "/ai-anime", icon: Clapperboard },
   { label: "Growth Feed", href: "/growth-feed", icon: Rss },
   { label: "Sync Center", href: "/sync-center", icon: CloudDownload },
   { label: "Settings", href: "/settings", icon: Settings },
