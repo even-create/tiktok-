@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a crisp 4-frame run spritesheet from the sync runner PNG (nearest-neighbor only)."""
+"""Build a crisp 4-frame run spritesheet (nearest-neighbor downscale, lossless PNG)."""
 
 from __future__ import annotations
 
@@ -11,20 +11,32 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SRC = (
     Path.home()
-    / ".cursor/projects/Users-zhaoyiwen-Documents-tiktok/assets/__-dfa42f55-1f9b-48fb-acf7-363bf99cb70f.png"
+    / ".cursor/projects/Users-zhaoyiwen-Documents-tiktok/assets/__-0278c23f-fdce-4d09-8f31-8ddd9b911552.png"
 )
 OUT_DIR = ROOT / "public" / "sync"
-# Native sprite height in pixels (display at integer multiples in CSS)
-TARGET_H = 28
+# Native sprite height — 2× display in CSS for sharp pixels
+TARGET_H = 40  # native sprite height before 1:1 display
+DISPLAY_SCALE = 2
 
 
 def is_background(rgba: tuple[int, int, int, int]) -> bool:
     if rgba[3] < 12:
         return True
     r, g, b, a = rgba
-    if r < 40 and g < 40 and b < 40 and a > 200:
+    if r < 48 and g < 48 and b < 48 and a > 180:
         return True
     return False
+
+
+def downscale_nearest(img: Image.Image, target_h: int) -> Image.Image:
+    """Halve repeatedly with NEAREST, then one final NEAREST resize."""
+    w, h = img.size
+    current = img
+    while h > target_h * 2:
+        w, h = max(1, w // 2), max(1, h // 2)
+        current = current.resize((w, h), Image.Resampling.NEAREST)
+    target_w = max(1, int(round(w * (target_h / h))))
+    return current.resize((target_w, target_h), Image.Resampling.NEAREST)
 
 
 def extract_character(src: Path) -> Image.Image:
@@ -77,9 +89,7 @@ def extract_character(src: Path) -> Image.Image:
             if not bg_mask[y][x]:
                 cropped.putpixel((x - minx, y - miny), px[x, y])
 
-    fw, fh = cropped.size
-    fw_s = max(1, int(round(fw * (TARGET_H / fh))))
-    return cropped.resize((fw_s, TARGET_H), Image.Resampling.NEAREST)
+    return downscale_nearest(cropped, TARGET_H)
 
 
 def make_run_frame(
@@ -103,11 +113,14 @@ def make_run_frame(
     return frame
 
 
+def save_png_lossless(img: Image.Image, path: Path) -> None:
+    img.save(path, format="PNG", compress_level=0, optimize=False)
+
+
 def main(src: Path = DEFAULT_SRC) -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     base = extract_character(src)
 
-    # Run cycle: contact → push → flight → recover
     variants = [
         make_run_frame(base, dy=2, scale_x=1.04, scale_y=0.94),
         make_run_frame(base, dx=2, dy=0, scale_x=0.98, scale_y=1.03),
@@ -127,10 +140,12 @@ def main(src: Path = DEFAULT_SRC) -> None:
     for i, frame in enumerate(frames):
         sheet.paste(frame, (i * cell_w, 0), frame)
 
-    sheet.save(OUT_DIR / "runner-spritesheet.png", optimize=True)
-    frames[0].save(OUT_DIR / "runner.png", optimize=True)
-    (OUT_DIR / "spritesheet.meta.txt").write_text(f"{cell_w},{cell_h},4,2\n")
-    print(f"wrote {cell_w}x{cell_h} x4, display scale 2")
+    save_png_lossless(sheet, OUT_DIR / "runner-spritesheet.png")
+    save_png_lossless(frames[0], OUT_DIR / "runner.png")
+    (OUT_DIR / "spritesheet.meta.txt").write_text(
+        f"{cell_w},{cell_h},4,{DISPLAY_SCALE}\n",
+    )
+    print(f"native {cell_w}x{cell_h} x4, display {cell_w * DISPLAY_SCALE}x{cell_h * DISPLAY_SCALE}")
 
 
 if __name__ == "__main__":
