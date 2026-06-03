@@ -103,7 +103,7 @@ input {
 /* Dashboard sync — compact inline pixel runner */
 .sync-runner-stage {
   position: relative;
-  height: calc(var(--frame-h, 46px) + 2px);
+  height: calc(var(--display-h, 30px) + 2px);
 }
 
 .sync-runner-track {
@@ -143,7 +143,8 @@ input {
   position: absolute;
   bottom: 0;
   left: 50%;
-  margin-left: calc(var(--frame-w, 33px) / -2);
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
   animation: sync-runner-body 0.22s steps(2, end) infinite;
 }
 
@@ -151,59 +152,55 @@ input {
   animation: sync-runner-jump 480ms ease-out forwards;
 }
 
-.sync-runner-clip {
-  width: var(--frame-w, 33px);
-  height: var(--frame-h, 46px);
-  overflow: hidden;
-}
-
-.sync-runner-sheet {
+.sync-runner-sprite {
   display: block;
-  width: var(--sheet-w, 132px);
-  height: var(--frame-h, 46px);
-  max-width: none;
+  width: var(--display-w, 48px);
+  height: var(--display-h, 80px);
+  background-image: url("/sync/runner-spritesheet.png");
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: calc(var(--display-w, 48px) * var(--sprite-frames, 4)) var(--display-h, 80px);
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
-  animation: sync-runner-sheet 0.44s steps(4, end) infinite;
-  will-change: transform;
+  animation: sync-runner-frames 0.44s steps(4, end) infinite;
 }
 
-.sync-runner-sheet--freeze {
+.sync-runner-sprite--freeze {
   animation: none;
-  transform: translateX(calc(var(--frame-w, 33px) * -2));
+  background-position: calc(var(--display-w, 48px) * -2) 0;
 }
 
-@keyframes sync-runner-sheet {
-  from {
-    transform: translateX(0);
+@keyframes sync-runner-frames {
+  0% {
+    background-position: 0 0;
   }
-  to {
-    transform: translateX(calc(var(--frame-w, 33px) * -3));
+  100% {
+    background-position: calc(var(--display-w, 48px) * -4) 0;
   }
 }
 
 @keyframes sync-runner-body {
   0% {
-    margin-bottom: 0;
+    transform: translateX(-50%) translateY(0) rotate(-1deg);
   }
   100% {
-    margin-bottom: 2px;
+    transform: translateX(-50%) translateY(-2px) rotate(-2deg);
   }
 }
 
 @keyframes sync-runner-jump {
   0% {
-    margin-bottom: 0;
+    transform: translateX(-50%) translateY(0) rotate(-1deg) scale(1);
   }
   40% {
-    margin-bottom: 8px;
+    transform: translateX(-50%) translateY(-6px) rotate(0deg) scale(1.04);
   }
   70% {
-    margin-bottom: 2px;
+    transform: translateX(-50%) translateY(-2px) rotate(-1deg) scale(1);
   }
   100% {
-    margin-bottom: 0;
+    transform: translateX(-50%) translateY(0) rotate(-1deg) scale(1);
   }
 }
 

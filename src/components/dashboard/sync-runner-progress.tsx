@@ -3,10 +3,11 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Check } from "lucide-react";
 
-/** Native frame size — `public/sync/spritesheet.meta.txt` */
-const SPRITE_FRAME_W = 33;
-const SPRITE_FRAME_H = 46;
+/** Native spritesheet cell — `public/sync/spritesheet.meta.txt` */
+const SPRITE_FRAME_W = 26;
+const SPRITE_FRAME_H = 34;
 const SPRITE_FRAMES = 4;
+const DISPLAY_SCALE = 1;
 
 export type SyncRunnerPhase = "running" | "complete";
 
@@ -37,11 +38,15 @@ export function SyncRunnerProgress({ percent, phase, className = "", onFadeOutEn
   }, [phase, onFadeOutEnd]);
 
   const isComplete = phase === "complete";
+  const displayW = SPRITE_FRAME_W * DISPLAY_SCALE;
+  const displayH = SPRITE_FRAME_H * DISPLAY_SCALE;
 
   const spriteVars = {
-    "--frame-w": `${SPRITE_FRAME_W}px`,
-    "--frame-h": `${SPRITE_FRAME_H}px`,
-    "--sheet-w": `${SPRITE_FRAME_W * SPRITE_FRAMES}px`,
+    "--sprite-w": `${SPRITE_FRAME_W}px`,
+    "--sprite-h": `${SPRITE_FRAME_H}px`,
+    "--sprite-frames": SPRITE_FRAMES,
+    "--display-w": `${displayW}px`,
+    "--display-h": `${displayH}px`,
     "--progress": `${clamped}%`,
   } as CSSProperties;
 
@@ -72,17 +77,10 @@ export function SyncRunnerProgress({ percent, phase, className = "", onFadeOutEn
           ) : null}
 
           <div className={`sync-runner-actor ${isComplete ? "sync-runner-actor--jump" : ""}`}>
-            <div className="sync-runner-clip">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/sync/runner-spritesheet.png"
-                alt=""
-                width={SPRITE_FRAME_W * SPRITE_FRAMES}
-                height={SPRITE_FRAME_H}
-                draggable={false}
-                className={`sync-runner-sheet ${isComplete ? "sync-runner-sheet--freeze" : ""}`}
-              />
-            </div>
+            <div
+              className={`sync-runner-sprite ${isComplete ? "sync-runner-sprite--freeze" : ""}`}
+              aria-hidden
+            />
           </div>
         </div>
       </div>
