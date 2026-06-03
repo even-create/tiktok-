@@ -263,46 +263,92 @@ export async function submitGeneration(payload: Record<string, unknown>, token?:
   });
 }
 
-export async function pollGenerationStatus(
-  pollMethod: string,
-  taskId: string,
-  token?: string | null,
-) {
-  const result = await vidmorRequest<{
-    status?: string;
-    resultUrl?: string;
-    videoUrl?: string;
-    imageUrl?: string;
-    taskResult?: Array<{ url?: string; videoUrl?: string }>;
-    msg?: string;
-  }>({
-    path: "/api/ai/detail/v2",
-    data: {
-      appId: VIDMOR_DEFAULTS.appId,
-      method: pollMethod,
-      sourcePlat: "WEB",
-      params: { taskId },
-    },
-    token,
-  });
+type VidmorGenerateListItem = {
+  id?: number;
+  status?: string;
+  domainId?: string;
+  platResponse?: string;
+  platRequest?: string;
+};
 
-  if (result.body.code !== 0) {
-    throw new Error(result.body.msg || "轮询失败");
+function parsePlatResponse(platResponse?: string) {
+  if (!platResponse?.trim()) {
+    return null;
   }
 
-  const data = result.body.data ?? {};
-  const status = String(data.status ?? "").toLowerCase();
+  try {
+    return JSON.parse(platResponse) as {
+      code?: number;
+      data?: {
+        status?: string;
+        resultUrl?: string;
+        videoUrl?: string;
+        imageUrl?: string;
+        taskResult?: Array<{ url?: string; videoUrl?: string }>;
+      };
+    };
+  } catch {
+    return null;
+  }
+}
+
+function extractMediaUrl(data: {
+  resultUrl?: string;
+  videoUrl?: string;
+  imageUrl?: string;
+  taskResult?: Array<{ url?: string; videoUrl?: string }>;
+}) {
   const taskResult = Array.isArray(data.taskResult) ? data.taskResult : [];
   const firstResult = taskResult[0];
-  const mediaUrl =
+
+  return (
     data.resultUrl ||
     data.videoUrl ||
     data.imageUrl ||
     firstResult?.url ||
     firstResult?.videoUrl ||
-    null;
+    null
+  );
+}
 
-  return { status, mediaUrl, raw: data };
+export async function pollGenerationStatus(
+  pollMethod: string,
+  taskId: string,
+  token?: string | null,
+) {
+  void pollMethod;
+
+  const result = await vidmorRequest<{ data?: VidmorGenerateListItem[] }>({
+    path: "/ai/common/generate/list",
+    data: {
+      pageNo: 1,
+      pageSize: 1,
+      domainId: taskId,
+    },
+    token,
+  });
+
+  if (result.body.code !== 0) {
+    throw new Error(parseVidmorErrorMessage(result.status, result.body, ""));
+  }
+
+  const item = result.body.data?.data?.[0];
+  if (!item) {
+    return { status: "pending", mediaUrl: null, raw: {} };
+  }
+
+  const plat = parsePlatResponse(item.platResponse);
+  const platData = plat?.data ?? {};
+  const platStatus = String(platData.status ?? "").toLowerCase();
+  const itemStatus = String(item.status ?? "").toLowerCase();
+  const mediaUrl = extractMediaUrl(platData);
+
+  let status = platStatus || itemStatus;
+  if ((status === "success" || status === "completed") && !mediaUrl) {
+    status = "processing";
+  }
+
+  return { status, mediaUrl, raw: item };
 }
 
 export async function pollUntilComplete(
@@ -315,23 +361,23 @@ export async function pollUntilComplete(
     onTick?: (status: string) => void | Promise<void>;
   },
 ) {
-  const intervalMs = options?.intervalMs ?? 2000;
-  const timeoutMs = options?.timeoutMs ?? 180_000;
+  const intervalMs = options?.intervalMs ?? 3000;
+  const timeoutMs = options?.timeoutMs ?? 300_000;
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
     const { status, mediaUrl } = await pollGenerationStatus(pollMethod, taskId, options?.token);
     await options?.onTick?.(status);
 
+    if (status === "fail" || status === "failed" || status === "error") {
+      throw new Error("Vidmor 生成失败");
+    }
+
     if (status === "success" || status === "completed") {
       if (!mediaUrl) {
         throw new Error("任务成功但未返回媒体 URL");
       }
       return mediaUrl;
-    }
-
-    if (status === "fail" || status === "failed" || status === "error") {
-      throw new Error("Vidmor 生成失败");
     }
 
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
