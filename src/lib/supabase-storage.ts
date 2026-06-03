@@ -82,9 +82,10 @@ async function upsertManyWithMissingColumnRetry<T extends Record<string, RecordV
 }
 
 export async function assertTikTokTablesReady() {
-  const [accountsCheck, videosCheck] = await Promise.all([
+  const [accountsCheck, videosCheck, collectsCheck] = await Promise.all([
     supabase.from("accounts").select("id").limit(1),
     supabase.from("videos").select("id").limit(1),
+    supabase.from("videos").select("collects_count").limit(1),
   ]);
 
   if (accountsCheck.error || videosCheck.error) {
@@ -92,6 +93,12 @@ export async function assertTikTokTablesReady() {
       accountsCheck.error?.message ??
         videosCheck.error?.message ??
         "Supabase 表不存在，请先执行 migration 建表。",
+    );
+  }
+
+  if (collectsCheck.error?.message?.includes("collects_count")) {
+    throw new Error(
+      "videos 表缺少 collects_count 字段，请在 Supabase 执行 migration：20260603100000_add_videos_collects_count.sql",
     );
   }
 }
@@ -193,10 +200,17 @@ export async function saveTikTokProfile(profile: NormalizedTikTokProfile) {
     };
   });
 
+  let videoSkippedColumns: string[] = [];
   if (videos.length) {
-    await upsertManyWithMissingColumnRetry("videos", videos, {
+    const videoResult = await upsertManyWithMissingColumnRetry("videos", videos, {
       onConflict: "account_id,tiktok_video_id",
     });
+    videoSkippedColumns = videoResult.skippedColumns;
+    if (videoSkippedColumns.includes("collects_count")) {
+      console.warn(
+        "[sync] collects_count 未写入数据库：请执行 migration 20260603100000_add_videos_collects_count.sql",
+      );
+    }
   }
 
   await recalculateAccountTotals(account.id);
@@ -214,7 +228,7 @@ export async function saveTikTokProfile(profile: NormalizedTikTokProfile) {
 
   return {
     account: savedAccount,
-    skippedColumns: accountResult.skippedColumns,
+    skippedColumns: [...accountResult.skippedColumns, ...videoSkippedColumns],
     videosProcessed: profile.videos.length,
     videosInserted,
     videosUpdated,

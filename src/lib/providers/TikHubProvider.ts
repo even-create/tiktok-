@@ -7,7 +7,7 @@ import {
   toNormalizedProfile,
 } from "@/lib/providers/tikhub-adapter";
 import { tikhubRequest } from "@/lib/tikhub";
-import type { NormalizedTikTokProfile } from "@/lib/tiktok/types";
+import type { NormalizedTikTokProfile, UnifiedTikTokVideo } from "@/lib/tiktok/types";
 
 const PROFILE_PATH = "/api/v1/tiktok/app/v3/handler_user_profile";
 const USER_POSTS_PATH = "/api/v1/tiktok/app/v3/fetch_user_post_videos_v2";
@@ -57,10 +57,26 @@ export class TikHubProvider {
 
     const priorityIndices = enriched
       .map((video, index) => ({ video, index }))
-      .filter(({ video }) => !video.thumbnailUrl || video.views <= 0 || video.likes <= 0)
+      .filter(
+        ({ video }) =>
+          !video.thumbnailUrl ||
+          video.views <= 0 ||
+          video.likes <= 0 ||
+          (video.views > 0 && video.collects <= 0),
+      )
       .sort((left, right) => {
-        const leftScore = Number(!left.video.thumbnailUrl) * 2 + Number(left.video.views <= 0);
-        const rightScore = Number(!right.video.thumbnailUrl) * 2 + Number(right.video.views <= 0);
+        const leftNeedsCollect = left.video.views > 0 && left.video.collects <= 0 ? 1 : 0;
+        const rightNeedsCollect = right.video.views > 0 && right.video.collects <= 0 ? 1 : 0;
+        const leftScore =
+          Number(!left.video.thumbnailUrl) * 4 +
+          Number(left.video.views <= 0) * 2 +
+          leftNeedsCollect * 3 +
+          Number(left.video.likes <= 0);
+        const rightScore =
+          Number(!right.video.thumbnailUrl) * 4 +
+          Number(right.video.views <= 0) * 2 +
+          rightNeedsCollect * 3 +
+          Number(right.video.likes <= 0);
         return rightScore - leftScore;
       })
       .slice(0, maxCalls)
@@ -76,14 +92,40 @@ export class TikHubProvider {
         calls += 1;
         const mapped = mapOneVideoPayload(payload, handle);
         if (mapped) {
-          enriched[index] = {
-            ...mapped,
-            id: video.id,
-            thumbnailUrl: mapped.thumbnailUrl ?? video.thumbnailUrl,
-          };
+          enriched[index] = mergeVideoDetails(video, mapped);
         }
       } catch (error) {
         console.warn(`[tikhub] fetch_one_video_v2 failed for ${video.id}`, error);
+      }
+    }
+
+    return { videos: enriched, apiCalls: calls };
+  }
+
+  /** List endpoints often omit collect_count — fill from fetch_one_video_v2. */
+  async enrichVideosCollectCounts(videos: UnifiedTikTokVideo[], handle: string, maxCalls: number) {
+    let calls = 0;
+    const enriched = [...videos];
+
+    const indices = enriched
+      .map((video, index) => ({ video, index }))
+      .filter(({ video }) => video.views > 0 && video.collects <= 0)
+      .slice(0, maxCalls)
+      .map(({ index }) => index);
+
+    for (const index of indices) {
+      if (calls >= maxCalls) break;
+      const video = enriched[index];
+
+      try {
+        const payload = await this.fetchOneVideoV2(video.id);
+        calls += 1;
+        const mapped = mapOneVideoPayload(payload, handle);
+        if (mapped) {
+          enriched[index] = mergeVideoDetails(video, mapped);
+        }
+      } catch (error) {
+        console.warn(`[tikhub] collect enrich failed for ${video.id}`, error);
       }
     }
 
@@ -120,10 +162,15 @@ export class TikHubProvider {
       }
     }
 
-    const enrichBudget = Math.min(12, accountData.videos.length);
+    const enrichBudget = Math.min(MAX_VIDEOS_PER_SYNC, accountData.videos.length);
     const enriched = await this.enrichVideosWithDetails(accountData.videos, handle, enrichBudget);
     apiCalls += enriched.apiCalls;
     accountData = { ...accountData, videos: enriched.videos };
+
+    const collectBudget = Math.min(MAX_VIDEOS_PER_SYNC, accountData.videos.length);
+    const collectEnriched = await this.enrichVideosCollectCounts(accountData.videos, handle, collectBudget);
+    apiCalls += collectEnriched.apiCalls;
+    accountData = { ...accountData, videos: collectEnriched.videos };
 
     if (!accountData.videos.length) {
       throw new Error("TikHub 没有返回视频数据，请确认账号存在且为公开账号。");
@@ -137,6 +184,22 @@ export class TikHubProvider {
 }
 
 let singleton: TikHubProvider | null = null;
+
+function mergeVideoDetails(existing: UnifiedTikTokVideo, detail: UnifiedTikTokVideo): UnifiedTikTokVideo {
+  return {
+    ...existing,
+    views: detail.views > 0 ? detail.views : existing.views,
+    likes: detail.likes > 0 ? detail.likes : existing.likes,
+    comments: detail.comments > 0 ? detail.comments : existing.comments,
+    shares: detail.shares > 0 ? detail.shares : existing.shares,
+    collects: detail.collects,
+    thumbnailUrl: detail.thumbnailUrl ?? existing.thumbnailUrl,
+    id: existing.id,
+    title: existing.title || detail.title,
+    url: existing.url ?? detail.url,
+    postedAt: existing.postedAt ?? detail.postedAt,
+  };
+}
 
 export function getTikHubProvider() {
   if (!singleton) {

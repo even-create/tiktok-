@@ -108,8 +108,41 @@ function pickCoverUrl(video: UnknownRecord, aweme: UnknownRecord) {
   return flat;
 }
 
+function mergeStatistics(aweme: UnknownRecord): UnknownRecord {
+  const blocks = [
+    dig(aweme, [["statistics"]]),
+    dig(aweme, [["stats"]]),
+    dig(aweme, [["statisticsV2"]]),
+    dig(aweme, [["statistics_v2"]]),
+    dig(aweme, [["aweme_statistics"]]),
+    dig(aweme, [["itemInfo", "itemStruct", "stats"]]),
+  ];
+
+  const merged: UnknownRecord = {};
+  for (const block of blocks) {
+    if (isRecord(block)) {
+      Object.assign(merged, block);
+    }
+  }
+  return merged;
+}
+
+function pickCollectCount(statistics: UnknownRecord, aweme: UnknownRecord) {
+  return toNumber(
+    statistics.collect_count ??
+      statistics.collectCount ??
+      statistics.favorite_count ??
+      statistics.favoriteCount ??
+      statistics.bookmark_count ??
+      statistics.bookmarkCount ??
+      statistics.save_count ??
+      statistics.saveCount ??
+      dig(aweme, [["collect_count"], ["collectCount"]]),
+  );
+}
+
 function mapAwemeToVideo(aweme: UnknownRecord, fallbackHandle: string): UnifiedTikTokVideo | null {
-  const statistics = (dig(aweme, [["statistics"]]) as UnknownRecord) ?? aweme;
+  const statistics = mergeStatistics(aweme);
   const video = (dig(aweme, [["video"]]) as UnknownRecord) ?? {};
 
   const awemeId = pickString(aweme.aweme_id, aweme.awemeId, aweme.id);
@@ -129,12 +162,7 @@ function mapAwemeToVideo(aweme: UnknownRecord, fallbackHandle: string): UnifiedT
     likes: toNumber(statistics.digg_count ?? statistics.diggCount),
     comments: toNumber(statistics.comment_count ?? statistics.commentCount),
     shares: toNumber(statistics.share_count ?? statistics.shareCount),
-    collects: toNumber(
-      statistics.collect_count ??
-        statistics.collectCount ??
-        statistics.favorite_count ??
-        statistics.favoriteCount,
-    ),
+    collects: pickCollectCount(statistics, aweme),
     postedAt: parsePostedAt(aweme),
   };
 }
