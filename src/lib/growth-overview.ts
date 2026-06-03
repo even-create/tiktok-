@@ -13,7 +13,6 @@ export type GrowthOverviewMetric = {
   comparePercent: string | null;
   trend: GrowthTrend;
   valueTrend: GrowthTrend;
-  sparkline: number[];
 };
 
 export type GrowthOverviewResult = {
@@ -25,22 +24,6 @@ type CompareResult = {
   percent: string | null;
   trend: GrowthTrend;
 };
-
-function buildSparkline(trend: GrowthTrend, seed: number) {
-  const base = [0.35, 0.42, 0.38, 0.5, 0.48, 0.62, 0.72];
-  const offset = (seed % 7) * 0.03;
-  const scaled = base.map((point, index) => point + offset + index * 0.04);
-
-  if (trend === "down") {
-    return scaled.reverse();
-  }
-
-  if (trend === "flat" || trend === null) {
-    return scaled.map(() => 0.5);
-  }
-
-  return scaled;
-}
 
 function formatSignedDelta(value: number | null) {
   if (value === null) return "N/A";
@@ -167,7 +150,6 @@ export function buildGrowthOverview(
       comparePercent: followersCompare.percent,
       trend: followersCompare.trend,
       valueTrend: deltaTrend(todayFollowers),
-      sparkline: buildSparkline(followersCompare.trend ?? deltaTrend(todayFollowers), 1),
     },
     {
       id: "views",
@@ -176,7 +158,6 @@ export function buildGrowthOverview(
       comparePercent: viewsCompare.percent,
       trend: viewsCompare.trend,
       valueTrend: deltaTrend(todayViews),
-      sparkline: buildSparkline(viewsCompare.trend ?? deltaTrend(todayViews), 2),
     },
     {
       id: "likes",
@@ -185,7 +166,6 @@ export function buildGrowthOverview(
       comparePercent: likesCompare.percent,
       trend: likesCompare.trend,
       valueTrend: deltaTrend(todayLikes),
-      sparkline: buildSparkline(likesCompare.trend ?? deltaTrend(todayLikes), 3),
     },
   ];
 

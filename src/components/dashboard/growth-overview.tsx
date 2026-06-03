@@ -46,47 +46,6 @@ function compareTrendClass(trend: GrowthTrend) {
   return "text-[var(--cadet-gray)]";
 }
 
-function GrowthSparkline({ points, trend }: { points: number[]; trend: GrowthTrend }) {
-  const width = 140;
-  const height = 36;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range = max - min || 1;
-
-  const polyline = points
-    .map((point, index) => {
-      const x = (index / Math.max(points.length - 1, 1)) * width;
-      const y = height - ((point - min) / range) * (height - 6) - 3;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  const stroke =
-    trend === "down"
-      ? "var(--rose-500, #f43f5e)"
-      : trend === "flat" || trend === null
-        ? "var(--cadet-gray)"
-        : "var(--carolina-blue)";
-
-  return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      className="mt-3 h-9 w-full"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <polyline
-        points={polyline}
-        fill="none"
-        stroke={stroke}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function CompareRow({ metric }: { metric: GrowthOverviewMetric }) {
   const percent = metric.comparePercent ?? "—";
 
@@ -121,8 +80,6 @@ function GrowthStatCard({ metric }: { metric: GrowthOverviewMetric }) {
       <p className={`mt-3 text-2xl font-bold tracking-tight ${valueClassName(metric)}`}>{metric.value}</p>
 
       <CompareRow metric={metric} />
-
-      <GrowthSparkline points={metric.sparkline} trend={metric.trend} />
     </article>
   );
 }
@@ -147,7 +104,7 @@ export function GrowthOverview({
         <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm">
           <BarChart3 className="size-5" />
         </div>
-        <h2 className="text-lg font-semibold text-[var(--space-cadet)] sm:text-xl">今日增长概览</h2>
+        <h2 className="text-lg font-semibold text-[var(--space-cadet)] sm:text-xl">增长概览</h2>
       </div>
 
       {setupHint ? (
@@ -169,7 +126,6 @@ export function GrowthOverview({
                 </div>
                 <div className="mt-4 h-7 w-16 rounded bg-[var(--cadet-gray)]/20" />
                 <div className="mt-2 h-3 w-14 rounded bg-[var(--cadet-gray)]/10" />
-                <div className="mt-4 h-8 rounded bg-[var(--cadet-gray)]/10" />
               </div>
             ))
           : metrics.map((metric) => <GrowthStatCard key={metric.id} metric={metric} />)}
