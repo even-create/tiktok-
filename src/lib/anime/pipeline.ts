@@ -58,6 +58,9 @@ export async function runAnimePipeline(
       if (status === "processing" || status === "pending" || status === "running") {
         await updateAnimeJob(jobId, { progress: 45 });
       }
+      if (status === "success" || status === "completed") {
+        await updateAnimeJob(jobId, { progress: 55 });
+      }
     },
   });
 
