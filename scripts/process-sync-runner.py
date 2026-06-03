@@ -15,7 +15,7 @@ DEFAULT_SRC = (
 )
 OUT_DIR = ROOT / "public" / "sync"
 # Native sprite height in pixels (display at integer multiples in CSS)
-TARGET_H = 56
+TARGET_H = 28
 
 
 def is_background(rgba: tuple[int, int, int, int]) -> bool:

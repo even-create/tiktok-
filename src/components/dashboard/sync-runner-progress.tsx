@@ -4,11 +4,10 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { Check } from "lucide-react";
 
 /** Native spritesheet cell — `public/sync/spritesheet.meta.txt` */
-const SPRITE_FRAME_W = 38;
-const SPRITE_FRAME_H = 54;
+const SPRITE_FRAME_W = 26;
+const SPRITE_FRAME_H = 34;
 const SPRITE_FRAMES = 4;
-/** Integer upscale for crisp pixel art (no fractional CSS scale) */
-const DISPLAY_SCALE = 2;
+const DISPLAY_SCALE = 1;
 
 export type SyncRunnerPhase = "running" | "complete";
 
@@ -45,7 +44,6 @@ export function SyncRunnerProgress({ percent, phase, onFadeOutEnd }: SyncRunnerP
     "--sprite-w": `${SPRITE_FRAME_W}px`,
     "--sprite-h": `${SPRITE_FRAME_H}px`,
     "--sprite-frames": SPRITE_FRAMES,
-    "--display-scale": DISPLAY_SCALE,
     "--display-w": `${displayW}px`,
     "--display-h": `${displayH}px`,
     "--progress": `${clamped}%`,
@@ -53,7 +51,7 @@ export function SyncRunnerProgress({ percent, phase, onFadeOutEnd }: SyncRunnerP
 
   return (
     <div
-      className={`sync-runner-root w-full max-w-[28rem] transition-opacity duration-[400ms] ease-out ${
+      className={`sync-runner-root flex max-w-md items-end gap-2 transition-opacity duration-[400ms] ease-out ${
         isExiting ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
       style={spriteVars}
@@ -64,21 +62,7 @@ export function SyncRunnerProgress({ percent, phase, onFadeOutEnd }: SyncRunnerP
       aria-label={isComplete ? "Sync complete" : "Syncing data"}
       aria-live="polite"
     >
-      <div className="mb-1.5 flex min-h-[1.125rem] items-center justify-between gap-2">
-        {isComplete ? (
-          <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-700">
-            <Check className="size-3.5 shrink-0 stroke-[2.5]" aria-hidden />
-            Sync Complete
-          </p>
-        ) : (
-          <p className="text-[11px] font-medium text-[var(--cadet-gray)]">Syncing…</p>
-        )}
-        <span className="shrink-0 font-mono text-[10px] tabular-nums text-[var(--cadet-gray)]">
-          {Math.round(clamped)}%
-        </span>
-      </div>
-
-      <div className="sync-runner-stage">
+      <div className="sync-runner-stage min-w-0 flex-1">
         <div className="sync-runner-track">
           <div className="sync-runner-fill" />
         </div>
@@ -86,7 +70,6 @@ export function SyncRunnerProgress({ percent, phase, onFadeOutEnd }: SyncRunnerP
         <div className={`sync-runner-marker ${isComplete ? "sync-runner-marker--done" : ""}`}>
           {!isComplete ? (
             <div className="sync-runner-dust" aria-hidden>
-              <span />
               <span />
               <span />
             </div>
@@ -100,6 +83,17 @@ export function SyncRunnerProgress({ percent, phase, onFadeOutEnd }: SyncRunnerP
           </div>
         </div>
       </div>
+
+      {isComplete ? (
+        <span className="flex shrink-0 items-center gap-1 pb-0.5 text-[10px] font-medium text-emerald-700">
+          <Check className="size-3 stroke-[2.5]" aria-hidden />
+          Done
+        </span>
+      ) : (
+        <span className="shrink-0 pb-0.5 font-mono text-[10px] tabular-nums text-[var(--cadet-gray)]">
+          {Math.round(clamped)}%
+        </span>
+      )}
     </div>
   );
 }

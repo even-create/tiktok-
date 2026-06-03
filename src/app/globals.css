@@ -100,19 +100,18 @@ input {
   background: transparent;
 }
 
-/* Dashboard sync — crisp pixel runner (spritesheet + body bob, integer 2× scale) */
+/* Dashboard sync — compact inline pixel runner */
 .sync-runner-stage {
   position: relative;
-  height: calc(var(--display-h, 80px) + 10px);
-  padding-top: 4px;
+  height: calc(var(--display-h, 30px) + 2px);
 }
 
 .sync-runner-track {
   position: absolute;
   right: 0;
-  bottom: 6px;
+  bottom: 0;
   left: 0;
-  height: 4px;
+  height: 3px;
   overflow: hidden;
   border-radius: 999px;
   background: color-mix(in srgb, var(--cadet-gray) 14%, white);
@@ -128,7 +127,7 @@ input {
 
 .sync-runner-marker {
   position: absolute;
-  bottom: 2px;
+  bottom: 1px;
   left: var(--progress, 0%);
   z-index: 2;
   width: 0;
@@ -195,10 +194,10 @@ input {
     transform: translateX(-50%) translateY(0) rotate(-1deg) scale(1);
   }
   40% {
-    transform: translateX(-50%) translateY(-10px) rotate(0deg) scale(1.05);
+    transform: translateX(-50%) translateY(-6px) rotate(0deg) scale(1.04);
   }
   70% {
-    transform: translateX(-50%) translateY(-3px) rotate(-1deg) scale(1);
+    transform: translateX(-50%) translateY(-2px) rotate(-1deg) scale(1);
   }
   100% {
     transform: translateX(-50%) translateY(0) rotate(-1deg) scale(1);

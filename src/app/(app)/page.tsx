@@ -435,7 +435,7 @@ export default function DashboardPage() {
           </div>
 
           {syncUiVisible && syncProgress ? (
-            <div className="mt-2">
+            <div className="mt-1.5">
               <SyncRunnerProgress phase={syncPhase} percent={syncPercent} />
             </div>
           ) : null}
