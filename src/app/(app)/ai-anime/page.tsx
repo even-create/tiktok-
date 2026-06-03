@@ -14,6 +14,7 @@ export default function AiAnimePage() {
   const [activeJob, setActiveJob] = useState<AnimeJobRecord | null>(null);
   const [recentJobs, setRecentJobs] = useState<AnimeJobRecord[]>([]);
   const [configured, setConfigured] = useState(true);
+  const [missingEnvVars, setMissingEnvVars] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -27,6 +28,7 @@ export default function AiAnimePage() {
     const payload = (await response.json()) as {
       jobs?: AnimeJobRecord[];
       configured?: boolean;
+      config?: { missing?: string[] };
       error?: string;
     };
 
@@ -36,6 +38,7 @@ export default function AiAnimePage() {
 
     setRecentJobs(payload.jobs ?? []);
     setConfigured(payload.configured ?? false);
+    setMissingEnvVars(payload.config?.missing ?? []);
   }, []);
 
   const pollJob = useCallback(async (jobId: string) => {
@@ -128,9 +131,16 @@ export default function AiAnimePage() {
 
       {!configured ? (
         <section className="rounded-2xl border border-amber-300/40 bg-amber-50 p-4 text-sm text-amber-900">
-          尚未配置 Vidmor。请在 Vercel 环境变量中添加 <code>VIDMOR_TOKEN</code> 和{" "}
-          <code>VIDMOR_USER_CODE</code>。Token 可在浏览器登录 vidmor.ai 后，从任意 API 响应 Header 的{" "}
-          <code>token</code> 字段复制。
+          <p>尚未配置 Vidmor（Production 环境未读到变量）。</p>
+          {missingEnvVars.length > 0 ? (
+            <p className="mt-2">
+              当前缺少：<code>{missingEnvVars.join(", ")}</code>
+            </p>
+          ) : null}
+          <p className="mt-2 leading-6">
+            请在 Vercel → Settings → Environment Variables 添加变量，并勾选{" "}
+            <strong>Production</strong>，保存后对 Production 再 Redeploy 一次。
+          </p>
         </section>
       ) : null}
 

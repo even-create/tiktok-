@@ -77,6 +77,20 @@ export function isVidmorConfigured() {
   return Boolean(resolveVidmorToken() && resolveVidmorUserCode());
 }
 
+export function getVidmorConfigStatus() {
+  const hasToken = Boolean(resolveVidmorToken());
+  const hasUserCode = Boolean(resolveVidmorUserCode());
+  const missing: string[] = [];
+  if (!hasToken) missing.push("VIDMOR_TOKEN");
+  if (!hasUserCode) missing.push("VIDMOR_USER_CODE");
+  return {
+    configured: missing.length === 0,
+    hasToken,
+    hasUserCode,
+    missing,
+  };
+}
+
 export function getPublicAssetUrl(path: string) {
   const base =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||

@@ -2,14 +2,15 @@ import { after } from "next/server";
 import { NextResponse } from "next/server";
 import { createAnimeJob, listRecentAnimeJobs } from "@/lib/anime/jobs";
 import { runAnimePipelineSafe } from "@/lib/anime/pipeline";
-import { isVidmorConfigured } from "@/lib/vidmor/config";
+import { getVidmorConfigStatus, isVidmorConfigured } from "@/lib/vidmor/config";
 
 export const maxDuration = 300;
 
 export async function GET() {
   try {
     const jobs = await listRecentAnimeJobs(12);
-    return NextResponse.json({ jobs, configured: isVidmorConfigured() });
+    const config = getVidmorConfigStatus();
+    return NextResponse.json({ jobs, configured: config.configured, config });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "读取任务失败" },
