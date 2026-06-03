@@ -88,7 +88,7 @@ export default function AiAnimePage() {
   const [recentJobs, setRecentJobs] = useState<AnimeJobRecord[]>([]);
   const [configured, setConfigured] = useState(true);
   const [missingEnvVars, setMissingEnvVars] = useState<string[]>([]);
-  const [maxConcurrent, setMaxConcurrent] = useState(2);
+  const [maxConcurrent, setMaxConcurrent] = useState(5);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -136,7 +136,7 @@ export default function AiAnimePage() {
     setRecentJobs(payload.jobs ?? []);
     setConfigured(payload.configured ?? false);
     setMissingEnvVars(payload.config?.missing ?? []);
-    setMaxConcurrent(payload.maxConcurrent ?? 2);
+    setMaxConcurrent(payload.maxConcurrent ?? 5);
 
     setSelectedJob((current) => {
       if (!current) {
@@ -306,6 +306,94 @@ export default function AiAnimePage() {
         </div>
       </header>
 
+      <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
+              <Sparkles className="size-4" />
+              生成参数
+            </div>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cadet-gray)]">
+              图生图 / 图生视频模板与视频输出设置。模板支持占位符，修改后下次提交任务时生效。
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => updateParams(DEFAULT_PARAMS)}
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-4 text-sm text-[var(--space-cadet)] transition hover:bg-[var(--eggshell)]/70"
+          >
+            <RotateCcw className="size-4" />
+            恢复默认
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-4 xl:grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <label className="block">
+              <span className="text-xs text-[var(--cadet-gray)]">视频时长</span>
+              <select
+                value={params.videoDuration}
+                onChange={(event) => updateParams({ videoDuration: Number(event.target.value) })}
+                className="mt-1 w-full rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-sm"
+              >
+                {VIDEO_DURATION_OPTIONS.map((duration) => (
+                  <option key={duration} value={duration}>
+                    {duration}s
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs text-[var(--cadet-gray)]">视频分辨率</span>
+              <select
+                value={params.videoResolution}
+                onChange={(event) => updateParams({ videoResolution: event.target.value })}
+                className="mt-1 w-full rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-sm"
+              >
+                {VIDEO_RESOLUTION_OPTIONS.map((resolution) => (
+                  <option key={resolution} value={resolution}>
+                    {resolution}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <label className="block min-w-0">
+            <span className="text-xs text-[var(--cadet-gray)]">图生图模板（{"{action}"}）</span>
+            <textarea
+              value={params.imagePromptTemplate}
+              onChange={(event) => updateParams({ imagePromptTemplate: event.target.value })}
+              rows={5}
+              className="mt-1 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-xs leading-5 outline-none ring-[var(--carolina-blue)] focus:ring-2"
+            />
+          </label>
+
+          <label className="block min-w-0">
+            <span className="text-xs text-[var(--cadet-gray)]">
+              图生视频模板（{"{motionAction}"} / {"{speechAction}"}）
+            </span>
+            <textarea
+              value={params.videoPromptTemplate}
+              onChange={(event) => updateParams({ videoPromptTemplate: event.target.value })}
+              rows={5}
+              className="mt-1 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-xs leading-5 outline-none ring-[var(--carolina-blue)] focus:ring-2"
+            />
+          </label>
+        </div>
+
+        <div className="mt-4 grid gap-3 rounded-xl bg-[var(--eggshell)]/40 p-4 lg:grid-cols-2">
+          <div>
+            <p className="text-xs font-semibold text-[var(--space-cadet)]">图生图预览</p>
+            <p className="mt-2 text-[11px] leading-5 text-[var(--cadet-gray)]">{imagePromptPreview}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-[var(--space-cadet)]">图生视频预览</p>
+            <p className="mt-2 text-[11px] leading-5 text-[var(--cadet-gray)]">{videoPromptPreview}</p>
+          </div>
+        </div>
+      </section>
+
       {!configured ? (
         <section className="rounded-2xl border border-amber-300/40 bg-amber-50 p-4 text-sm text-amber-900">
           <p>尚未配置 Vidmor（Production 环境未读到变量）。</p>
@@ -317,8 +405,8 @@ export default function AiAnimePage() {
         </section>
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-12 xl:items-start">
-        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm xl:col-span-4">
+      <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
+        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-[var(--space-cadet)]">选择角色</h2>
             <span className="text-xs text-[var(--cadet-gray)]">{activeCount} 个活跃任务</span>
@@ -408,7 +496,7 @@ export default function AiAnimePage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm xl:col-span-4">
+        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-[var(--space-cadet)]">动作与生成</h2>
 
           <label className="mt-4 block">
@@ -445,84 +533,6 @@ export default function AiAnimePage() {
           </button>
 
           {errorMessage ? <p className="mt-3 text-sm text-red-600">{errorMessage}</p> : null}
-        </section>
-
-        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm xl:col-span-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-[var(--space-cadet)]">生成参数</h2>
-            <button
-              type="button"
-              onClick={() => updateParams(DEFAULT_PARAMS)}
-              className="inline-flex items-center gap-1 text-xs text-[var(--cadet-gray)] hover:text-[var(--space-cadet)]"
-            >
-              <RotateCcw className="size-3.5" />
-              恢复默认
-            </button>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-xs text-[var(--cadet-gray)]">视频时长</span>
-              <select
-                value={params.videoDuration}
-                onChange={(event) => updateParams({ videoDuration: Number(event.target.value) })}
-                className="mt-1 w-full rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-sm"
-              >
-                {VIDEO_DURATION_OPTIONS.map((duration) => (
-                  <option key={duration} value={duration}>
-                    {duration}s
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-xs text-[var(--cadet-gray)]">视频分辨率</span>
-              <select
-                value={params.videoResolution}
-                onChange={(event) => updateParams({ videoResolution: event.target.value })}
-                className="mt-1 w-full rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-sm"
-              >
-                {VIDEO_RESOLUTION_OPTIONS.map((resolution) => (
-                  <option key={resolution} value={resolution}>
-                    {resolution}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <label className="mt-4 block">
-            <span className="text-xs text-[var(--cadet-gray)]">图生图模板（可用 {"{action}"}）</span>
-            <textarea
-              value={params.imagePromptTemplate}
-              onChange={(event) => updateParams({ imagePromptTemplate: event.target.value })}
-              rows={4}
-              className="mt-1 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-xs leading-5 outline-none ring-[var(--carolina-blue)] focus:ring-2"
-            />
-          </label>
-
-          <label className="mt-3 block">
-            <span className="text-xs text-[var(--cadet-gray)]">
-              图生视频模板（可用 {"{motionAction}"} / {"{speechAction}"}）
-            </span>
-            <textarea
-              value={params.videoPromptTemplate}
-              onChange={(event) => updateParams({ videoPromptTemplate: event.target.value })}
-              rows={4}
-              className="mt-1 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-xs leading-5 outline-none ring-[var(--carolina-blue)] focus:ring-2"
-            />
-          </label>
-
-          <div className="mt-4 rounded-xl bg-[var(--eggshell)]/40 p-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--space-cadet)]">
-              <Sparkles className="size-3.5 text-[var(--carolina-blue)]" />
-              预览
-            </div>
-            <p className="mt-2 text-[11px] leading-5 text-[var(--cadet-gray)]">{imagePromptPreview}</p>
-            <p className="mt-2 border-t border-[color-mix(in_srgb,var(--cadet-gray)_20%,transparent)] pt-2 text-[11px] leading-5 text-[var(--cadet-gray)]">
-              {videoPromptPreview}
-            </p>
-          </div>
         </section>
       </div>
 

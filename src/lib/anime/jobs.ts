@@ -41,9 +41,9 @@ export type CreateAnimeJobInput = {
 };
 
 export function resolveMaxConcurrentAnimeJobs() {
-  const parsed = Number(process.env.ANIME_MAX_CONCURRENT_JOBS ?? 2);
+  const parsed = Number(process.env.ANIME_MAX_CONCURRENT_JOBS ?? 5);
   if (!Number.isFinite(parsed) || parsed < 1) {
-    return 2;
+    return 5;
   }
   return Math.min(Math.floor(parsed), 5);
 }
