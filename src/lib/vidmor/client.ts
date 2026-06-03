@@ -148,7 +148,7 @@ export async function uploadImageBlob(blob: Blob, filename: string, token?: stri
   const form = new FormData();
   form.append("file", blob, filename);
 
-  const result = await vidmorRequest<{ url?: string }>({
+  const result = await vidmorRequest<{ url?: string } | string>({
     path: "/ai/common/file/uploadV2",
     data: form,
     token,
@@ -158,11 +158,19 @@ export async function uploadImageBlob(blob: Blob, filename: string, token?: stri
     throw new Error(parseVidmorErrorMessage(401, result.body, ""));
   }
 
-  if (result.body.code !== 0 || !result.body.data?.url) {
+  const data = result.body.data;
+  const url =
+    typeof data === "string"
+      ? data
+      : typeof data === "object" && data?.url
+        ? data.url
+        : null;
+
+  if (result.body.code !== 0 || !url) {
     throw new Error(parseVidmorErrorMessage(result.status, result.body, ""));
   }
 
-  return result.body.data.url;
+  return url;
 }
 
 export async function uploadImageFromUrl(imageUrl: string, token?: string | null) {
