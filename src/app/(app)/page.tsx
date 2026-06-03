@@ -415,7 +415,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <header className="overflow-visible rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
+      <header className="relative overflow-visible rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
             <Activity className="size-4" />
@@ -435,12 +435,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="relative mt-4 space-y-2">
-          {syncUiVisible && syncProgress ? (
-            <div className="pointer-events-none absolute bottom-full left-0 mb-1 h-9 w-full max-w-md">
-              <SyncRunnerProgress phase={syncPhase} percent={syncPercent} />
-            </div>
-          ) : null}
+        {syncUiVisible && syncProgress ? (
+          <div className="pointer-events-none absolute inset-x-5 bottom-5 h-9">
+            <SyncRunnerProgress phase={syncPhase} percent={syncPercent} />
+          </div>
+        ) : null}
+
+        <div className="mt-4 space-y-2">
           <div className="flex flex-wrap items-center justify-end gap-3">
             <p className="text-xs text-[var(--cadet-gray)]">
               Last synced at:{" "}

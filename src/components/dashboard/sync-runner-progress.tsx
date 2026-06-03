@@ -14,10 +14,11 @@ export type SyncRunnerPhase = "running" | "complete";
 type SyncRunnerProgressProps = {
   percent: number;
   phase: SyncRunnerPhase;
+  className?: string;
   onFadeOutEnd?: () => void;
 };
 
-export function SyncRunnerProgress({ percent, phase, onFadeOutEnd }: SyncRunnerProgressProps) {
+export function SyncRunnerProgress({ percent, phase, className = "", onFadeOutEnd }: SyncRunnerProgressProps) {
   const clamped = Math.min(100, Math.max(0, percent));
   const [isExiting, setIsExiting] = useState(false);
 
@@ -51,9 +52,9 @@ export function SyncRunnerProgress({ percent, phase, onFadeOutEnd }: SyncRunnerP
 
   return (
     <div
-      className={`sync-runner-root flex max-w-md items-end gap-2 transition-opacity duration-[400ms] ease-out ${
+      className={`sync-runner-root flex w-full items-end gap-2 transition-opacity duration-[400ms] ease-out ${
         isExiting ? "pointer-events-none opacity-0" : "opacity-100"
-      }`}
+      } ${className}`.trim()}
       style={spriteVars}
       role="progressbar"
       aria-valuenow={Math.round(clamped)}
