@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Remove background from sync runner art and build a 4-frame spritesheet (nearest-neighbor only)."""
+"""Build a crisp 4-frame run spritesheet from the sync runner PNG (nearest-neighbor only)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,8 @@ DEFAULT_SRC = (
     / ".cursor/projects/Users-zhaoyiwen-Documents-tiktok/assets/__-dfa42f55-1f9b-48fb-acf7-363bf99cb70f.png"
 )
 OUT_DIR = ROOT / "public" / "sync"
-TARGET_H = 36
+# Native sprite height in pixels (display at integer multiples in CSS)
+TARGET_H = 56
 
 
 def is_background(rgba: tuple[int, int, int, int]) -> bool:
@@ -23,19 +24,10 @@ def is_background(rgba: tuple[int, int, int, int]) -> bool:
     r, g, b, a = rgba
     if r < 40 and g < 40 and b < 40 and a > 200:
         return True
-    if b > 130 and r < 130 and g < 200 and a > 180:
-        return True
-    if g > 90 and r < 100 and b < 120 and a > 180:
-        return True
-    if r > 130 and 60 < g < 160 and b < 120 and a > 180:
-        return True
-    if r > 170 and g > 130 and b > 100 and a > 180 and g < 200:
-        return True
     return False
 
 
-def main(src: Path = DEFAULT_SRC) -> None:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+def extract_character(src: Path) -> Image.Image:
     img = Image.open(src).convert("RGBA")
     px = img.load()
     w, h = img.size
@@ -73,7 +65,7 @@ def main(src: Path = DEFAULT_SRC) -> None:
                 minx, miny = min(minx, x), min(miny, y)
                 maxx, maxy = max(maxx, x), max(maxy, y)
 
-    pad = 2
+    pad = 4
     minx = max(minx - pad, 0)
     miny = max(miny - pad, 0)
     maxx = min(maxx + pad, w - 1)
@@ -82,30 +74,63 @@ def main(src: Path = DEFAULT_SRC) -> None:
     cropped = Image.new("RGBA", (maxx - minx + 1, maxy - miny + 1), (0, 0, 0, 0))
     for y in range(miny, maxy + 1):
         for x in range(minx, maxx + 1):
-            if not bg_mask[y][x] and not is_background(px[x, y]):
+            if not bg_mask[y][x]:
                 cropped.putpixel((x - minx, y - miny), px[x, y])
 
     fw, fh = cropped.size
-    fw_s = max(1, int(fw * (TARGET_H / fh)))
-    base = cropped.resize((fw_s, TARGET_H), Image.NEAREST)
+    fw_s = max(1, int(round(fw * (TARGET_H / fh))))
+    return cropped.resize((fw_s, TARGET_H), Image.Resampling.NEAREST)
 
-    offsets = [(0, 2), (1, 0), (0, 2), (-1, 1)]
-    frame_h = TARGET_H + 4
-    fw2 = fw_s + 2
+
+def make_run_frame(
+    base: Image.Image,
+    *,
+    dx: int = 0,
+    dy: int = 0,
+    scale_x: float = 1.0,
+    scale_y: float = 1.0,
+) -> Image.Image:
+    w, h = base.size
+    nw = max(1, int(round(w * scale_x)))
+    nh = max(1, int(round(h * scale_y)))
+    scaled = base.resize((nw, nh), Image.Resampling.NEAREST)
+    cell_w = w + 8
+    cell_h = h + 6
+    frame = Image.new("RGBA", (cell_w, cell_h), (0, 0, 0, 0))
+    paste_x = 4 + dx + (w - nw) // 2
+    paste_y = cell_h - nh - 2 + dy
+    frame.paste(scaled, (paste_x, paste_y), scaled)
+    return frame
+
+
+def main(src: Path = DEFAULT_SRC) -> None:
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    base = extract_character(src)
+
+    # Run cycle: contact → push → flight → recover
+    variants = [
+        make_run_frame(base, dy=2, scale_x=1.04, scale_y=0.94),
+        make_run_frame(base, dx=2, dy=0, scale_x=0.98, scale_y=1.03),
+        make_run_frame(base, dx=3, dy=-2, scale_x=1.0, scale_y=1.0),
+        make_run_frame(base, dx=1, dy=1, scale_x=1.02, scale_y=0.97),
+    ]
+
+    cell_w = max(f.size[0] for f in variants)
+    cell_h = max(f.size[1] for f in variants)
     frames: list[Image.Image] = []
-    for ox, oy in offsets:
-        frame = Image.new("RGBA", (fw2, frame_h), (0, 0, 0, 0))
-        frame.paste(base, (1 + ox, oy), base)
-        frames.append(frame)
+    for variant in variants:
+        cell = Image.new("RGBA", (cell_w, cell_h), (0, 0, 0, 0))
+        cell.paste(variant, ((cell_w - variant.size[0]) // 2, cell_h - variant.size[1]), variant)
+        frames.append(cell)
 
-    sheet = Image.new("RGBA", (fw2 * 4, frame_h), (0, 0, 0, 0))
+    sheet = Image.new("RGBA", (cell_w * 4, cell_h), (0, 0, 0, 0))
     for i, frame in enumerate(frames):
-        sheet.paste(frame, (i * fw2, 0), frame)
+        sheet.paste(frame, (i * cell_w, 0), frame)
 
     sheet.save(OUT_DIR / "runner-spritesheet.png", optimize=True)
-    base.save(OUT_DIR / "runner.png", optimize=True)
-    (OUT_DIR / "spritesheet.meta.txt").write_text(f"{fw2},{frame_h},4\n")
-    print(f"wrote {OUT_DIR} ({fw2}x{frame_h} x4)")
+    frames[0].save(OUT_DIR / "runner.png", optimize=True)
+    (OUT_DIR / "spritesheet.meta.txt").write_text(f"{cell_w},{cell_h},4,2\n")
+    print(f"wrote {cell_w}x{cell_h} x4, display scale 2")
 
 
 if __name__ == "__main__":

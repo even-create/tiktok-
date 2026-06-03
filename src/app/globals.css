@@ -100,93 +100,157 @@ input {
   background: transparent;
 }
 
-/* Dashboard sync — pixel runner spritesheet (4 frames) */
+/* Dashboard sync — crisp pixel runner (spritesheet + body bob, integer 2× scale) */
+.sync-runner-stage {
+  position: relative;
+  height: calc(var(--display-h, 80px) + 10px);
+  padding-top: 4px;
+}
+
+.sync-runner-track {
+  position: absolute;
+  right: 0;
+  bottom: 6px;
+  left: 0;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cadet-gray) 14%, white);
+}
+
+.sync-runner-fill {
+  height: 100%;
+  width: var(--progress, 0%);
+  border-radius: inherit;
+  background: var(--carolina-blue);
+  transition: width 320ms linear;
+}
+
+.sync-runner-marker {
+  position: absolute;
+  bottom: 2px;
+  left: var(--progress, 0%);
+  z-index: 2;
+  width: 0;
+  transform: translateX(-50%);
+  transition: left 320ms linear;
+}
+
+.sync-runner-marker--done {
+  transition: left 280ms ease-out;
+}
+
+.sync-runner-actor {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
+  animation: sync-runner-body 0.22s steps(2, end) infinite;
+}
+
+.sync-runner-actor--jump {
+  animation: sync-runner-jump 480ms ease-out forwards;
+}
+
 .sync-runner-sprite {
-  width: var(--sprite-w, 42px);
-  height: var(--sprite-h, 44px);
+  display: block;
+  width: var(--display-w, 48px);
+  height: var(--display-h, 80px);
   background-image: url("/sync/runner-spritesheet.png");
   background-repeat: no-repeat;
-  background-size: calc(var(--sprite-w, 42px) * var(--sprite-frames, 4)) var(--sprite-h, 44px);
+  background-position: 0 0;
+  background-size: calc(var(--display-w, 48px) * var(--sprite-frames, 4)) var(--display-h, 80px);
   image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
-  filter: drop-shadow(0 1px 0 color-mix(in srgb, var(--space-cadet) 12%, transparent));
-  animation: sync-runner-run 0.36s steps(4) infinite;
+  animation: sync-runner-frames 0.44s steps(4, end) infinite;
 }
 
-.sync-runner-sprite--jump {
-  animation: sync-runner-jump 520ms ease-out forwards;
+.sync-runner-sprite--freeze {
+  animation: none;
+  background-position: calc(var(--display-w, 48px) * -2) 0;
 }
 
-@keyframes sync-runner-run {
-  from {
+@keyframes sync-runner-frames {
+  0% {
     background-position: 0 0;
   }
-  to {
-    background-position: 100% 0;
+  100% {
+    background-position: calc(var(--display-w, 48px) * -4) 0;
+  }
+}
+
+@keyframes sync-runner-body {
+  0% {
+    transform: translateX(-50%) translateY(0) rotate(-1deg);
+  }
+  100% {
+    transform: translateX(-50%) translateY(-2px) rotate(-2deg);
   }
 }
 
 @keyframes sync-runner-jump {
   0% {
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) rotate(-1deg) scale(1);
   }
-  35% {
-    transform: translateY(-9px) scale(1.04);
+  40% {
+    transform: translateX(-50%) translateY(-10px) rotate(0deg) scale(1.05);
   }
   70% {
-    transform: translateY(-2px) scale(1);
+    transform: translateX(-50%) translateY(-3px) rotate(-1deg) scale(1);
   }
   100% {
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) rotate(-1deg) scale(1);
   }
 }
 
 .sync-runner-dust {
   position: absolute;
-  bottom: 0;
+  bottom: 2px;
   left: 50%;
   width: 0;
   height: 0;
   transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .sync-runner-dust span {
   position: absolute;
   bottom: 0;
   display: block;
-  width: 3px;
-  height: 3px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--cadet-gray) 55%, transparent);
+  width: 2px;
+  height: 2px;
+  background: color-mix(in srgb, var(--cadet-gray) 45%, transparent);
   opacity: 0;
-  animation: sync-runner-dust 0.36s steps(2) infinite;
+  image-rendering: pixelated;
+  animation: sync-runner-dust 0.44s steps(2, end) infinite;
 }
 
 .sync-runner-dust span:nth-child(1) {
-  left: -10px;
-  animation-delay: 0s;
+  left: -12px;
 }
 
 .sync-runner-dust span:nth-child(2) {
-  left: -4px;
-  animation-delay: 0.08s;
+  left: -5px;
+  animation-delay: 0.11s;
 }
 
 .sync-runner-dust span:nth-child(3) {
-  left: 2px;
-  animation-delay: 0.16s;
+  left: 1px;
+  animation-delay: 0.22s;
 }
 
 @keyframes sync-runner-dust {
   0% {
     opacity: 0;
-    transform: translate(0, 0) scale(1);
+    transform: translate(0, 0);
   }
-  30% {
-    opacity: 0.35;
+  35% {
+    opacity: 0.28;
   }
   100% {
     opacity: 0;
-    transform: translate(-4px, 2px) scale(0.6);
+    transform: translate(-5px, 3px);
   }
 }

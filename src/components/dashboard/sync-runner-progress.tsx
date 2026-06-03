@@ -3,21 +3,22 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Check } from "lucide-react";
 
-/** Spritesheet frame geometry — matches `public/sync/spritesheet.meta.txt` */
-const SPRITE_FRAME_W = 24;
-const SPRITE_FRAME_H = 39;
+/** Native spritesheet cell — `public/sync/spritesheet.meta.txt` */
+const SPRITE_FRAME_W = 38;
+const SPRITE_FRAME_H = 54;
 const SPRITE_FRAMES = 4;
+/** Integer upscale for crisp pixel art (no fractional CSS scale) */
+const DISPLAY_SCALE = 2;
 
 export type SyncRunnerPhase = "running" | "complete";
 
 type SyncRunnerProgressProps = {
   percent: number;
   phase: SyncRunnerPhase;
-  label?: string;
   onFadeOutEnd?: () => void;
 };
 
-export function SyncRunnerProgress({ percent, phase, label, onFadeOutEnd }: SyncRunnerProgressProps) {
+export function SyncRunnerProgress({ percent, phase, onFadeOutEnd }: SyncRunnerProgressProps) {
   const clamped = Math.min(100, Math.max(0, percent));
   const [isExiting, setIsExiting] = useState(false);
 
@@ -27,8 +28,8 @@ export function SyncRunnerProgress({ percent, phase, label, onFadeOutEnd }: Sync
       return;
     }
 
-    const fadeTimer = window.setTimeout(() => setIsExiting(true), 900);
-    const exitTimer = window.setTimeout(() => onFadeOutEnd?.(), 1300);
+    const fadeTimer = window.setTimeout(() => setIsExiting(true), 1000);
+    const exitTimer = window.setTimeout(() => onFadeOutEnd?.(), 1400);
 
     return () => {
       window.clearTimeout(fadeTimer);
@@ -37,67 +38,67 @@ export function SyncRunnerProgress({ percent, phase, label, onFadeOutEnd }: Sync
   }, [phase, onFadeOutEnd]);
 
   const isComplete = phase === "complete";
+  const displayW = SPRITE_FRAME_W * DISPLAY_SCALE;
+  const displayH = SPRITE_FRAME_H * DISPLAY_SCALE;
+
+  const spriteVars = {
+    "--sprite-w": `${SPRITE_FRAME_W}px`,
+    "--sprite-h": `${SPRITE_FRAME_H}px`,
+    "--sprite-frames": SPRITE_FRAMES,
+    "--display-scale": DISPLAY_SCALE,
+    "--display-w": `${displayW}px`,
+    "--display-h": `${displayH}px`,
+    "--progress": `${clamped}%`,
+  } as CSSProperties;
 
   return (
     <div
-      className={`min-w-[10rem] flex-1 max-w-md transition-all duration-500 ease-out ${
+      className={`sync-runner-root w-full max-w-[28rem] transition-opacity duration-[400ms] ease-out ${
         isExiting ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
+      style={spriteVars}
       role="progressbar"
       aria-valuenow={Math.round(clamped)}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-label={label ?? "Syncing data"}
+      aria-label={isComplete ? "Sync complete" : "Syncing data"}
       aria-live="polite"
     >
-      <div className="flex items-end gap-2">
-        <div className="relative h-8 min-w-0 flex-1">
-          <div className="absolute inset-x-0 bottom-1 h-[3px] overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--cadet-gray)_16%,white)]">
-            <div
-              className="h-full rounded-full bg-[var(--carolina-blue)] transition-[width] duration-300 ease-out"
-              style={{ width: `${clamped}%` }}
-            />
-          </div>
+      <div className="mb-1.5 flex min-h-[1.125rem] items-center justify-between gap-2">
+        {isComplete ? (
+          <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+            <Check className="size-3.5 shrink-0 stroke-[2.5]" aria-hidden />
+            Sync Complete
+          </p>
+        ) : (
+          <p className="text-[11px] font-medium text-[var(--cadet-gray)]">Syncing…</p>
+        )}
+        <span className="shrink-0 font-mono text-[10px] tabular-nums text-[var(--cadet-gray)]">
+          {Math.round(clamped)}%
+        </span>
+      </div>
 
-          <div
-            className="pointer-events-none absolute bottom-1.5 z-10 -translate-x-1/2 will-change-[left]"
-            style={{
-              left: `${clamped}%`,
-              transition: isComplete ? "left 300ms ease-out" : "left 280ms linear",
-            }}
-          >
-            {!isComplete ? (
-              <div className="sync-runner-dust" aria-hidden>
-                <span />
-                <span />
-                <span />
-              </div>
-            ) : null}
+      <div className="sync-runner-stage">
+        <div className="sync-runner-track">
+          <div className="sync-runner-fill" />
+        </div>
 
+        <div className={`sync-runner-marker ${isComplete ? "sync-runner-marker--done" : ""}`}>
+          {!isComplete ? (
+            <div className="sync-runner-dust" aria-hidden>
+              <span />
+              <span />
+              <span />
+            </div>
+          ) : null}
+
+          <div className={`sync-runner-actor ${isComplete ? "sync-runner-actor--jump" : ""}`}>
             <div
-              className={`sync-runner-sprite ${isComplete ? "sync-runner-sprite--jump" : ""}`}
-              style={
-                {
-                  "--sprite-w": `${SPRITE_FRAME_W}px`,
-                  "--sprite-h": `${SPRITE_FRAME_H}px`,
-                  "--sprite-frames": SPRITE_FRAMES,
-                } as CSSProperties
-              }
+              className={`sync-runner-sprite ${isComplete ? "sync-runner-sprite--freeze" : ""}`}
               aria-hidden
             />
           </div>
         </div>
-
-        {isComplete ? (
-          <span className="flex shrink-0 items-center gap-1 pb-0.5 text-[10px] font-medium text-emerald-700">
-            <Check className="size-3 stroke-[2.5]" aria-hidden />
-            Done
-          </span>
-        ) : (
-          <span className="shrink-0 pb-0.5 font-mono text-[10px] tabular-nums text-[var(--cadet-gray)]">
-            {Math.round(clamped)}%
-          </span>
-        )}
       </div>
     </div>
   );

@@ -348,7 +348,7 @@ export default function DashboardPage() {
       setLastSyncedAt(syncedAt);
       setSyncPercent(100);
       setSyncPhase("complete");
-      await new Promise((resolve) => window.setTimeout(resolve, 1350));
+      await new Promise((resolve) => window.setTimeout(resolve, 1400));
       setSyncUiVisible(false);
       setSyncProgress(null);
       setSyncPercent(0);
@@ -421,27 +421,24 @@ export default function DashboardPage() {
             <Activity className="size-4" />
             Dashboard
           </div>
-          <div className="mt-3 flex flex-wrap items-end gap-3">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">TikTok 数据追踪后台</h1>
-            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2 sm:max-w-xl">
-              <button
-                type="button"
-                onClick={() => void handleSyncAll()}
-                disabled={isBusy}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--carolina-blue)] px-4 text-sm font-semibold text-[var(--space-cadet)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSyncingAll ? <Clock3 className="size-4 animate-spin" /> : <CloudDownload className="size-4" />}
-                {isSyncingAll ? "Syncing..." : "Sync Now"}
-              </button>
-              {syncUiVisible && syncProgress ? (
-                <SyncRunnerProgress
-                  phase={syncPhase}
-                  percent={syncPercent}
-                  label={`Syncing ${syncProgress.handle === "全部账号" ? "all accounts" : `@${syncProgress.handle}`}`}
-                />
-              ) : null}
-            </div>
+            <button
+              type="button"
+              onClick={() => void handleSyncAll()}
+              disabled={isBusy}
+              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--carolina-blue)] px-4 text-sm font-semibold text-[var(--space-cadet)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSyncingAll ? <Clock3 className="size-4 animate-spin" /> : <CloudDownload className="size-4" />}
+              {isSyncingAll ? "Syncing..." : "Sync Now"}
+            </button>
           </div>
+
+          {syncUiVisible && syncProgress ? (
+            <div className="mt-2">
+              <SyncRunnerProgress phase={syncPhase} percent={syncPercent} />
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-4 space-y-2">
