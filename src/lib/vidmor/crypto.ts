@@ -24,7 +24,18 @@ export function decryptPayload<T = unknown>(payload: string): T {
   const decipher = createDecipheriv("aes-128-cbc", getKeyBuffer(), getIvBuffer());
   let decrypted = decipher.update(buffer, undefined, "utf8");
   decrypted += decipher.final("utf8");
+  if (!decrypted.trim()) {
+    throw new Error("empty decrypted payload");
+  }
   return JSON.parse(decrypted) as T;
+}
+
+export function tryDecryptPayload<T = unknown>(payload: string): T | null {
+  try {
+    return decryptPayload<T>(payload);
+  } catch {
+    return null;
+  }
 }
 
 export function encryptUrlPath(path: string): string {

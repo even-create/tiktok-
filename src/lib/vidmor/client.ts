@@ -5,7 +5,7 @@ import {
   resolveVidmorToken,
   resolveVidmorUserCode,
 } from "@/lib/vidmor/config";
-import { decryptPayload, encryptPayload, encryptUrlPath } from "@/lib/vidmor/crypto";
+import { encryptPayload, encryptUrlPath, tryDecryptPayload } from "@/lib/vidmor/crypto";
 
 type VidmorEnvelope<T = unknown> = {
   code?: number;
@@ -22,6 +22,49 @@ type VidmorRequestOptions = {
   userCode?: string | null;
   encryptPath?: boolean;
 };
+
+function parseVidmorErrorMessage(status: number, body: VidmorEnvelope, raw: string) {
+  if (body.msg && !/^[A-Za-z0-9+/=]{12,}$/.test(body.msg)) {
+    return body.msg;
+  }
+
+  if (status === 401 || body.code === 401) {
+    return "Vidmor 登录已失效，请重新在 vidmor.ai 登录并从 Console 复制新的 VIDMOR_TOKEN，更新 Vercel 环境变量后 Redeploy。";
+  }
+
+  if (body.code === 10000) {
+    return body.msg || "Vidmor 积分不足";
+  }
+
+  if (status >= 500) {
+    return "Vidmor 服务暂时不可用，请稍后重试";
+  }
+
+  return body.msg || "Vidmor 请求失败，请检查 Token 是否有效";
+}
+
+function parseVidmorResponseBody<T>(raw: string, status: number): VidmorEnvelope<T> {
+  if (!raw.trim()) {
+    if (status === 401) {
+      return { code: 401, msg: parseVidmorErrorMessage(401, {}, raw) } as VidmorEnvelope<T>;
+    }
+    return {} as VidmorEnvelope<T>;
+  }
+
+  const decrypted = tryDecryptPayload<VidmorEnvelope<T>>(raw);
+  if (decrypted) {
+    return decrypted;
+  }
+
+  try {
+    return JSON.parse(raw) as VidmorEnvelope<T>;
+  } catch {
+    return {
+      code: status,
+      msg: parseVidmorErrorMessage(status, {}, raw),
+    } as VidmorEnvelope<T>;
+  }
+}
 
 function buildHeaderBlob(token: string | null | undefined, userCode: string) {
   return encryptPayload({
@@ -78,7 +121,11 @@ export async function vidmorRequest<T = unknown>({
   const raw = await response.text();
 
   if (!raw.trim()) {
-    return { status: response.status, body: {} as VidmorEnvelope<T>, token: responseToken };
+    return {
+      status: response.status,
+      body: parseVidmorResponseBody<T>("", response.status),
+      token: responseToken,
+    };
   }
 
   if (normalizedPath.startsWith("/b9ca72e9/")) {
@@ -89,23 +136,12 @@ export async function vidmorRequest<T = unknown>({
     };
   }
 
-  try {
-    return {
-      status: response.status,
-      body: decryptPayload<VidmorEnvelope<T>>(raw),
-      token: responseToken,
-    };
-  } catch {
-    try {
-      return {
-        status: response.status,
-        body: JSON.parse(raw) as VidmorEnvelope<T>,
-        token: responseToken,
-      };
-    } catch {
-      return { status: response.status, body: { msg: raw } as VidmorEnvelope<T>, token: responseToken };
-    }
-  }
+  const parsedBody = parseVidmorResponseBody<T>(raw, response.status);
+  return {
+    status: response.status,
+    body: parsedBody,
+    token: responseToken,
+  };
 }
 
 export async function uploadImageBlob(blob: Blob, filename: string, token?: string | null) {
@@ -118,8 +154,12 @@ export async function uploadImageBlob(blob: Blob, filename: string, token?: stri
     token,
   });
 
+  if (result.status === 401 || result.body.code === 401) {
+    throw new Error(parseVidmorErrorMessage(401, result.body, ""));
+  }
+
   if (result.body.code !== 0 || !result.body.data?.url) {
-    throw new Error(result.body.msg || "图片上传失败");
+    throw new Error(parseVidmorErrorMessage(result.status, result.body, ""));
   }
 
   return result.body.data.url;
