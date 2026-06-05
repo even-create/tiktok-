@@ -159,7 +159,12 @@ export default function AiAnimePage() {
       setIsSyncing(true);
       try {
         const response = await fetch(`/api/anime/jobs/${jobId}/sync`, { method: "POST" });
-        const payload = (await response.json()) as { job?: AnimeJobRecord; error?: string };
+        const payload = (await response.json()) as {
+          job?: AnimeJobRecord;
+          synced?: boolean;
+          message?: string;
+          error?: string;
+        };
 
         if (!response.ok || !payload.job) {
           throw new Error(payload.error ?? "同步失败");
@@ -167,6 +172,13 @@ export default function AiAnimePage() {
 
         setSelectedJob(payload.job);
         await refreshJobs();
+
+        if (payload.synced) {
+          setErrorMessage("");
+        } else {
+          setErrorMessage(payload.message ?? "暂未在 Vidmor 找到已完成成片");
+        }
+
         return payload.job;
       } finally {
         setIsSyncing(false);

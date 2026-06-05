@@ -309,6 +309,7 @@ function parsePlatResponse(platResponse?: string) {
       code?: number;
       data?: {
         status?: string;
+        taskId?: string;
         resultUrl?: string;
         videoUrl?: string;
         imageUrl?: string;
@@ -339,8 +340,57 @@ function extractMediaUrl(data: {
   );
 }
 
+function extractMediaUrlFromPlatResponse(platResponse?: string) {
+  const parsed = parsePlatResponse(platResponse);
+  const fromData = parsed?.data ? extractMediaUrl(parsed.data) : null;
+  if (fromData) {
+    return fromData;
+  }
+
+  if (!platResponse?.trim()) {
+    return null;
+  }
+
+  const mp4Match = platResponse.match(/https?:\/\/[^"'\\\s]+\.mp4[^"'\\\s]*/);
+  return mp4Match?.[0] ?? null;
+}
+
+function normalizeUrlForMatch(url: string) {
+  try {
+    const parsed = new URL(url);
+    return decodeURIComponent(parsed.pathname);
+  } catch {
+    return decodeURIComponent(url.split("?")[0] ?? url);
+  }
+}
+
+function platRequestUsesSourceImage(platRequest: string | undefined, sourceImageUrl: string) {
+  if (!platRequest?.trim()) {
+    return false;
+  }
+
+  const sourceKey = normalizeUrlForMatch(sourceImageUrl);
+  return platRequest.includes(sourceImageUrl) || platRequest.includes(sourceKey);
+}
+
+function itemCreatedAt(item: VidmorGenerateListItem & { createTime?: string; gmtCreate?: string }) {
+  const raw = item.createTime || item.gmtCreate;
+  if (!raw) {
+    return 0;
+  }
+
+  const parsed = Date.parse(raw.replace(" ", "T"));
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 function matchListItemByTaskId(item: VidmorGenerateListItem, taskId: string) {
-  return item.domainId === taskId || String(item.id ?? "") === taskId;
+  if (item.domainId === taskId || String(item.id ?? "") === taskId) {
+    return true;
+  }
+
+  const plat = parsePlatResponse(item.platResponse);
+  const platTaskId = typeof plat?.data?.taskId === "string" ? plat.data.taskId : null;
+  return platTaskId === taskId;
 }
 
 function resolveListItemStatus(item: VidmorGenerateListItem) {
@@ -348,8 +398,8 @@ function resolveListItemStatus(item: VidmorGenerateListItem) {
   const platData = plat?.data ?? {};
   const platStatus = String(platData.status ?? "").toLowerCase();
   const itemStatus = String(item.status ?? "").toLowerCase();
-  const mediaUrl = extractMediaUrl(platData);
-  let status = platStatus || itemStatus;
+  const mediaUrl = extractMediaUrl(platData) || extractMediaUrlFromPlatResponse(item.platResponse);
+  let status = itemStatus === "success" || itemStatus === "completed" ? itemStatus : platStatus || itemStatus;
 
   if ((status === "success" || status === "completed") && !mediaUrl) {
     status = "processing";
@@ -419,6 +469,59 @@ export async function resolveTaskMediaUrl(
   }
 
   return resolveListItemStatus(item);
+}
+
+export async function findCompletedVideoBySourceImage(
+  sourceImageUrl: string,
+  jobCreatedAt: string,
+  token?: string | null,
+) {
+  const listResult = await vidmorRequest<{ data?: VidmorGenerateListItem[] }>({
+    path: "/ai/common/generate/list",
+    data: { pageNo: 1, pageSize: 50 },
+    token,
+  });
+
+  if (listResult.body.code !== 0) {
+    return null;
+  }
+
+  const jobTime = Date.parse(jobCreatedAt);
+  const items = listResult.body.data?.data ?? [];
+  let best: { taskId: string; videoUrl: string; createdAt: number } | null = null;
+
+  for (const item of items) {
+    if (!item.platRequest?.includes("imageToVideo")) {
+      continue;
+    }
+
+    if (!platRequestUsesSourceImage(item.platRequest, sourceImageUrl)) {
+      continue;
+    }
+
+    const resolved = resolveListItemStatus(item);
+    if (
+      (resolved.status !== "success" && resolved.status !== "completed") ||
+      !resolved.mediaUrl
+    ) {
+      continue;
+    }
+
+    const createdAt = itemCreatedAt(item);
+    if (createdAt && !Number.isNaN(jobTime) && createdAt < jobTime - 120_000) {
+      continue;
+    }
+
+    if (!best || createdAt > best.createdAt) {
+      best = {
+        taskId: item.domainId ?? String(item.id ?? ""),
+        videoUrl: resolved.mediaUrl,
+        createdAt,
+      };
+    }
+  }
+
+  return best;
 }
 
 export async function pollUntilComplete(
