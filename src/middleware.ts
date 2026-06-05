@@ -20,13 +20,27 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const user = await verifySession(token);
 
-  if (user) {
-    return NextResponse.next();
+  if (!user) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("from", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  const loginUrl = new URL("/login", request.url);
-  loginUrl.searchParams.set("from", pathname);
-  return NextResponse.redirect(loginUrl);
+  // Admin-only areas: members are blocked from both the pages and their dedicated APIs.
+  const adminOnlyPages = ["/settings", "/sync-center", "/ai-anime", "/team-management"];
+  const adminOnlyApis = ["/api/settings", "/api/sync-center", "/api/anime", "/api/team"];
+
+  if (user.role !== "ADMIN") {
+    if (adminOnlyApis.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+      return NextResponse.json({ error: "无权访问" }, { status: 403 });
+    }
+
+    if (adminOnlyPages.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {

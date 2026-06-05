@@ -32,11 +32,11 @@ const navItems: NavItem[] = [
   { label: "Content Analytics", href: "/content-analytics", icon: LineChart },
   { label: "Trends", href: "/trends", icon: Sparkles },
   { label: "AI Insights", href: "/ai-insights", icon: BrainCircuit },
-  { label: "AI Anime", href: "/ai-anime", icon: Clapperboard },
+  { label: "AI Anime", href: "/ai-anime", icon: Clapperboard, adminOnly: true },
   { label: "Growth Feed", href: "/growth-feed", icon: Rss },
-  { label: "Sync Center", href: "/sync-center", icon: CloudDownload },
+  { label: "Sync Center", href: "/sync-center", icon: CloudDownload, adminOnly: true },
   { label: "Team Management", href: "/team-management", icon: UsersRound, adminOnly: true },
-  { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Settings", href: "/settings", icon: Settings, adminOnly: true },
 ];
 
 function isActivePath(pathname: string, href: string) {
