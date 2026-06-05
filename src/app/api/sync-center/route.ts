@@ -8,27 +8,17 @@ import {
 import { countApifyCallsSince, getRecentSyncLogs, insertSyncLog } from "@/lib/sync-logs";
 import { syncAllTrackedAccounts } from "@/lib/sync-all-accounts";
 import { syncTikTokAccount } from "@/lib/tiktok-sync";
-import { applyAccountListScope, assertAccountWritable, canReadAllAccounts } from "@/lib/workspace/account-access";
-import { requireAuth } from "@/lib/workspace/require-auth";
+import { getAccounts } from "@/lib/tiktok-data";
 import { supabase } from "@/lib/supabase";
 
 export const maxDuration = 300;
 
-export async function GET(request: Request) {
-  const auth = await requireAuth(request, "accounts:read:own");
-  if (auth.response || !auth.user) {
-    return auth.response!;
-  }
-
+export async function GET() {
   try {
-    let query = supabase
+    const { data: accounts, error } = await supabase
       .from("accounts")
       .select("*, videos(id)")
       .order("created_at", { ascending: false });
-
-    query = applyAccountListScope(query, auth.user);
-
-    const { data: accounts, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -55,11 +45,6 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAuth(request, "sync:own");
-  if (auth.response || !auth.user) {
-    return auth.response!;
-  }
-
   try {
     const body = (await request.json().catch(() => null)) as {
       action?: "sync-all" | "sync-one";
@@ -79,24 +64,15 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "请提供账号 handle" }, { status: 400 });
       }
 
-      let accountQuery = supabase
-        .from("accounts")
-        .select("handle, profile_url, last_synced_at")
-        .eq("handle", handle);
-
-      accountQuery = applyAccountListScope(accountQuery, auth.user);
-
-      const { data: account, error } = await accountQuery.maybeSingle();
-
+      const { data: accounts, error } = await getAccounts();
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
+      const account = accounts?.find((item) => item.handle === handle);
       if (!account) {
         return NextResponse.json({ error: "未找到该账号" }, { status: 404 });
       }
-
-      await assertAccountWritable(auth.user, handle);
 
       const syncUrl = account.profile_url?.trim() || `https://www.tiktok.com/@${account.handle}`;
       const syncStarted = Date.now();
@@ -106,8 +82,6 @@ export async function POST(request: Request) {
           url: syncUrl,
           force,
           lastSyncedAt: account.last_synced_at,
-          workspaceId: auth.user.workspaceId,
-          assignedTo: canReadAllAccounts(auth.user) ? undefined : auth.user.id,
         });
 
         const durationMs = Date.now() - syncStarted;
@@ -174,11 +148,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const syncResult = await syncAllTrackedAccounts({
-      force,
-      workspaceId: auth.user.workspaceId,
-      assignedTo: canReadAllAccounts(auth.user) ? undefined : auth.user.id,
-    });
+    const syncResult = await syncAllTrackedAccounts({ force });
     await persistSyncResults(syncResult.results, syncType);
 
     const { count: apifyCallsToday } = await countApifyCallsSince(getStartOfTodayIso());

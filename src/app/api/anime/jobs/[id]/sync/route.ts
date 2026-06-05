@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
 import { syncAnimeJobFromVidmor } from "@/lib/anime/sync";
-import { requireAuth } from "@/lib/workspace/require-auth";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function POST(request: Request, context: RouteContext) {
-  const auth = await requireAuth(request, "workspace:read");
-  if (auth.response) {
-    return auth.response;
-  }
-
+export async function POST(_request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
     const job = await syncAnimeJobFromVidmor(id);

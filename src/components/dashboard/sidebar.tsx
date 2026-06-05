@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   BrainCircuit,
   Clapperboard,
@@ -10,33 +9,28 @@ import {
   Flame,
   LayoutDashboard,
   LineChart,
-  LogOut,
   Menu,
   Rss,
   Settings,
   Sparkles,
-  UserCog,
   Users,
 } from "lucide-react";
-import type { SessionUser } from "@/lib/workspace/types";
 
 type NavItem = {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  adminOnly?: boolean;
 };
 
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Accounts", href: "/accounts", icon: Users },
-  { label: "Analytics", href: "/content-analytics", icon: LineChart },
-  { label: "Content Analysis", href: "/trends", icon: Sparkles },
+  { label: "Content Analytics", href: "/content-analytics", icon: LineChart },
+  { label: "Trends", href: "/trends", icon: Sparkles },
   { label: "AI Insights", href: "/ai-insights", icon: BrainCircuit },
   { label: "AI Anime", href: "/ai-anime", icon: Clapperboard },
   { label: "Growth Feed", href: "/growth-feed", icon: Rss },
   { label: "Sync Center", href: "/sync-center", icon: CloudDownload },
-  { label: "Team Management", href: "/team", icon: UserCog, adminOnly: true },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -45,36 +39,8 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function isAdmin(user: SessionUser | null) {
-  return user?.role === "ADMIN" || user?.role === "OWNER";
-}
-
 export function Sidebar() {
   const pathname = usePathname() ?? "/";
-  const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
-
-  useEffect(() => {
-    void fetch("/api/auth/me")
-      .then(async (response) => {
-        if (!response.ok) return null;
-        const payload = (await response.json()) as { user?: SessionUser };
-        return payload.user ?? null;
-      })
-      .then((user) => setCurrentUser(user))
-      .catch(() => setCurrentUser(null));
-  }, [pathname]);
-
-  const visibleItems = useMemo(
-    () => navItems.filter((item) => !item.adminOnly || isAdmin(currentUser)),
-    [currentUser],
-  );
-
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
-    router.refresh();
-  }
 
   return (
     <aside className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)]/95 px-4 py-4 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:border-b-0 lg:border-r lg:px-5">
@@ -85,9 +51,7 @@ export function Sidebar() {
           </div>
           <div>
             <p className="text-sm font-semibold text-[var(--space-cadet)]">TikTok Tracker</p>
-            <p className="text-xs text-[var(--cadet-gray)]">
-              {currentUser?.workspaceName ?? "Team Workspace"}
-            </p>
+            <p className="text-xs text-[var(--cadet-gray)]">Data analytics</p>
           </div>
         </div>
         <button
@@ -99,17 +63,8 @@ export function Sidebar() {
         </button>
       </div>
 
-      {currentUser ? (
-        <div className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_20%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2">
-          <p className="truncate text-sm font-medium text-[var(--space-cadet)]">{currentUser.displayName}</p>
-          <p className="truncate text-xs text-[var(--cadet-gray)]">
-            {currentUser.email} · {currentUser.role}
-          </p>
-        </div>
-      ) : null}
-
       <nav className="mt-6 grid grid-cols-2 gap-2 lg:grid-cols-1">
-        {visibleItems.map((item) => {
+        {navItems.map((item) => {
           const active = isActivePath(pathname, item.href);
 
           return (
@@ -134,24 +89,17 @@ export function Sidebar() {
         })}
       </nav>
 
-      <button
-        type="button"
-        onClick={() => void handleLogout()}
-        className="mt-4 hidden w-full items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] px-3 py-2 text-sm text-[var(--cadet-gray)] transition hover:bg-[var(--eggshell)]/70 lg:inline-flex"
-      >
-        <LogOut className="size-4" />
-        退出登录
-      </button>
-
       <section className="mt-6 hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-br from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)] shadow-lg lg:block">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Sparkles className="size-4 text-[var(--carolina-blue)]" />
-          Team Workspace
+          Quick tips
         </div>
         <p className="mt-3 text-xs leading-5 text-[color-mix(in_srgb,var(--eggshell)_75%,transparent)]">
-          成员只能看到自己负责的 TikTok 账号。管理员可在 Team Management 审核成员并分配账号。
+          Sync is now centralized in Sync Center. Each run fetches at most 20 recent videos per account and avoids
+          re-scraping within the cache window.
         </p>
       </section>
     </aside>
   );
 }
+

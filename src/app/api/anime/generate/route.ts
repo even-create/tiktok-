@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
 import { createAnimeJob, listRecentAnimeJobs, resolveMaxConcurrentAnimeJobs } from "@/lib/anime/jobs";
 import { processAnimeJobQueue } from "@/lib/anime/queue";
-import { requireAuth } from "@/lib/workspace/require-auth";
 import { queryVidmorWalletBalance } from "@/lib/vidmor/client";
 import { getVidmorConfigStatus, isVidmorConfigured } from "@/lib/vidmor/config";
 
 export const maxDuration = 300;
 
-export async function GET(request: Request) {
-  const auth = await requireAuth(request, "workspace:read");
-  if (auth.response) {
-    return auth.response;
-  }
-
+export async function GET() {
   try {
     const jobs = await listRecentAnimeJobs(50);
     const config = getVidmorConfigStatus();
@@ -44,11 +38,6 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAuth(request, "workspace:read");
-  if (auth.response) {
-    return auth.response;
-  }
-
   try {
     if (!isVidmorConfigured()) {
       return NextResponse.json(

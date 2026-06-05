@@ -148,10 +148,7 @@ async function recalculateAccountTotals(accountId: string) {
   return { totalViews, engagementRate };
 }
 
-export async function saveTikTokProfile(
-  profile: NormalizedTikTokProfile,
-  options?: { workspaceId?: string; assignedTo?: string | null },
-) {
+export async function saveTikTokProfile(profile: NormalizedTikTokProfile) {
   const accountResult = await upsertWithMissingColumnRetry(
     "accounts",
     {
@@ -166,8 +163,6 @@ export async function saveTikTokProfile(
       total_views: profile.totalViews,
       engagement_rate: profile.engagementRate,
       last_synced_at: new Date().toISOString(),
-      ...(options?.workspaceId ? { workspace_id: options.workspaceId } : {}),
-      ...(options?.assignedTo ? { assigned_to: options.assignedTo } : {}),
     },
     { onConflict: "handle" },
   );
@@ -176,17 +171,6 @@ export async function saveTikTokProfile(
 
   if (!account) {
     throw new Error("账号保存失败，请确认 Supabase 表已创建。");
-  }
-
-  if (options?.workspaceId) {
-    await supabase
-      .from("accounts")
-      .update({
-        workspace_id: account.workspace_id ?? options.workspaceId,
-        assigned_to: account.assigned_to ?? options.assignedTo ?? account.assigned_to,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", account.id);
   }
 
   const existingIds = await getExistingVideoIdSet(account.id);

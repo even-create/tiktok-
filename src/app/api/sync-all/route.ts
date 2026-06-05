@@ -1,23 +1,12 @@
 import { NextResponse } from "next/server";
-import { canReadAllAccounts } from "@/lib/workspace/account-access";
-import { requireAuth } from "@/lib/workspace/require-auth";
 import { syncAllTrackedAccounts } from "@/lib/sync-all-accounts";
 
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
-  const auth = await requireAuth(request, "sync:own");
-  if (auth.response || !auth.user) {
-    return auth.response!;
-  }
-
   try {
     const body = (await request.json().catch(() => null)) as { force?: boolean } | null;
-    const result = await syncAllTrackedAccounts({
-      force: body?.force === true,
-      workspaceId: auth.user.workspaceId,
-      assignedTo: canReadAllAccounts(auth.user) ? undefined : auth.user.id,
-    });
+    const result = await syncAllTrackedAccounts({ force: body?.force === true });
 
     if (result.totalAccounts === 0) {
       return NextResponse.json({

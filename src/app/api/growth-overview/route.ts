@@ -2,25 +2,14 @@ import { NextResponse } from "next/server";
 import { fetchSnapshotsForDates, groupSnapshotsByDate, recordAllAccountSnapshots } from "@/lib/account-snapshots";
 import { buildGrowthOverview } from "@/lib/growth-overview";
 import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
-import { applyAccountListScope } from "@/lib/workspace/account-access";
-import { requireAuth } from "@/lib/workspace/require-auth";
 import { supabase } from "@/lib/supabase";
 
-export async function GET(request: Request) {
-  const auth = await requireAuth(request, "analytics:read:own");
-  if (auth.response || !auth.user) {
-    return auth.response!;
-  }
-
+export async function GET() {
   try {
-    let query = supabase
+    const { data, error } = await supabase
       .from("accounts")
       .select("*, videos(id, views_count, likes_count, posted_at)")
       .order("created_at", { ascending: false });
-
-    query = applyAccountListScope(query, auth.user);
-
-    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

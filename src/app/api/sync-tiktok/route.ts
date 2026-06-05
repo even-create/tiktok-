@@ -1,16 +1,9 @@
 import { NextResponse } from "next/server";
-import { canReadAllAccounts } from "@/lib/workspace/account-access";
-import { requireAuth } from "@/lib/workspace/require-auth";
 import { syncTikTokAccount } from "@/lib/tiktok-sync";
 
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
-  const auth = await requireAuth(request, "sync:own");
-  if (auth.response || !auth.user) {
-    return auth.response!;
-  }
-
   try {
     const body = (await request.json().catch(() => null)) as {
       url?: string;
@@ -27,8 +20,6 @@ export async function POST(request: Request) {
       url: tiktokUrl,
       force: body?.force === true,
       lastSyncedAt: body?.lastSyncedAt,
-      workspaceId: auth.user.workspaceId,
-      assignedTo: canReadAllAccounts(auth.user) ? undefined : auth.user.id,
     });
 
     if (result.skipped) {
