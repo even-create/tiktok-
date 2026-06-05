@@ -94,11 +94,13 @@ export default function AiAnimePage() {
   const [vidmorCoinError, setVidmorCoinError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingCharacterId, setUploadingCharacterId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncingJobId, setSyncingJobId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetRef = useRef<string | null>(null);
 
   const selectedCharacter = useMemo(
     () => ANIME_CHARACTERS.find((character) => character.id === characterId) ?? ANIME_CHARACTERS[0],
@@ -189,40 +191,37 @@ export default function AiAnimePage() {
     [refreshJobs],
   );
 
-  const handleUploadRef = useCallback(
-    async (file: File) => {
-      if (!selectedCharacter) return;
+  const handleUploadRef = useCallback(async (file: File, targetCharacterId: string) => {
+    setIsUploading(true);
+    setUploadingCharacterId(targetCharacterId);
+    setErrorMessage("");
 
-      setIsUploading(true);
-      setErrorMessage("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
 
-      try {
-        const form = new FormData();
-        form.append("file", file);
+      const response = await fetch("/api/anime/upload-ref", {
+        method: "POST",
+        body: form,
+      });
 
-        const response = await fetch("/api/anime/upload-ref", {
-          method: "POST",
-          body: form,
-        });
-
-        const payload = (await response.json()) as { url?: string; error?: string };
-        if (!response.ok || !payload.url) {
-          throw new Error(payload.error ?? "上传失败");
-        }
-
-        setCustomRefUrls((previous) => {
-          const next = { ...previous, [selectedCharacter.id]: payload.url! };
-          saveStoredRefs(next);
-          return next;
-        });
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "上传失败");
-      } finally {
-        setIsUploading(false);
+      const payload = (await response.json()) as { url?: string; error?: string };
+      if (!response.ok || !payload.url) {
+        throw new Error(payload.error ?? "上传失败");
       }
-    },
-    [selectedCharacter],
-  );
+
+      setCustomRefUrls((previous) => {
+        const next = { ...previous, [targetCharacterId]: payload.url! };
+        saveStoredRefs(next);
+        return next;
+      });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "上传失败");
+    } finally {
+      setIsUploading(false);
+      setUploadingCharacterId(null);
+    }
+  }, []);
 
   const handleGenerate = useCallback(async () => {
     setIsSubmitting(true);
@@ -512,6 +511,23 @@ export default function AiAnimePage() {
                       </p>
                       <button
                         type="button"
+                        aria-label={`更换${resolveCharacterName(character.id, characterNames)}的参考图`}
+                        disabled={(isUploading && uploadingCharacterId === character.id) || !configured}
+                        onClick={() => {
+                          setCharacterId(character.id);
+                          setEditingCharacterId(null);
+                          fileInputRef.current?.click();
+                        }}
+                        className="grid size-7 shrink-0 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] text-[var(--cadet-gray)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)] disabled:opacity-60"
+                      >
+                        {isUploading && uploadingCharacterId === character.id ? (
+                          <LoaderCircle className="size-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="size-3.5" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
                         aria-label={`修改${resolveCharacterName(character.id, characterNames)}的名称`}
                         onClick={() => {
                           setCharacterId(character.id);
@@ -530,40 +546,23 @@ export default function AiAnimePage() {
           })}
         </div>
 
-        <div className="mt-5 grid gap-4 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] pt-5 md:grid-cols-2 md:items-end">
-          <div className="rounded-xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] bg-[var(--eggshell)]/30 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-[var(--space-cadet)]">
-                  上传 {selectedCharacter?.accountLabel} 参考图
-                </p>
-                <p className="mt-1 text-xs text-[var(--cadet-gray)]">JPG / PNG / WEBP · 最大 10MB</p>
-              </div>
-              <button
-                type="button"
-                disabled={isUploading || !configured}
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-4 text-sm text-[var(--space-cadet)] transition hover:bg-white disabled:opacity-60"
-              >
-                {isUploading ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                选择照片
-              </button>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void handleUploadRef(file);
-                event.target.value = "";
-              }}
-            />
-          </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file && characterId) {
+              void handleUploadRef(file, characterId);
+            }
+            event.target.value = "";
+          }}
+        />
 
-          <div className="space-y-3">
-            <label className="block">
+        <div className="mt-5 space-y-3 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] pt-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className="block min-w-0 flex-1">
               <span className="text-sm font-medium text-[var(--space-cadet)]">漫画动作</span>
               <input
                 value={action}
@@ -576,13 +575,13 @@ export default function AiAnimePage() {
               type="button"
               disabled={isSubmitting || !configured || !action.trim()}
               onClick={() => void handleGenerate()}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--space-cadet)] to-[var(--jet)] text-sm font-medium text-[var(--eggshell)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--space-cadet)] to-[var(--jet)] px-8 text-sm font-medium text-[var(--eggshell)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               {isSubmitting ? <LoaderCircle className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
               提交生成任务
             </button>
-            {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
           </div>
+          {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
         </div>
       </section>
 
