@@ -68,8 +68,25 @@ export async function assertAccountWritable(user: SessionUser, handle: string) {
   return account;
 }
 
-export function assertCanAssignAccounts(user: SessionUser) {
-  assertPermission(user.role, "accounts:assign");
+export async function assertAccountClaimable(
+  handle: string,
+  user: Pick<SessionUser, "id" | "workspaceId">,
+  canManageAllAccounts: boolean,
+) {
+  const account = await getAccountByHandle(handle);
+  if (!account) {
+    return null;
+  }
+
+  if (user.workspaceId && account.workspace_id && account.workspace_id !== user.workspaceId) {
+    throw new Error("该账号不属于当前工作区");
+  }
+
+  if (!canManageAllAccounts && account.assigned_to && account.assigned_to !== user.id) {
+    throw new Error("该账号已被其他成员添加");
+  }
+
+  return account;
 }
 
 export function assertCanManageTeam(user: SessionUser) {

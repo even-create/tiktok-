@@ -29,6 +29,8 @@ export type SyncAllAccountsResult = {
 export type SyncAllAccountsOptions = {
   force?: boolean;
   workspaceId?: string;
+  ownerUserId?: string;
+  canManageAllAccounts?: boolean;
   assignedTo?: string;
 };
 
@@ -78,6 +80,9 @@ export async function syncAllTrackedAccounts(
         url: syncUrl,
         force: options.force,
         lastSyncedAt: account.last_synced_at,
+        workspaceId: account.workspace_id ?? options.workspaceId ?? "",
+        ownerUserId: account.assigned_to ?? options.ownerUserId ?? "",
+        canManageAllAccounts: options.canManageAllAccounts ?? !options.assignedTo,
       });
 
       const durationMs = Date.now() - startedAt;

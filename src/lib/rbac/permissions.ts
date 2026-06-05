@@ -5,7 +5,6 @@ export const PERMISSIONS = {
   "accounts:read:all": ["OWNER", "ADMIN"],
   "accounts:read:own": ["OWNER", "ADMIN", "MEMBER"],
   "accounts:write:own": ["OWNER", "ADMIN", "MEMBER"],
-  "accounts:assign": ["OWNER", "ADMIN"],
   "accounts:delete": ["OWNER", "ADMIN"],
   "team:read": ["OWNER", "ADMIN"],
   "team:invite": ["OWNER", "ADMIN"],

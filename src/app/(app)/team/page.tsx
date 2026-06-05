@@ -1,21 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LoaderCircle, Shield, UserCog, Users } from "lucide-react";
+import { LoaderCircle, Shield, Users } from "lucide-react";
 import type { WorkspaceUserPublic } from "@/lib/workspace/types";
-
-type AssignmentAccount = {
-  id: string;
-  handle: string;
-  display_name: string | null;
-  assigned_to: string | null;
-  assignee?: WorkspaceUserPublic | null;
-};
 
 export default function TeamPage() {
   const [members, setMembers] = useState<WorkspaceUserPublic[]>([]);
-  const [accounts, setAccounts] = useState<AssignmentAccount[]>([]);
-  const [activeMembers, setActiveMembers] = useState<WorkspaceUserPublic[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [actionId, setActionId] = useState<string | null>(null);
@@ -30,31 +20,17 @@ export default function TeamPage() {
     setErrorMessage("");
 
     try {
-      const [membersRes, accountsRes] = await Promise.all([
-        fetch("/api/team/members"),
-        fetch("/api/team/accounts"),
-      ]);
-
-      const membersPayload = (await membersRes.json()) as {
-        members?: WorkspaceUserPublic[];
-        error?: string;
-      };
-      const accountsPayload = (await accountsRes.json()) as {
-        accounts?: AssignmentAccount[];
+      const response = await fetch("/api/team/members");
+      const payload = (await response.json()) as {
         members?: WorkspaceUserPublic[];
         error?: string;
       };
 
-      if (!membersRes.ok) {
-        throw new Error(membersPayload.error ?? "读取成员失败");
-      }
-      if (!accountsRes.ok) {
-        throw new Error(accountsPayload.error ?? "读取账号归属失败");
+      if (!response.ok) {
+        throw new Error(payload.error ?? "读取成员失败");
       }
 
-      setMembers(membersPayload.members ?? []);
-      setAccounts(accountsPayload.accounts ?? []);
-      setActiveMembers(accountsPayload.members ?? []);
+      setMembers(payload.members ?? []);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "加载失败");
     } finally {
@@ -86,26 +62,6 @@ export default function TeamPage() {
     }
   }
 
-  async function assignAccount(accountId: string, assignedTo: string | null) {
-    setActionId(accountId);
-    try {
-      const response = await fetch("/api/team/accounts", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId, assignedTo: assignedTo || null }),
-      });
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        throw new Error(payload.error ?? "分配失败");
-      }
-      await refresh();
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "分配失败");
-    } finally {
-      setActionId(null);
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-[var(--cadet-gray)]">
@@ -124,7 +80,7 @@ export default function TeamPage() {
         </div>
         <h1 className="mt-2 text-2xl font-semibold text-[var(--space-cadet)]">团队管理</h1>
         <p className="mt-2 text-sm text-[var(--cadet-gray)]">
-          审核成员申请、管理角色，并将 TikTok 账号分配给运营成员。
+          审核成员申请、管理角色。成员可在 Accounts 页面自行添加自己运营的 TikTok 账号。
         </p>
       </header>
 
@@ -221,45 +177,6 @@ export default function TeamPage() {
               ))}
             </tbody>
           </table>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--space-cadet)]">
-          <UserCog className="size-5" />
-          账号归属管理
-        </h2>
-        <div className="mt-4 space-y-3">
-          {accounts.length === 0 ? (
-            <p className="text-sm text-[var(--cadet-gray)]">暂无 TikTok 账号。</p>
-          ) : (
-            accounts.map((account) => (
-              <div
-                key={account.id}
-                className="flex flex-col gap-3 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_20%,transparent)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium text-[var(--space-cadet)]">@{account.handle}</p>
-                  <p className="text-xs text-[var(--cadet-gray)]">{account.display_name || "未命名"}</p>
-                </div>
-                <select
-                  value={account.assigned_to ?? ""}
-                  disabled={actionId === account.id}
-                  onChange={(event) =>
-                    void assignAccount(account.id, event.target.value ? event.target.value : null)
-                  }
-                  className="min-w-[180px] rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-[var(--eggshell)]/40 px-3 py-2 text-sm"
-                >
-                  <option value="">未分配</option>
-                  {activeMembers.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.display_name} ({member.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))
-          )}
         </div>
       </section>
     </div>

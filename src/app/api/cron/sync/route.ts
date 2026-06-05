@@ -29,7 +29,7 @@ export async function GET(request: Request) {
   const startedAt = Date.now();
 
   try {
-    const syncResult = await syncAllTrackedAccounts({ force: false });
+    const syncResult = await syncAllTrackedAccounts({ force: false, canManageAllAccounts: true });
     await persistSyncResults(syncResult.results, "auto");
 
     return NextResponse.json({

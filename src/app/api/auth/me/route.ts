@@ -11,7 +11,6 @@ export async function GET(request: Request) {
 
   const permissions = (Object.keys({
     "accounts:read:all": true,
-    "accounts:assign": true,
     "team:manage": true,
     "settings:manage": true,
     "sync:all": true,

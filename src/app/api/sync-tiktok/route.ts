@@ -28,7 +28,8 @@ export async function POST(request: Request) {
       force: body?.force === true,
       lastSyncedAt: body?.lastSyncedAt,
       workspaceId: auth.user.workspaceId,
-      assignedTo: canReadAllAccounts(auth.user) ? undefined : auth.user.id,
+      ownerUserId: auth.user.id,
+      canManageAllAccounts: canReadAllAccounts(auth.user),
     });
 
     if (result.skipped) {

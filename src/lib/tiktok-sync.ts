@@ -1,4 +1,5 @@
 import { isTikHubConfigured } from "@/lib/app-settings";
+import { assertAccountClaimable } from "@/lib/workspace/account-access";
 import { scrapeTikTokProfileWithMeta } from "@/lib/providers/TikHubProvider";
 import { formatCacheTtlLabelAsync, shouldUseSyncCacheAsync } from "@/lib/sync-config";
 import { assertTikTokTablesReady, saveTikTokProfile } from "@/lib/supabase-storage";
@@ -8,7 +9,8 @@ export type SyncTikTokAccountOptions = {
   force?: boolean;
   lastSyncedAt?: string | null;
   workspaceId?: string;
-  assignedTo?: string;
+  ownerUserId: string;
+  canManageAllAccounts?: boolean;
 };
 
 export type SyncTikTokAccountResult =
@@ -44,9 +46,19 @@ export async function syncTikTokAccount(options: SyncTikTokAccountOptions): Prom
   }
 
   const { profile, apiCalls } = await scrapeTikTokProfileWithMeta(options.url);
+
+  await assertAccountClaimable(
+    profile.handle,
+    {
+      id: options.ownerUserId,
+      workspaceId: options.workspaceId ?? "",
+    },
+    options.canManageAllAccounts === true,
+  );
+
   const saved = await saveTikTokProfile(profile, {
     workspaceId: options.workspaceId,
-    assignedTo: options.assignedTo,
+    assignedTo: options.ownerUserId,
   });
 
   return {

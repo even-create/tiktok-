@@ -107,7 +107,8 @@ export async function POST(request: Request) {
           force,
           lastSyncedAt: account.last_synced_at,
           workspaceId: auth.user.workspaceId,
-          assignedTo: canReadAllAccounts(auth.user) ? undefined : auth.user.id,
+          ownerUserId: auth.user.id,
+          canManageAllAccounts: canReadAllAccounts(auth.user),
         });
 
         const durationMs = Date.now() - syncStarted;
@@ -177,6 +178,8 @@ export async function POST(request: Request) {
     const syncResult = await syncAllTrackedAccounts({
       force,
       workspaceId: auth.user.workspaceId,
+      ownerUserId: auth.user.id,
+      canManageAllAccounts: canReadAllAccounts(auth.user),
       assignedTo: canReadAllAccounts(auth.user) ? undefined : auth.user.id,
     });
     await persistSyncResults(syncResult.results, syncType);
