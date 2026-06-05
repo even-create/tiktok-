@@ -149,7 +149,7 @@ export function Sidebar() {
           Team Workspace
         </div>
         <p className="mt-3 text-xs leading-5 text-[color-mix(in_srgb,var(--eggshell)_75%,transparent)]">
-          成员在 Accounts 页面自行添加自己运营的账号，仅能看到自己的数据。管理员可查看全部账号并在 Team Management 审核成员。
+          成员只能看到自己负责的 TikTok 账号。管理员可在 Team Management 审核成员并分配账号。
         </p>
       </section>
     </aside>

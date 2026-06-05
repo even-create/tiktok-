@@ -88,9 +88,6 @@ export default function AccountsPage() {
             Accounts
           </div>
           <h1 className="mt-3 text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">账号管理</h1>
-          <p className="mt-2 text-sm text-[var(--cadet-gray)]">
-            粘贴 TikTok 链接添加你正在运营的账号，添加后自动归属到你名下。
-          </p>
         </div>
 
         <div className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">

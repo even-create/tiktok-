@@ -16,8 +16,6 @@ export async function POST(request: Request) {
     const result = await syncAllTrackedAccounts({
       force: body?.force === true,
       workspaceId: auth.user.workspaceId,
-      ownerUserId: auth.user.id,
-      canManageAllAccounts: canReadAllAccounts(auth.user),
       assignedTo: canReadAllAccounts(auth.user) ? undefined : auth.user.id,
     });
 

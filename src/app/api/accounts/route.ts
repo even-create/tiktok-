@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const auth = await requireAuth(request, "accounts:write:own");
+  const auth = await requireAuth(request, "accounts:delete");
   if (auth.response || !auth.user) {
     return auth.response!;
   }

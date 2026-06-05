@@ -152,12 +152,6 @@ export async function saveTikTokProfile(
   profile: NormalizedTikTokProfile,
   options?: { workspaceId?: string; assignedTo?: string | null },
 ) {
-  const { data: existing } = await supabase
-    .from("accounts")
-    .select("id, assigned_to, workspace_id")
-    .eq("handle", profile.handle)
-    .maybeSingle();
-
   const accountResult = await upsertWithMissingColumnRetry(
     "accounts",
     {
@@ -173,7 +167,7 @@ export async function saveTikTokProfile(
       engagement_rate: profile.engagementRate,
       last_synced_at: new Date().toISOString(),
       ...(options?.workspaceId ? { workspace_id: options.workspaceId } : {}),
-      ...(!existing?.assigned_to && options?.assignedTo ? { assigned_to: options.assignedTo } : {}),
+      ...(options?.assignedTo ? { assigned_to: options.assignedTo } : {}),
     },
     { onConflict: "handle" },
   );
@@ -185,16 +179,14 @@ export async function saveTikTokProfile(
   }
 
   if (options?.workspaceId) {
-    const patch: Record<string, string> = {
-      workspace_id: account.workspace_id ?? options.workspaceId,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (!account.assigned_to && options.assignedTo) {
-      patch.assigned_to = options.assignedTo;
-    }
-
-    await supabase.from("accounts").update(patch).eq("id", account.id);
+    await supabase
+      .from("accounts")
+      .update({
+        workspace_id: account.workspace_id ?? options.workspaceId,
+        assigned_to: account.assigned_to ?? options.assignedTo ?? account.assigned_to,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", account.id);
   }
 
   const existingIds = await getExistingVideoIdSet(account.id);
