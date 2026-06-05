@@ -193,6 +193,11 @@ export async function runVideoStageSafe(jobId: string) {
   try {
     await runVideoStageOnly(jobId);
   } catch (error) {
+    const current = await getAnimeJob(jobId);
+    if (current?.status === "success" || current?.video_url) {
+      return;
+    }
+
     const raw = error instanceof Error ? error.message : "图生视频失败";
     const isTimeout = /生成超时|timeout/i.test(raw);
 

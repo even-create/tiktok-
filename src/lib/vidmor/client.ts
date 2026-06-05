@@ -385,7 +385,11 @@ export async function pollGenerationStatus(
   }
 
   const resolved = resolveListItemStatus(item);
-  return { status: resolved.status, mediaUrl: resolved.mediaUrl, raw: resolved.raw };
+  return {
+    status: resolved.status,
+    mediaUrl: resolved.mediaUrl,
+    raw: resolved.raw as Record<string, unknown>,
+  };
 }
 
 /** Poll by task id; falls back to scanning recent Vidmor history when domainId filter misses the result. */
