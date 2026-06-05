@@ -6,6 +6,7 @@ import {
   Clapperboard,
   Coins,
   LoaderCircle,
+  Pencil,
   Play,
   RefreshCw,
   RotateCcw,
@@ -96,6 +97,7 @@ export default function AiAnimePage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncingJobId, setSyncingJobId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedCharacter = useMemo(
@@ -455,82 +457,109 @@ export default function AiAnimePage() {
             const active = character.id === characterId;
             const preview = customRefUrls[character.id] || character.refImagePath;
             const hasCustom = Boolean(customRefUrls[character.id]);
+            const isEditing = editingCharacterId === character.id;
 
             return (
-              <button
+              <div
                 key={character.id}
-                type="button"
-                onClick={() => setCharacterId(character.id)}
-                className={`rounded-xl border p-2 text-left transition ${
+                className={`rounded-xl border p-2 transition ${
                   active
                     ? "border-[var(--carolina-blue)] bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)]"
                     : "border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] hover:bg-[var(--eggshell)]/60"
                 }`}
               >
-                <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-[var(--eggshell)]">
-                  {preview.startsWith("http") ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={preview} alt={character.name} className="h-full w-full object-cover object-top" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCharacterId(character.id);
+                    setEditingCharacterId(null);
+                  }}
+                  className="w-full text-left"
+                >
+                  <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-[var(--eggshell)]">
+                    {preview.startsWith("http") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={preview} alt={character.name} className="h-full w-full object-cover object-top" />
+                    ) : (
+                      <Image src={preview} alt={character.name} fill className="object-cover object-top" unoptimized />
+                    )}
+                    {hasCustom ? (
+                      <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--space-cadet)] px-1.5 py-0.5 text-[10px] text-white">
+                        已上传
+                      </span>
+                    ) : null}
+                  </div>
+                </button>
+
+                <div className="mt-2 flex items-center gap-1">
+                  {isEditing ? (
+                    <input
+                      autoFocus
+                      value={characterNames[character.id] ?? character.name}
+                      onChange={(event) => updateCharacterName(character.id, event.target.value)}
+                      onBlur={() => setEditingCharacterId(null)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === "Escape") {
+                          setEditingCharacterId(null);
+                        }
+                      }}
+                      className="min-w-0 flex-1 rounded-lg border border-[var(--carolina-blue)] bg-[var(--card)] px-2 py-1 text-sm outline-none ring-2 ring-[color-mix(in_srgb,var(--carolina-blue)_30%,transparent)]"
+                    />
                   ) : (
-                    <Image src={preview} alt={character.name} fill className="object-cover object-top" unoptimized />
+                    <>
+                      <p className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--space-cadet)]">
+                        {resolveCharacterName(character.id, characterNames)}
+                      </p>
+                      <button
+                        type="button"
+                        aria-label={`修改${resolveCharacterName(character.id, characterNames)}的名称`}
+                        onClick={() => {
+                          setCharacterId(character.id);
+                          setEditingCharacterId(character.id);
+                        }}
+                        className="grid size-7 shrink-0 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] text-[var(--cadet-gray)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)]"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                    </>
                   )}
-                  {hasCustom ? (
-                    <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--space-cadet)] px-1.5 py-0.5 text-[10px] text-white">
-                      已上传
-                    </span>
-                  ) : null}
                 </div>
-                <p className="mt-2 truncate text-sm font-medium text-[var(--space-cadet)]">
-                  {resolveCharacterName(character.id, characterNames)}
-                </p>
                 <p className="truncate text-[11px] text-[var(--cadet-gray)]">{character.accountLabel}</p>
-              </button>
+              </div>
             );
           })}
         </div>
 
-        <div className="mt-5 grid gap-5 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] pt-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_220px] lg:items-end">
-          <div className="space-y-4">
-            <label className="block">
-              <span className="text-sm font-medium text-[var(--space-cadet)]">角色名称</span>
-              <input
-                value={characterNames[characterId] ?? selectedCharacter?.name ?? ""}
-                onChange={(event) => updateCharacterName(characterId, event.target.value)}
-                className="mt-2 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-4 py-2.5 text-sm outline-none ring-[var(--carolina-blue)] focus:ring-2"
-                placeholder="例如：香蕉人"
-              />
-            </label>
-
-            <div className="rounded-xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] bg-[var(--eggshell)]/30 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-[var(--space-cadet)]">
-                    上传 {selectedCharacter?.accountLabel} 参考图
-                  </p>
-                  <p className="mt-0.5 text-xs text-[var(--cadet-gray)]">JPG / PNG / WEBP · 最大 10MB</p>
-                </div>
-                <button
-                  type="button"
-                  disabled={isUploading || !configured}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-xs text-[var(--space-cadet)] transition hover:bg-white disabled:opacity-60"
-                >
-                  {isUploading ? <LoaderCircle className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
-                  选择照片
-                </button>
+        <div className="mt-5 grid gap-4 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] pt-5 md:grid-cols-2 md:items-end">
+          <div className="rounded-xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] bg-[var(--eggshell)]/30 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[var(--space-cadet)]">
+                  上传 {selectedCharacter?.accountLabel} 参考图
+                </p>
+                <p className="mt-1 text-xs text-[var(--cadet-gray)]">JPG / PNG / WEBP · 最大 10MB</p>
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void handleUploadRef(file);
-                  event.target.value = "";
-                }}
-              />
+              <button
+                type="button"
+                disabled={isUploading || !configured}
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-4 text-sm text-[var(--space-cadet)] transition hover:bg-white disabled:opacity-60"
+              >
+                {isUploading ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                选择照片
+              </button>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void handleUploadRef(file);
+                event.target.value = "";
+              }}
+            />
           </div>
 
           <div className="space-y-3">
@@ -540,13 +569,9 @@ export default function AiAnimePage() {
                 value={action}
                 onChange={(event) => setAction(event.target.value)}
                 className="mt-2 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-4 py-2.5 text-sm outline-none ring-[var(--carolina-blue)] focus:ring-2"
-                placeholder="例如：脱下手套"
+                placeholder="例如：踢足球"
               />
             </label>
-
-          </div>
-
-          <div className="flex flex-col gap-3 lg:min-h-[108px] lg:justify-end">
             <button
               type="button"
               disabled={isSubmitting || !configured || !action.trim()}
