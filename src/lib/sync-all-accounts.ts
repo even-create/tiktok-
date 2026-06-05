@@ -1,4 +1,4 @@
-import { getAccounts } from "@/lib/tiktok-data";
+import { supabase } from "@/lib/supabase";
 import { syncTikTokAccount } from "@/lib/tiktok-sync";
 
 export type SyncAccountResult = {
@@ -28,12 +28,24 @@ export type SyncAllAccountsResult = {
 
 export type SyncAllAccountsOptions = {
   force?: boolean;
+  workspaceId?: string;
+  assignedTo?: string;
 };
 
 export async function syncAllTrackedAccounts(
   options: SyncAllAccountsOptions = {},
 ): Promise<SyncAllAccountsResult> {
-  const { data: accounts, error } = await getAccounts();
+  let query = supabase.from("accounts").select("*").order("created_at", { ascending: false });
+
+  if (options.workspaceId) {
+    query = query.eq("workspace_id", options.workspaceId);
+  }
+
+  if (options.assignedTo) {
+    query = query.eq("assigned_to", options.assignedTo);
+  }
+
+  const { data: accounts, error } = await query;
 
   if (error) {
     throw new Error(error.message);

@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { AUTH_COOKIE, isValidAuthToken } from "@/lib/auth";
+import { AUTH_COOKIE, isValidAuthToken, verifySessionToken } from "@/lib/auth";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (
     pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/cron") ||
     pathname.startsWith("/api/video-cover") ||
@@ -18,6 +19,22 @@ export function middleware(request: NextRequest) {
   }
 
   const token = request.cookies.get(AUTH_COOKIE)?.value;
+  const session = await verifySessionToken(token);
+
+  if (session?.status === "ACTIVE") {
+    const isTeamRoute =
+      pathname.startsWith("/team") || pathname.startsWith("/api/team");
+    const isTeamAdmin = session.role === "ADMIN" || session.role === "OWNER";
+
+    if (isTeamRoute && !isTeamAdmin) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "无权执行此操作" }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    return NextResponse.next();
+  }
 
   if (isValidAuthToken(token)) {
     return NextResponse.next();

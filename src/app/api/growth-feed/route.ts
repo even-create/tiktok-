@@ -3,6 +3,7 @@ import { clearGrowthFeedCache, getCachedGrowthFeed, setCachedGrowthFeed } from "
 import { generateGrowthFeedSummary } from "@/lib/growth-feed/gemini-summary";
 import { aggregateGrowthFeedItems } from "@/lib/growth-feed/sources";
 import type { GrowthFeedSource } from "@/lib/growth-feed/types";
+import { requireAuth } from "@/lib/workspace/require-auth";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -23,6 +24,11 @@ function countBySource(items: { source: GrowthFeedSource }[]) {
 }
 
 export async function GET(request: Request) {
+  const auth = await requireAuth(request, "workspace:read");
+  if (auth.response) {
+    return auth.response;
+  }
+
   try {
     const refresh = new URL(request.url).searchParams.get("refresh") === "1";
 

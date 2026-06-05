@@ -7,6 +7,8 @@ export type SyncTikTokAccountOptions = {
   url: string;
   force?: boolean;
   lastSyncedAt?: string | null;
+  workspaceId?: string;
+  assignedTo?: string;
 };
 
 export type SyncTikTokAccountResult =
@@ -42,7 +44,10 @@ export async function syncTikTokAccount(options: SyncTikTokAccountOptions): Prom
   }
 
   const { profile, apiCalls } = await scrapeTikTokProfileWithMeta(options.url);
-  const saved = await saveTikTokProfile(profile);
+  const saved = await saveTikTokProfile(profile, {
+    workspaceId: options.workspaceId,
+    assignedTo: options.assignedTo,
+  });
 
   return {
     skipped: false,

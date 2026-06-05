@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { getAppSettings, saveAppSettings, type ThemeMode } from "@/lib/app-settings";
+import { requireAuth } from "@/lib/workspace/require-auth";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAuth(request, "workspace:read");
+  if (auth.response) {
+    return auth.response;
+  }
+
   try {
     const settings = await getAppSettings();
     return NextResponse.json({ settings });
@@ -14,6 +20,11 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const auth = await requireAuth(request, "settings:manage");
+  if (auth.response) {
+    return auth.response;
+  }
+
   try {
     const body = (await request.json().catch(() => null)) as {
       tikhubApiKey?: string;

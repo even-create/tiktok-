@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { getAnimeJob } from "@/lib/anime/jobs";
+import { requireAuth } from "@/lib/workspace/require-auth";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
+  const auth = await requireAuth(request, "workspace:read");
+  if (auth.response) {
+    return auth.response;
+  }
+
   try {
     const { id } = await context.params;
     const job = await getAnimeJob(id);

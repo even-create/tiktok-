@@ -11,6 +11,8 @@ export type AccountRow = {
   video_count: number;
   total_views: number;
   engagement_rate: number;
+  workspace_id: string | null;
+  assigned_to: string | null;
   last_synced_at: string | null;
   created_at: string;
   updated_at: string;

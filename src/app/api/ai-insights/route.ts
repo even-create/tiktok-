@@ -1,16 +1,27 @@
 import { NextResponse } from "next/server";
+import { applyAccountListScope } from "@/lib/workspace/account-access";
+import { requireAuth } from "@/lib/workspace/require-auth";
 import { buildAiInsightsContext, buildHeuristicInsights } from "@/lib/ai-insights";
 import { generateGeminiInsights, getGeminiModelName, isGeminiConfigured } from "@/lib/gemini-insights";
 import { supabase } from "@/lib/supabase";
 
 export const maxDuration = 60;
 
-export async function POST() {
+export async function POST(request: Request) {
+  const auth = await requireAuth(request, "analytics:read:own");
+  if (auth.response || !auth.user) {
+    return auth.response!;
+  }
+
   try {
-    const { data: accounts, error } = await supabase
+    let query = supabase
       .from("accounts")
       .select("*, videos(*)")
       .order("created_at", { ascending: false });
+
+    query = applyAccountListScope(query, auth.user);
+
+    const { data: accounts, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

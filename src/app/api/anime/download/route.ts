@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAnimeJob } from "@/lib/anime/jobs";
+import { requireAuth } from "@/lib/workspace/require-auth";
 
 function sanitizeFilename(filename: string) {
   const cleaned = filename.trim().replace(/[\\/:*?"<>|]/g, "_").slice(0, 120);
@@ -7,6 +8,11 @@ function sanitizeFilename(filename: string) {
 }
 
 export async function GET(request: Request) {
+  const auth = await requireAuth(request, "workspace:read");
+  if (auth.response) {
+    return auth.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get("jobId")?.trim();

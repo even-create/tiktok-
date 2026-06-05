@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { fetchSnapshotsForDates, recordAllAccountSnapshots } from "@/lib/account-snapshots";
+import { applyAccountListScope, assertAccountWritable } from "@/lib/workspace/account-access";
+import { requireAuth } from "@/lib/workspace/require-auth";
 import { deleteAccountByHandle } from "@/lib/tiktok-data";
 import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
 import { supabase } from "@/lib/supabase";
 
-export async function GET() {
-  const { data, error } = await supabase
+export async function GET(request: Request) {
+  const auth = await requireAuth(request, "accounts:read:own");
+  if (auth.response || !auth.user) {
+    return auth.response!;
+  }
+
+  let query = supabase
     .from("accounts")
     .select("*, videos(*)")
     .order("created_at", { ascending: false })
@@ -14,6 +21,10 @@ export async function GET() {
       referencedTable: "videos",
       nullsFirst: false,
     });
+
+  query = applyAccountListScope(query, auth.user);
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -55,10 +66,24 @@ export async function GET() {
 }
 
 export async function DELETE(request: Request) {
+  const auth = await requireAuth(request, "accounts:delete");
+  if (auth.response || !auth.user) {
+    return auth.response!;
+  }
+
   const handle = new URL(request.url).searchParams.get("handle")?.trim();
 
   if (!handle) {
     return NextResponse.json({ error: "请提供要删除的账号 handle" }, { status: 400 });
+  }
+
+  try {
+    await assertAccountWritable(auth.user, handle);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "无权删除该账号" },
+      { status: 403 },
+    );
   }
 
   const { error, count } = await deleteAccountByHandle(handle);

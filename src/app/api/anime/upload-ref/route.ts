@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/workspace/require-auth";
 import { isVidmorConfigured } from "@/lib/vidmor/config";
 import { uploadImageBlob } from "@/lib/vidmor/client";
 
@@ -6,6 +7,11 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export async function POST(request: Request) {
+  const auth = await requireAuth(request, "workspace:read");
+  if (auth.response) {
+    return auth.response;
+  }
+
   try {
     if (!isVidmorConfigured()) {
       return NextResponse.json({ error: "未配置 Vidmor" }, { status: 400 });
