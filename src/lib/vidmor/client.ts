@@ -339,6 +339,25 @@ function extractMediaUrl(data: {
   );
 }
 
+function matchListItemByTaskId(item: VidmorGenerateListItem, taskId: string) {
+  return item.domainId === taskId || String(item.id ?? "") === taskId;
+}
+
+function resolveListItemStatus(item: VidmorGenerateListItem) {
+  const plat = parsePlatResponse(item.platResponse);
+  const platData = plat?.data ?? {};
+  const platStatus = String(platData.status ?? "").toLowerCase();
+  const itemStatus = String(item.status ?? "").toLowerCase();
+  const mediaUrl = extractMediaUrl(platData);
+  let status = platStatus || itemStatus;
+
+  if ((status === "success" || status === "completed") && !mediaUrl) {
+    status = "processing";
+  }
+
+  return { status, mediaUrl, raw: item, platData };
+}
+
 export async function pollGenerationStatus(
   pollMethod: string,
   taskId: string,
@@ -365,18 +384,37 @@ export async function pollGenerationStatus(
     return { status: "pending", mediaUrl: null, raw: {} };
   }
 
-  const plat = parsePlatResponse(item.platResponse);
-  const platData = plat?.data ?? {};
-  const platStatus = String(platData.status ?? "").toLowerCase();
-  const itemStatus = String(item.status ?? "").toLowerCase();
-  const mediaUrl = extractMediaUrl(platData);
+  const resolved = resolveListItemStatus(item);
+  return { status: resolved.status, mediaUrl: resolved.mediaUrl, raw: resolved.raw };
+}
 
-  let status = platStatus || itemStatus;
-  if ((status === "success" || status === "completed") && !mediaUrl) {
-    status = "processing";
+/** Poll by task id; falls back to scanning recent Vidmor history when domainId filter misses the result. */
+export async function resolveTaskMediaUrl(
+  pollMethod: string,
+  taskId: string,
+  token?: string | null,
+) {
+  const direct = await pollGenerationStatus(pollMethod, taskId, token);
+  if (direct.mediaUrl) {
+    return direct;
   }
 
-  return { status, mediaUrl, raw: item };
+  const listResult = await vidmorRequest<{ data?: VidmorGenerateListItem[] }>({
+    path: "/ai/common/generate/list",
+    data: { pageNo: 1, pageSize: 40 },
+    token,
+  });
+
+  if (listResult.body.code !== 0) {
+    return direct;
+  }
+
+  const item = listResult.body.data?.data?.find((entry) => matchListItemByTaskId(entry, taskId));
+  if (!item) {
+    return direct;
+  }
+
+  return resolveListItemStatus(item);
 }
 
 export async function pollUntilComplete(

@@ -18,7 +18,7 @@ export async function POST() {
     let synced = 0;
 
     for (const job of activeJobs) {
-      if (job.status === "running" && job.stage === "image_to_video" && !job.video_url) {
+      if (job.status === "running" && !job.video_url) {
         await syncAnimeJobFromVidmor(job.id);
         synced += 1;
       }

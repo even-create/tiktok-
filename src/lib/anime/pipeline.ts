@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import {
   buildImageCostPayload,
   buildImageToImagePrompt,
@@ -116,6 +117,101 @@ export async function runAnimePipeline(jobId: string) {
     stage: "completed",
     progress: 100,
     video_url: generatedVideoUrl,
+  });
+}
+
+export async function runVideoStageOnly(jobId: string) {
+  const job = await getAnimeJob(jobId);
+  if (!job) {
+    throw new Error("任务不存在");
+  }
+
+  if (job.video_url) {
+    return;
+  }
+
+  if (!job.image_url) {
+    throw new Error("缺少生成的图片，无法提交图生视频");
+  }
+
+  const token = resolveVidmorToken();
+  if (!token) {
+    throw new Error("未配置 VIDMOR_TOKEN");
+  }
+
+  const videoTemplate = job.video_prompt_template || DEFAULT_VIDEO_PROMPT_TEMPLATE;
+  const videoDuration = job.video_duration || SEEDANCE_20.duration;
+  const videoResolution = job.video_resolution || SEEDANCE_20.resolution;
+  const videoPrompt = buildImageToVideoPrompt(job.action, videoTemplate);
+
+  let videoTaskId = job.video_task_id;
+  if (!videoTaskId) {
+    const videoCost = await queryCoinCost(
+      buildVideoCostPayload(videoPrompt, { duration: videoDuration, resolution: videoResolution }),
+      token,
+    );
+    videoTaskId = await submitGeneration(
+      buildImageToVideoRequest({
+        prompt: videoPrompt,
+        imageUrl: job.image_url,
+        costCoin: videoCost,
+        duration: videoDuration,
+        resolution: videoResolution,
+      }),
+      token,
+    );
+
+    await updateAnimeJob(jobId, {
+      status: "running",
+      stage: "image_to_video",
+      progress: 70,
+      video_task_id: videoTaskId,
+      error_message: null,
+    });
+  }
+
+  const generatedVideoUrl = await pollUntilComplete(SEEDANCE_20.pollMethod, videoTaskId, {
+    token,
+    timeoutMs: 280_000,
+    onTick: async (status) => {
+      if (status === "processing" || status === "pending" || status === "running") {
+        await updateAnimeJob(jobId, { progress: 85 });
+      }
+    },
+  });
+
+  await updateAnimeJob(jobId, {
+    status: "success",
+    stage: "completed",
+    progress: 100,
+    video_url: generatedVideoUrl,
+    error_message: null,
+  });
+}
+
+export async function runVideoStageSafe(jobId: string) {
+  try {
+    await runVideoStageOnly(jobId);
+  } catch (error) {
+    const raw = error instanceof Error ? error.message : "图生视频失败";
+    const isTimeout = /生成超时|timeout/i.test(raw);
+
+    await updateAnimeJob(jobId, {
+      status: isTimeout ? "running" : "failed",
+      stage: isTimeout ? "image_to_video" : "failed",
+      progress: isTimeout ? 85 : undefined,
+      error_message: isTimeout
+        ? "图生视频仍在 Vidmor 后台生成，系统会自动同步成片。"
+        : raw,
+    });
+  } finally {
+    await processAnimeJobQueue();
+  }
+}
+
+export function resumeAnimeJobVideoStage(jobId: string) {
+  after(async () => {
+    await runVideoStageSafe(jobId);
   });
 }
 

@@ -570,7 +570,7 @@ export default function AiAnimePage() {
           {selectedJob.error_message ? (
             <p className="mt-2 text-sm text-amber-700">{selectedJob.error_message}</p>
           ) : null}
-          {selectedJob.status === "running" && selectedJob.stage === "image_to_video" && !selectedJob.video_url ? (
+          {selectedJob.status === "running" && !selectedJob.video_url ? (
             <button
               type="button"
               disabled={isSyncing}

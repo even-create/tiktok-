@@ -135,7 +135,7 @@ export function AnimeJobList({
                   </button>
 
                   <div className="flex shrink-0 items-center gap-2">
-                    {displayStatus === "running" && job.stage === "image_to_video" && !job.video_url ? (
+                    {displayStatus === "running" && !job.video_url ? (
                       <button
                         type="button"
                         disabled={syncingJobId === job.id}

@@ -1,6 +1,7 @@
 import { getAnimeJob, updateAnimeJob } from "@/lib/anime/jobs";
-import { pollGenerationStatus, vidmorRequest } from "@/lib/vidmor/client";
-import { resolveVidmorToken, SEEDANCE_20 } from "@/lib/vidmor/config";
+import { resumeAnimeJobVideoStage } from "@/lib/anime/pipeline";
+import { resolveTaskMediaUrl, vidmorRequest } from "@/lib/vidmor/client";
+import { GPT_IMAGE_20, resolveVidmorToken, SEEDANCE_20 } from "@/lib/vidmor/config";
 
 type GenerateListItem = {
   domainId?: string;
@@ -22,12 +23,33 @@ function parsePlatResponse(platResponse?: string) {
       data?: {
         status?: string;
         resultUrl?: string;
-        taskResult?: Array<{ url?: string }>;
+        videoUrl?: string;
+        imageUrl?: string;
+        taskResult?: Array<{ url?: string; videoUrl?: string }>;
       };
     };
   } catch {
     return null;
   }
+}
+
+function extractMediaUrl(data: {
+  resultUrl?: string;
+  videoUrl?: string;
+  imageUrl?: string;
+  taskResult?: Array<{ url?: string; videoUrl?: string }>;
+}) {
+  const taskResult = Array.isArray(data.taskResult) ? data.taskResult : [];
+  const firstResult = taskResult[0];
+
+  return (
+    data.resultUrl ||
+    data.videoUrl ||
+    data.imageUrl ||
+    firstResult?.url ||
+    firstResult?.videoUrl ||
+    null
+  );
 }
 
 function extractVideoUrl(item: GenerateListItem) {
@@ -37,8 +59,7 @@ function extractVideoUrl(item: GenerateListItem) {
     return null;
   }
 
-  const taskResult = Array.isArray(data.taskResult) ? data.taskResult : [];
-  return data.resultUrl || taskResult[0]?.url || null;
+  return extractMediaUrl(data);
 }
 
 function itemCreatedAt(item: GenerateListItem) {
@@ -51,10 +72,14 @@ function itemCreatedAt(item: GenerateListItem) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function isSuccessStatus(status: string) {
+  return status === "success" || status === "completed";
+}
+
 async function findRecentVideoTask(jobCreatedAt: string, token: string) {
   const result = await vidmorRequest<{ data?: GenerateListItem[] }>({
     path: "/ai/common/generate/list",
-    data: { pageNo: 1, pageSize: 20 },
+    data: { pageNo: 1, pageSize: 40 },
     token,
   });
 
@@ -75,13 +100,11 @@ async function findRecentVideoTask(jobCreatedAt: string, token: string) {
       if (createdAt < jobTime - 120_000) {
         continue;
       }
-      if (createdAt > jobTime + 30 * 60_000) {
-        continue;
-      }
     }
 
     const videoUrl = extractVideoUrl(item);
-    if (videoUrl && (item.status === "success" || parsePlatResponse(item.platResponse)?.data?.status === "success")) {
+    const platStatus = parsePlatResponse(item.platResponse)?.data?.status ?? item.status ?? "";
+    if (videoUrl && isSuccessStatus(String(platStatus).toLowerCase())) {
       return {
         taskId: item.domainId ?? null,
         videoUrl,
@@ -99,6 +122,61 @@ async function findRecentVideoTask(jobCreatedAt: string, token: string) {
   return null;
 }
 
+async function tryResolveCompletedVideo(job: NonNullable<Awaited<ReturnType<typeof getAnimeJob>>>, token: string) {
+  let videoTaskId = job.video_task_id;
+  let resolvedVideoUrl: string | null = null;
+
+  if (videoTaskId) {
+    const poll = await resolveTaskMediaUrl(SEEDANCE_20.pollMethod, videoTaskId, token);
+    if (isSuccessStatus(poll.status) && poll.mediaUrl) {
+      return { videoTaskId, videoUrl: poll.mediaUrl };
+    }
+  }
+
+  if (job.stage === "image_to_video" || job.image_url) {
+    const match = await findRecentVideoTask(job.created_at, token);
+    if (match?.taskId) {
+      videoTaskId = match.taskId;
+      resolvedVideoUrl = match.videoUrl;
+
+      if (!resolvedVideoUrl) {
+        const poll = await resolveTaskMediaUrl(SEEDANCE_20.pollMethod, videoTaskId, token);
+        if (isSuccessStatus(poll.status) && poll.mediaUrl) {
+          resolvedVideoUrl = poll.mediaUrl;
+        }
+      }
+    }
+  }
+
+  if (resolvedVideoUrl) {
+    return { videoTaskId, videoUrl: resolvedVideoUrl };
+  }
+
+  return null;
+}
+
+async function tryResumeImageStage(job: NonNullable<Awaited<ReturnType<typeof getAnimeJob>>>, token: string) {
+  if (!job.image_task_id || job.image_url) {
+    return false;
+  }
+
+  const poll = await resolveTaskMediaUrl(GPT_IMAGE_20.pollMethod, job.image_task_id, token);
+  if (!isSuccessStatus(poll.status) || !poll.mediaUrl) {
+    return false;
+  }
+
+  await updateAnimeJob(job.id, {
+    status: "running",
+    stage: "image_to_video",
+    progress: 60,
+    image_url: poll.mediaUrl,
+    error_message: null,
+  });
+
+  resumeAnimeJobVideoStage(job.id);
+  return true;
+}
+
 export async function syncAnimeJobFromVidmor(jobId: string) {
   const job = await getAnimeJob(jobId);
   if (!job) {
@@ -114,45 +192,34 @@ export async function syncAnimeJobFromVidmor(jobId: string) {
     throw new Error("未配置 VIDMOR_TOKEN");
   }
 
-  let videoTaskId = job.video_task_id;
-  let resolvedVideoUrl: string | null = null;
-
-  if (videoTaskId) {
-    const poll = await pollGenerationStatus(SEEDANCE_20.pollMethod, videoTaskId, token);
-    if ((poll.status === "success" || poll.status === "completed") && poll.mediaUrl) {
-      resolvedVideoUrl = poll.mediaUrl;
-    }
-  } else if (job.stage === "image_to_video" || job.image_url) {
-    const match = await findRecentVideoTask(job.created_at, token);
-    if (match?.taskId) {
-      videoTaskId = match.taskId;
-      resolvedVideoUrl = match.videoUrl;
-
-      if (!resolvedVideoUrl) {
-        const poll = await pollGenerationStatus(SEEDANCE_20.pollMethod, videoTaskId, token);
-        if ((poll.status === "success" || poll.status === "completed") && poll.mediaUrl) {
-          resolvedVideoUrl = poll.mediaUrl;
-        }
-      }
-    }
-  }
-
-  if (resolvedVideoUrl) {
+  const completedVideo = await tryResolveCompletedVideo(job, token);
+  if (completedVideo?.videoUrl) {
     return updateAnimeJob(jobId, {
       status: "success",
       stage: "completed",
       progress: 100,
-      video_url: resolvedVideoUrl,
-      video_task_id: videoTaskId,
+      video_url: completedVideo.videoUrl,
+      video_task_id: completedVideo.videoTaskId,
+      error_message: null,
     });
   }
 
-  if (videoTaskId && videoTaskId !== job.video_task_id) {
+  if (await tryResumeImageStage(job, token)) {
+    return (await getAnimeJob(jobId)) ?? job;
+  }
+
+  if (job.image_url && !job.video_task_id && !job.video_url) {
+    resumeAnimeJobVideoStage(jobId);
+    return (await getAnimeJob(jobId)) ?? job;
+  }
+
+  if (completedVideo?.videoTaskId && completedVideo.videoTaskId !== job.video_task_id) {
     return updateAnimeJob(jobId, {
       status: "running",
       stage: "image_to_video",
       progress: 85,
-      video_task_id: videoTaskId,
+      video_task_id: completedVideo.videoTaskId,
+      error_message: null,
     });
   }
 
