@@ -1,5 +1,4 @@
 import { getAnimeJob, updateAnimeJob } from "@/lib/anime/jobs";
-import { resumeAnimeJobVideoStage } from "@/lib/anime/pipeline";
 import { findCompletedVideoBySourceImage, resolveTaskMediaUrl } from "@/lib/vidmor/client";
 import { GPT_IMAGE_20, resolveVidmorToken, SEEDANCE_20 } from "@/lib/vidmor/config";
 
@@ -72,28 +71,10 @@ async function tryResumeImageStage(job: NonNullable<Awaited<ReturnType<typeof ge
     error_message: null,
   });
 
-  resumeAnimeJobVideoStage(job.id);
   return true;
 }
 
-async function resetMismatchedVideo(job: NonNullable<Awaited<ReturnType<typeof getAnimeJob>>>) {
-  if (!job.image_url) {
-    return false;
-  }
-
-  await updateAnimeJob(job.id, {
-    status: "running",
-    stage: "image_to_video",
-    progress: 60,
-    video_url: null,
-    video_task_id: null,
-    error_message: "检测到成片与当前漫画图不匹配，正在重新提交图生视频…",
-  });
-
-  resumeAnimeJobVideoStage(job.id);
-  return true;
-}
-
+/** Read-only: pull Vidmor status into Tracker without submitting new generations. */
 export async function syncAnimeJobFromVidmor(jobId: string) {
   const job = await getAnimeJob(jobId);
   if (!job) {
@@ -134,23 +115,24 @@ export async function syncAnimeJobFromVidmor(jobId: string) {
       });
     }
 
-    if (await resetMismatchedVideo(job)) {
-      return (await getAnimeJob(jobId)) ?? job;
-    }
+    await updateAnimeJob(jobId, {
+      video_url: null,
+      error_message: "已清除不匹配的成片记录，正在等待 Vidmor 同步正确视频…",
+    });
+    return (await getAnimeJob(jobId)) ?? job;
   }
 
   if (await tryResumeImageStage(job, token)) {
     return (await getAnimeJob(jobId)) ?? job;
   }
 
-  if (job.image_url && !job.video_task_id && !job.video_url) {
-    resumeAnimeJobVideoStage(jobId);
-    return (await getAnimeJob(jobId)) ?? job;
-  }
-
   if (job.image_url && job.video_task_id) {
     await updateAnimeJob(jobId, {
       error_message: "Vidmor 视频仍在生成中，请稍后再同步。",
+    });
+  } else if (job.image_url && !job.video_url) {
+    await updateAnimeJob(jobId, {
+      error_message: "漫画图已就绪，等待提交图生视频。",
     });
   }
 

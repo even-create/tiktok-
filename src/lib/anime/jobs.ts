@@ -106,6 +106,29 @@ export async function updateAnimeJob(
   return data as AnimeJobRecord;
 }
 
+/** Atomically claim the one allowed video submission for a job (progress must be 60). */
+export async function claimAnimeVideoSubmit(jobId: string) {
+  const { data, error } = await supabase
+    .from("anime_jobs")
+    .update({
+      progress: 62,
+      stage: "image_to_video",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", jobId)
+    .is("video_task_id", null)
+    .eq("progress", 60)
+    .eq("status", "running")
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data as AnimeJobRecord | null) ?? null;
+}
+
 export async function getAnimeJob(id: string) {
   const { data, error } = await supabase.from("anime_jobs").select("*").eq("id", id).maybeSingle();
   if (error) {

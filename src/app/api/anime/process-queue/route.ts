@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { listActiveAnimeJobs, listRecentAnimeJobs, resolveMaxConcurrentAnimeJobs } from "@/lib/anime/jobs";
+import { getAnimeJob, listActiveAnimeJobs, listRecentAnimeJobs, resolveMaxConcurrentAnimeJobs } from "@/lib/anime/jobs";
+import { tryStartVideoStageOnce } from "@/lib/anime/pipeline";
 import { processAnimeJobQueue } from "@/lib/anime/queue";
 import { syncAnimeJobFromVidmor } from "@/lib/anime/sync";
 import { getVidmorConfigStatus, isVidmorConfigured } from "@/lib/vidmor/config";
@@ -18,9 +19,16 @@ export async function POST() {
     let synced = 0;
 
     for (const job of activeJobs) {
-      if (job.status === "running") {
-        await syncAnimeJobFromVidmor(job.id);
-        synced += 1;
+      if (job.status !== "running") {
+        continue;
+      }
+
+      await syncAnimeJobFromVidmor(job.id);
+      synced += 1;
+
+      const refreshed = await getAnimeJob(job.id);
+      if (refreshed?.status === "running" && refreshed.progress === 60 && refreshed.image_url) {
+        await tryStartVideoStageOnce(refreshed.id);
       }
     }
 

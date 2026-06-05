@@ -7,11 +7,12 @@ import {
   DEFAULT_IMAGE_PROMPT_TEMPLATE,
   DEFAULT_VIDEO_PROMPT_TEMPLATE,
 } from "@/lib/anime/prompts";
-import { getAnimeJob, updateAnimeJob } from "@/lib/anime/jobs";
+import { claimAnimeVideoSubmit, getAnimeJob, updateAnimeJob } from "@/lib/anime/jobs";
 import { processAnimeJobQueue } from "@/lib/anime/queue";
 import {
   buildImageToImageRequest,
   buildImageToVideoRequest,
+  findCompletedVideoBySourceImage,
   pollUntilComplete,
   queryCoinCost,
   submitGeneration,
@@ -80,6 +81,19 @@ export async function runAnimePipeline(jobId: string) {
     image_url: generatedImageUrl,
   });
 
+  const existingVideo = await findCompletedVideoBySourceImage(generatedImageUrl, job.created_at, token);
+  if (existingVideo?.videoUrl) {
+    await updateAnimeJob(jobId, {
+      status: "success",
+      stage: "completed",
+      progress: 100,
+      video_url: existingVideo.videoUrl,
+      video_task_id: existingVideo.taskId,
+      error_message: null,
+    });
+    return;
+  }
+
   const videoPrompt = buildImageToVideoPrompt(job.action, videoTemplate);
   const videoCost = await queryCoinCost(
     buildVideoCostPayload(videoPrompt, { duration: videoDuration, resolution: videoResolution }),
@@ -139,6 +153,19 @@ export async function runVideoStageOnly(jobId: string) {
     throw new Error("未配置 VIDMOR_TOKEN");
   }
 
+  const existingVideo = await findCompletedVideoBySourceImage(job.image_url, job.created_at, token);
+  if (existingVideo?.videoUrl) {
+    await updateAnimeJob(jobId, {
+      status: "success",
+      stage: "completed",
+      progress: 100,
+      video_url: existingVideo.videoUrl,
+      video_task_id: existingVideo.taskId,
+      error_message: null,
+    });
+    return;
+  }
+
   const videoTemplate = job.video_prompt_template || DEFAULT_VIDEO_PROMPT_TEMPLATE;
   const videoDuration = job.video_duration || SEEDANCE_20.duration;
   const videoResolution = job.video_resolution || SEEDANCE_20.resolution;
@@ -146,6 +173,10 @@ export async function runVideoStageOnly(jobId: string) {
 
   let videoTaskId = job.video_task_id;
   if (!videoTaskId) {
+    if (job.progress !== 62) {
+      return;
+    }
+
     const videoCost = await queryCoinCost(
       buildVideoCostPayload(videoPrompt, { duration: videoDuration, resolution: videoResolution }),
       token,
@@ -214,10 +245,29 @@ export async function runVideoStageSafe(jobId: string) {
   }
 }
 
-export function resumeAnimeJobVideoStage(jobId: string) {
+export async function tryStartVideoStageOnce(jobId: string) {
+  const job = await getAnimeJob(jobId);
+  if (
+    !job ||
+    job.status !== "running" ||
+    !job.image_url ||
+    job.video_task_id ||
+    job.video_url ||
+    job.progress !== 60
+  ) {
+    return false;
+  }
+
+  const claimed = await claimAnimeVideoSubmit(jobId);
+  if (!claimed) {
+    return false;
+  }
+
   after(async () => {
     await runVideoStageSafe(jobId);
   });
+
+  return true;
 }
 
 export async function runAnimePipelineSafe(jobId: string) {
