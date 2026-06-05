@@ -434,6 +434,13 @@ export async function pollGenerationStatus(
     return { status: "pending", mediaUrl: null, raw: {} };
   }
 
+  // Vidmor's domainId filter is unreliable: when it misses it returns the most
+  // recent history item instead of an empty list. Verify identity so we never
+  // latch onto an unrelated (e.g. previous prompt) generation.
+  if (!matchListItemByTaskId(item, taskId)) {
+    return { status: "pending", mediaUrl: null, raw: {} };
+  }
+
   const resolved = resolveListItemStatus(item);
   return {
     status: resolved.status,
