@@ -1,0 +1,15 @@
+-- Phase 1 user system: team join requests.
+-- Applications are stored here with status PENDING for the administrator to review later.
+-- This does NOT create member accounts automatically.
+
+CREATE TABLE IF NOT EXISTS member_applications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  email text NOT NULL UNIQUE,
+  password_hash text NOT NULL,
+  status text NOT NULL DEFAULT 'PENDING',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_member_applications_status ON member_applications (status);
