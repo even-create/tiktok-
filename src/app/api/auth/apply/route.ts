@@ -36,29 +36,41 @@ export async function POST(request: Request) {
 
   const passwordHash = await hashPassword(password);
 
-  try {
-    const { error } = await supabase.from("member_applications").upsert(
-      {
-        name,
-        email,
-        password_hash: passwordHash,
-        status: "PENDING",
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "email" },
-    );
+  const { error } = await supabase.from("member_applications").upsert(
+    {
+      name,
+      email,
+      password_hash: passwordHash,
+      status: "PENDING",
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "email" },
+  );
 
-    if (error) {
-      throw new Error(error.message);
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "提交失败";
-    if (/relation .* does not exist|member_applications/i.test(message)) {
+  if (error) {
+    const message = error.message || "提交失败";
+    const code = (error as { code?: string }).code;
+
+    // Table genuinely missing → migration not run.
+    if (code === "42P01" || /relation .* does not exist/i.test(message)) {
       return NextResponse.json(
-        { error: "申请功能尚未初始化，请联系管理员在数据库执行迁移后重试。" },
+        { error: "申请功能尚未初始化：member_applications 表不存在，请在 Supabase 执行迁移后重试。" },
         { status: 503 },
       );
     }
+
+    // Table exists but PostgREST has a stale schema cache (common right after creating a table).
+    if (/schema cache/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "数据库 schema 缓存未刷新，请在 Supabase SQL Editor 执行：NOTIFY pgrst, 'reload schema';（或稍等一分钟）后重试。",
+        },
+        { status: 503 },
+      );
+    }
+
+    console.error("[apply] member_applications upsert failed:", code, message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 

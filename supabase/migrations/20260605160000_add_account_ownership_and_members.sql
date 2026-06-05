@@ -30,3 +30,8 @@ CREATE TABLE IF NOT EXISTS app_members (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Ensure PostgREST roles can use the table and refresh its schema cache.
+GRANT ALL ON TABLE app_members TO anon, authenticated, service_role;
+
+NOTIFY pgrst, 'reload schema';

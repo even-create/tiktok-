@@ -13,3 +13,9 @@ CREATE TABLE IF NOT EXISTS member_applications (
 );
 
 CREATE INDEX IF NOT EXISTS idx_member_applications_status ON member_applications (status);
+
+-- Ensure PostgREST roles can use the table (Supabase exposes the public schema via these roles).
+GRANT ALL ON TABLE member_applications TO anon, authenticated, service_role;
+
+-- Force PostgREST to reload its schema cache so the new table is visible immediately.
+NOTIFY pgrst, 'reload schema';
