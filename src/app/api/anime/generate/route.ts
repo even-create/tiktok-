@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAnimeJob, listRecentAnimeJobs, resolveMaxConcurrentAnimeJobs } from "@/lib/anime/jobs";
 import { processAnimeJobQueue } from "@/lib/anime/queue";
+import { queryVidmorWalletBalance } from "@/lib/vidmor/client";
 import { getVidmorConfigStatus, isVidmorConfigured } from "@/lib/vidmor/config";
 
 export const maxDuration = 300;
@@ -9,11 +10,24 @@ export async function GET() {
   try {
     const jobs = await listRecentAnimeJobs(50);
     const config = getVidmorConfigStatus();
+    let wallet: Awaited<ReturnType<typeof queryVidmorWalletBalance>> | null = null;
+    let walletError: string | null = null;
+
+    if (isVidmorConfigured()) {
+      try {
+        wallet = await queryVidmorWalletBalance();
+      } catch (error) {
+        walletError = error instanceof Error ? error.message : "读取 Vidmor 积分失败";
+      }
+    }
+
     return NextResponse.json({
       jobs,
       configured: config.configured,
       config,
       maxConcurrent: resolveMaxConcurrentAnimeJobs(),
+      wallet,
+      walletError,
     });
   } catch (error) {
     return NextResponse.json(

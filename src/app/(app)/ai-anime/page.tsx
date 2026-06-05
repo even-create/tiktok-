@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
   Clapperboard,
+  Coins,
   LoaderCircle,
   Play,
   RefreshCw,
@@ -89,6 +90,8 @@ export default function AiAnimePage() {
   const [configured, setConfigured] = useState(true);
   const [missingEnvVars, setMissingEnvVars] = useState<string[]>([]);
   const [maxConcurrent, setMaxConcurrent] = useState(5);
+  const [vidmorCoin, setVidmorCoin] = useState<number | null>(null);
+  const [vidmorCoinError, setVidmorCoinError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -126,6 +129,8 @@ export default function AiAnimePage() {
       configured?: boolean;
       config?: { missing?: string[] };
       maxConcurrent?: number;
+      wallet?: { total?: number; permanent?: number; expiring?: number } | null;
+      walletError?: string | null;
       error?: string;
     };
 
@@ -137,6 +142,8 @@ export default function AiAnimePage() {
     setConfigured(payload.configured ?? false);
     setMissingEnvVars(payload.config?.missing ?? []);
     setMaxConcurrent(payload.maxConcurrent ?? 5);
+    setVidmorCoin(typeof payload.wallet?.total === "number" ? payload.wallet.total : null);
+    setVidmorCoinError(payload.walletError ?? null);
 
     setSelectedJob((current) => {
       if (!current) {
@@ -284,8 +291,8 @@ export default function AiAnimePage() {
   return (
     <div className="space-y-5">
       <header className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
               <Clapperboard className="size-4" />
               AI Anime Studio
@@ -295,14 +302,30 @@ export default function AiAnimePage() {
               支持多任务并行（最多 {maxConcurrent} 个同时生成，其余自动排队）。切换页面不会中断后台任务。
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => void refreshJobs()}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-4 text-sm text-[var(--space-cadet)] transition hover:bg-[var(--eggshell)]/70"
-          >
-            <RefreshCw className="size-4" />
-            刷新任务
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:shrink-0">
+            {configured ? (
+              <div
+                className="rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-4 py-2.5"
+                title={vidmorCoinError ?? "当前 Vidmor 账号可用积分"}
+              >
+                <div className="flex items-center gap-2 text-[11px] text-[var(--cadet-gray)]">
+                  <Coins className="size-3.5 text-[var(--carolina-blue)]" />
+                  Vidmor 积分
+                </div>
+                <p className="mt-0.5 text-xl font-semibold tabular-nums text-[var(--space-cadet)]">
+                  {vidmorCoinError ? "—" : vidmorCoin !== null ? vidmorCoin.toLocaleString("zh-CN") : "…"}
+                </p>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void refreshJobs()}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-4 text-sm text-[var(--space-cadet)] transition hover:bg-[var(--eggshell)]/70"
+            >
+              <RefreshCw className="size-4" />
+              刷新任务
+            </button>
+          </div>
         </div>
       </header>
 

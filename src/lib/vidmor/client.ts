@@ -228,6 +228,34 @@ export async function queryCoinCost(payload: Record<string, unknown>, token?: st
   });
 }
 
+export type VidmorWalletBalance = {
+  total: number;
+  permanent: number;
+  expiring: number;
+};
+
+export async function queryVidmorWalletBalance(token?: string | null): Promise<VidmorWalletBalance> {
+  const result = await vidmorRequest<{
+    coin?: number;
+    fixedCoin?: number;
+    expireCoin?: number;
+  }>({
+    path: "/api/wallet/detail",
+    data: {},
+    token,
+  });
+
+  if (result.body.code !== 0) {
+    throw new Error(parseVidmorErrorMessage(result.status, result.body, ""));
+  }
+
+  return {
+    total: result.body.data?.coin ?? 0,
+    permanent: result.body.data?.fixedCoin ?? 0,
+    expiring: result.body.data?.expireCoin ?? 0,
+  };
+}
+
 export async function submitGeneration(payload: Record<string, unknown>, token?: string | null) {
   return withVidmorRetry(async () => {
     const result = await vidmorRequest<{
