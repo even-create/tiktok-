@@ -1,14 +1,4 @@
-export const AUTH_COOKIE = "tracker_auth";
-
+/** Admin access code (通行码) used for the administrator login entry. */
 export function getTrackerPassword() {
   return process.env.TRACKER_PASSWORD ?? "zhaoeven";
-}
-
-export function getSessionToken() {
-  return process.env.TRACKER_SESSION_TOKEN ?? "tiktok-tracker-session-zhaoeven";
-}
-
-export function isValidAuthToken(token: string | undefined) {
-  if (!token) return false;
-  return token === getSessionToken();
 }

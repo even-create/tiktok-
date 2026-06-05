@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import { fetchSnapshotsForDates, recordAllAccountSnapshots } from "@/lib/account-snapshots";
 import { deleteAccountByHandle } from "@/lib/tiktok-data";
 import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
+import { getCurrentUser } from "@/lib/current-user";
 import { supabase } from "@/lib/supabase";
 
 export async function GET() {
-  const { data, error } = await supabase
+  const user = await getCurrentUser();
+
+  let query = supabase
     .from("accounts")
     .select("*, videos(*)")
     .order("created_at", { ascending: false })
@@ -14,6 +17,13 @@ export async function GET() {
       referencedTable: "videos",
       nullsFirst: false,
     });
+
+  // Admin sees every account; a member only sees the accounts they own.
+  if (user?.role === "MEMBER") {
+    query = query.eq("owner_id", user.id);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

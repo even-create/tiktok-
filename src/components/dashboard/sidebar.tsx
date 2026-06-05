@@ -15,6 +15,8 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import { UserCard } from "@/components/dashboard/user-card";
+import type { SessionUser } from "@/lib/session";
 
 type NavItem = {
   label: string;
@@ -39,7 +41,7 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar() {
+export function Sidebar({ user }: { user: SessionUser | null }) {
   const pathname = usePathname() ?? "/";
 
   return (
@@ -89,16 +91,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <section className="mt-6 hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-br from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)] shadow-lg lg:block">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Sparkles className="size-4 text-[var(--carolina-blue)]" />
-          Quick tips
-        </div>
-        <p className="mt-3 text-xs leading-5 text-[color-mix(in_srgb,var(--eggshell)_75%,transparent)]">
-          Sync is now centralized in Sync Center. Each run fetches at most 20 recent videos per account and avoids
-          re-scraping within the cache window.
-        </p>
-      </section>
+      <UserCard user={user} />
     </aside>
   );
 }

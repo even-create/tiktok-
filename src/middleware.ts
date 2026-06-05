@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { AUTH_COOKIE, isValidAuthToken } from "@/lib/auth";
+import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (
@@ -17,9 +17,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get(AUTH_COOKIE)?.value;
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  const user = await verifySession(token);
 
-  if (isValidAuthToken(token)) {
+  if (user) {
     return NextResponse.next();
   }
 
