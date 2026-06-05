@@ -256,39 +256,42 @@ export async function queryVidmorWalletBalance(token?: string | null): Promise<V
   };
 }
 
+// IMPORTANT: submitGeneration must NEVER be retried. Each POST creates a real
+// generation on Vidmor, so retrying a request whose response was slow/500/timeout
+// (but which Vidmor actually accepted) silently creates duplicate tasks and burns
+// credits. A single failed attempt creates at most one task; the read-only sync
+// path (matched by the unique source image) recovers it afterwards.
 export async function submitGeneration(payload: Record<string, unknown>, token?: string | null) {
-  return withVidmorRetry(async () => {
-    const result = await vidmorRequest<{
-      taskId?: string;
-      id?: string;
-      domainId?: string;
-      msg?: string;
-      code?: number;
-    }>({
-      path: "/generate/api/interface/request",
-      data: payload,
-      token,
-    });
-
-    if (result.body.code !== 0) {
-      throw new Error(
-        parseVidmorErrorMessage(result.status, result.body, "") ||
-          result.body.data?.msg ||
-          "生成任务提交失败",
-      );
-    }
-
-    const taskId =
-      result.body.data?.taskId ||
-      result.body.data?.id ||
-      result.body.data?.domainId;
-
-    if (!taskId) {
-      throw new Error("生成任务未返回 taskId");
-    }
-
-    return String(taskId);
+  const result = await vidmorRequest<{
+    taskId?: string;
+    id?: string;
+    domainId?: string;
+    msg?: string;
+    code?: number;
+  }>({
+    path: "/generate/api/interface/request",
+    data: payload,
+    token,
   });
+
+  if (result.body.code !== 0) {
+    throw new Error(
+      parseVidmorErrorMessage(result.status, result.body, "") ||
+        result.body.data?.msg ||
+        "生成任务提交失败",
+    );
+  }
+
+  const taskId =
+    result.body.data?.taskId ||
+    result.body.data?.id ||
+    result.body.data?.domainId;
+
+  if (!taskId) {
+    throw new Error("生成任务未返回 taskId");
+  }
+
+  return String(taskId);
 }
 
 type VidmorGenerateListItem = {
