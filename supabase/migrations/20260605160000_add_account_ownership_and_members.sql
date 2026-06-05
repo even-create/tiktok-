@@ -34,4 +34,7 @@ CREATE TABLE IF NOT EXISTS app_members (
 -- Ensure PostgREST roles can use the table and refresh its schema cache.
 GRANT ALL ON TABLE app_members TO anon, authenticated, service_role;
 
+-- This app uses the anon key as a trusted backend (no per-user RLS), like the accounts table.
+ALTER TABLE app_members DISABLE ROW LEVEL SECURITY;
+
 NOTIFY pgrst, 'reload schema';
