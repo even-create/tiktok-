@@ -45,7 +45,7 @@ export function Sidebar({ user }: { user: SessionUser | null }) {
   const pathname = usePathname() ?? "/";
 
   return (
-    <aside className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)]/95 px-4 py-4 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:border-b-0 lg:border-r lg:px-5">
+    <aside className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)]/95 px-4 py-4 backdrop-blur-xl lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:px-5">
       <div className="flex items-center justify-between lg:justify-start">
         <div className="flex items-center gap-3">
           <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[var(--space-cadet)] to-[var(--jet)] text-[var(--eggshell)] shadow-md">

@@ -46,7 +46,7 @@ export function UserCard({ user }: { user: SessionUser | null }) {
   }
 
   return (
-    <div ref={ref} className="relative mt-6 hidden lg:block">
+    <div ref={ref} className="relative mt-auto hidden pt-6 lg:block">
       {open ? (
         <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-20 overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-[var(--card)] shadow-xl">
           <button
