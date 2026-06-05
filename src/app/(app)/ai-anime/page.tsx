@@ -514,6 +514,7 @@ export default function AiAnimePage() {
                         aria-label={`更换${resolveCharacterName(character.id, characterNames)}的参考图`}
                         disabled={(isUploading && uploadingCharacterId === character.id) || !configured}
                         onClick={() => {
+                          uploadTargetRef.current = character.id;
                           setCharacterId(character.id);
                           setEditingCharacterId(null);
                           fileInputRef.current?.click();
@@ -553,9 +554,11 @@ export default function AiAnimePage() {
           className="hidden"
           onChange={(event) => {
             const file = event.target.files?.[0];
-            if (file && characterId) {
-              void handleUploadRef(file, characterId);
+            const targetId = uploadTargetRef.current ?? characterId;
+            if (file && targetId) {
+              void handleUploadRef(file, targetId);
             }
+            uploadTargetRef.current = null;
             event.target.value = "";
           }}
         />

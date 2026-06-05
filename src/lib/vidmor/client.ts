@@ -471,7 +471,22 @@ export async function resolveTaskMediaUrl(
   return resolveListItemStatus(item);
 }
 
-export async function findCompletedVideoBySourceImage(
+type VideoTaskBySourceImage = {
+  taskId: string;
+  videoUrl: string | null;
+  status: string;
+  createdAt: number;
+};
+
+function isFailedVidmorStatus(status: string) {
+  return status === "fail" || status === "failed" || status === "error";
+}
+
+function isCompletedVidmorStatus(status: string) {
+  return status === "success" || status === "completed";
+}
+
+async function listVideoTasksBySourceImage(
   sourceImageUrl: string,
   jobCreatedAt: string,
   token?: string | null,
@@ -483,12 +498,12 @@ export async function findCompletedVideoBySourceImage(
   });
 
   if (listResult.body.code !== 0) {
-    return null;
+    return [];
   }
 
   const jobTime = Date.parse(jobCreatedAt);
   const items = listResult.body.data?.data ?? [];
-  let best: { taskId: string; videoUrl: string; createdAt: number } | null = null;
+  const matches: VideoTaskBySourceImage[] = [];
 
   for (const item of items) {
     if (!item.platRequest?.includes("imageToVideo")) {
@@ -500,10 +515,7 @@ export async function findCompletedVideoBySourceImage(
     }
 
     const resolved = resolveListItemStatus(item);
-    if (
-      (resolved.status !== "success" && resolved.status !== "completed") ||
-      !resolved.mediaUrl
-    ) {
+    if (isFailedVidmorStatus(resolved.status)) {
       continue;
     }
 
@@ -512,16 +524,52 @@ export async function findCompletedVideoBySourceImage(
       continue;
     }
 
-    if (!best || createdAt > best.createdAt) {
-      best = {
-        taskId: item.domainId ?? String(item.id ?? ""),
-        videoUrl: resolved.mediaUrl,
-        createdAt,
-      };
-    }
+    matches.push({
+      taskId: item.domainId ?? String(item.id ?? ""),
+      videoUrl: resolved.mediaUrl,
+      status: resolved.status,
+      createdAt,
+    });
   }
 
-  return best;
+  return matches;
+}
+
+/** Find the best Vidmor video task for a comic image (completed first, else newest in-flight). */
+export async function findVideoTaskBySourceImage(
+  sourceImageUrl: string,
+  jobCreatedAt: string,
+  token?: string | null,
+) {
+  const matches = await listVideoTasksBySourceImage(sourceImageUrl, jobCreatedAt, token);
+  if (matches.length === 0) {
+    return null;
+  }
+
+  const completed = matches
+    .filter((entry) => isCompletedVidmorStatus(entry.status) && entry.videoUrl)
+    .sort((a, b) => b.createdAt - a.createdAt)[0];
+  if (completed) {
+    return completed;
+  }
+
+  return matches.sort((a, b) => b.createdAt - a.createdAt)[0] ?? null;
+}
+
+export async function findCompletedVideoBySourceImage(
+  sourceImageUrl: string,
+  jobCreatedAt: string,
+  token?: string | null,
+) {
+  const match = await findVideoTaskBySourceImage(sourceImageUrl, jobCreatedAt, token);
+  if (!match || !isCompletedVidmorStatus(match.status) || !match.videoUrl) {
+    return null;
+  }
+
+  return {
+    taskId: match.taskId,
+    videoUrl: match.videoUrl,
+  };
 }
 
 export async function pollUntilComplete(

@@ -13,6 +13,7 @@ import {
   buildImageToImageRequest,
   buildImageToVideoRequest,
   findCompletedVideoBySourceImage,
+  findVideoTaskBySourceImage,
   pollUntilComplete,
   queryCoinCost,
   submitGeneration,
@@ -37,9 +38,6 @@ export async function runAnimePipeline(jobId: string) {
   }
 
   const imageTemplate = job.image_prompt_template || DEFAULT_IMAGE_PROMPT_TEMPLATE;
-  const videoTemplate = job.video_prompt_template || DEFAULT_VIDEO_PROMPT_TEMPLATE;
-  const videoDuration = job.video_duration || SEEDANCE_20.duration;
-  const videoResolution = job.video_resolution || SEEDANCE_20.resolution;
 
   await updateAnimeJob(jobId, { status: "running", stage: "uploading", progress: 5 });
 
@@ -93,45 +91,6 @@ export async function runAnimePipeline(jobId: string) {
     });
     return;
   }
-
-  const videoPrompt = buildImageToVideoPrompt(job.action, videoTemplate);
-  const videoCost = await queryCoinCost(
-    buildVideoCostPayload(videoPrompt, { duration: videoDuration, resolution: videoResolution }),
-    token,
-  );
-  const videoTaskId = await submitGeneration(
-    buildImageToVideoRequest({
-      prompt: videoPrompt,
-      imageUrl: generatedImageUrl,
-      costCoin: videoCost,
-      duration: videoDuration,
-      resolution: videoResolution,
-    }),
-    token,
-  );
-
-  await updateAnimeJob(jobId, {
-    stage: "image_to_video",
-    progress: 70,
-    video_task_id: videoTaskId,
-  });
-
-  const generatedVideoUrl = await pollUntilComplete(SEEDANCE_20.pollMethod, videoTaskId, {
-    token,
-    timeoutMs: 280_000,
-    onTick: async (status) => {
-      if (status === "processing" || status === "pending" || status === "running") {
-        await updateAnimeJob(jobId, { progress: 85 });
-      }
-    },
-  });
-
-  await updateAnimeJob(jobId, {
-    status: "success",
-    stage: "completed",
-    progress: 100,
-    video_url: generatedVideoUrl,
-  });
 }
 
 export async function runVideoStageOnly(jobId: string) {
@@ -177,6 +136,17 @@ export async function runVideoStageOnly(jobId: string) {
       return;
     }
 
+    const inFlightVideo = await findVideoTaskBySourceImage(job.image_url, job.created_at, token);
+    if (inFlightVideo?.taskId) {
+      videoTaskId = inFlightVideo.taskId;
+      await updateAnimeJob(jobId, {
+        status: "running",
+        stage: "image_to_video",
+        progress: 70,
+        video_task_id: videoTaskId,
+        error_message: null,
+      });
+    } else {
     const videoCost = await queryCoinCost(
       buildVideoCostPayload(videoPrompt, { duration: videoDuration, resolution: videoResolution }),
       token,
@@ -199,6 +169,11 @@ export async function runVideoStageOnly(jobId: string) {
       video_task_id: videoTaskId,
       error_message: null,
     });
+    }
+  }
+
+  if (!videoTaskId) {
+    return;
   }
 
   const generatedVideoUrl = await pollUntilComplete(SEEDANCE_20.pollMethod, videoTaskId, {
@@ -289,6 +264,16 @@ export async function runAnimePipelineSafe(jobId: string) {
       error_message: message,
     });
   } finally {
+    const current = await getAnimeJob(jobId);
+    if (
+      current?.status === "running" &&
+      current.progress === 60 &&
+      current.image_url &&
+      !current.video_task_id &&
+      !current.video_url
+    ) {
+      await tryStartVideoStageOnce(jobId);
+    }
     await processAnimeJobQueue();
   }
 }
