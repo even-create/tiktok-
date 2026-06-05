@@ -440,136 +440,143 @@ export default function AiAnimePage() {
         </section>
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
-        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-[var(--space-cadet)]">选择角色</h2>
-            <span className="text-xs text-[var(--cadet-gray)]">{activeCount} 个活跃任务</span>
+      <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--space-cadet)]">创建成片</h2>
+            <p className="mt-1 text-sm text-[var(--cadet-gray)]">选择角色、填写动作，一键提交生成任务</p>
+          </div>
+          <span className="rounded-full bg-[var(--eggshell)]/70 px-3 py-1 text-xs text-[var(--cadet-gray)]">
+            {activeCount} 个活跃任务
+          </span>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {ANIME_CHARACTERS.map((character) => {
+            const active = character.id === characterId;
+            const preview = customRefUrls[character.id] || character.refImagePath;
+            const hasCustom = Boolean(customRefUrls[character.id]);
+
+            return (
+              <button
+                key={character.id}
+                type="button"
+                onClick={() => setCharacterId(character.id)}
+                className={`rounded-xl border p-2 text-left transition ${
+                  active
+                    ? "border-[var(--carolina-blue)] bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)]"
+                    : "border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] hover:bg-[var(--eggshell)]/60"
+                }`}
+              >
+                <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-[var(--eggshell)]">
+                  {preview.startsWith("http") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={preview} alt={character.name} className="h-full w-full object-cover object-top" />
+                  ) : (
+                    <Image src={preview} alt={character.name} fill className="object-cover object-top" unoptimized />
+                  )}
+                  {hasCustom ? (
+                    <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--space-cadet)] px-1.5 py-0.5 text-[10px] text-white">
+                      已上传
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 truncate text-sm font-medium text-[var(--space-cadet)]">
+                  {resolveCharacterName(character.id, characterNames)}
+                </p>
+                <p className="truncate text-[11px] text-[var(--cadet-gray)]">{character.accountLabel}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-5 grid gap-5 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] pt-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_220px] lg:items-end">
+          <div className="space-y-4">
+            <label className="block">
+              <span className="text-sm font-medium text-[var(--space-cadet)]">角色名称</span>
+              <input
+                value={characterNames[characterId] ?? selectedCharacter?.name ?? ""}
+                onChange={(event) => updateCharacterName(characterId, event.target.value)}
+                className="mt-2 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-4 py-2.5 text-sm outline-none ring-[var(--carolina-blue)] focus:ring-2"
+                placeholder="例如：香蕉人"
+              />
+            </label>
+
+            <div className="rounded-xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] bg-[var(--eggshell)]/30 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-[var(--space-cadet)]">
+                    上传 {selectedCharacter?.accountLabel} 参考图
+                  </p>
+                  <p className="mt-0.5 text-xs text-[var(--cadet-gray)]">JPG / PNG / WEBP · 最大 10MB</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isUploading || !configured}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-xs text-[var(--space-cadet)] transition hover:bg-white disabled:opacity-60"
+                >
+                  {isUploading ? <LoaderCircle className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+                  选择照片
+                </button>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void handleUploadRef(file);
+                  event.target.value = "";
+                }}
+              />
+            </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {ANIME_CHARACTERS.map((character) => {
-              const active = character.id === characterId;
-              const preview = customRefUrls[character.id] || character.refImagePath;
-              const hasCustom = Boolean(customRefUrls[character.id]);
+          <div className="space-y-3">
+            <label className="block">
+              <span className="text-sm font-medium text-[var(--space-cadet)]">漫画动作</span>
+              <input
+                value={action}
+                onChange={(event) => setAction(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-4 py-2.5 text-sm outline-none ring-[var(--carolina-blue)] focus:ring-2"
+                placeholder="例如：脱下手套"
+              />
+            </label>
 
-              return (
+            <div className="flex flex-wrap gap-2">
+              {EXAMPLE_ACTIONS.map((example) => (
                 <button
-                  key={character.id}
+                  key={example}
                   type="button"
-                  onClick={() => setCharacterId(character.id)}
-                  className={`rounded-xl border p-2 text-left transition ${
-                    active
-                      ? "border-[var(--carolina-blue)] bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)]"
-                      : "border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] hover:bg-[var(--eggshell)]/60"
+                  onClick={() => setAction(example)}
+                  className={`rounded-full border px-3 py-1 text-xs transition ${
+                    action === example
+                      ? "border-[var(--carolina-blue)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] text-[var(--space-cadet)]"
+                      : "border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] text-[var(--cadet-gray)] hover:bg-[var(--eggshell)]/70"
                   }`}
                 >
-                  <div className="relative aspect-video overflow-hidden rounded-lg bg-[var(--eggshell)]">
-                    {preview.startsWith("http") ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={preview} alt={character.name} className="h-full w-full object-cover object-top" />
-                    ) : (
-                      <Image src={preview} alt={character.name} fill className="object-cover object-top" unoptimized />
-                    )}
-                    {hasCustom ? (
-                      <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--space-cadet)] px-1.5 py-0.5 text-[10px] text-white">
-                        已上传
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-2 truncate text-sm font-medium text-[var(--space-cadet)]">
-                    {resolveCharacterName(character.id, characterNames)}
-                  </p>
-                  <p className="truncate text-[11px] text-[var(--cadet-gray)]">{character.accountLabel}</p>
+                  {example}
                 </button>
-              );
-            })}
-          </div>
-
-          <label className="mt-4 block">
-            <span className="text-sm font-medium text-[var(--space-cadet)]">角色名称</span>
-            <input
-              value={characterNames[characterId] ?? selectedCharacter?.name ?? ""}
-              onChange={(event) => updateCharacterName(characterId, event.target.value)}
-              className="mt-2 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-4 py-2.5 text-sm outline-none ring-[var(--carolina-blue)] focus:ring-2"
-              placeholder="例如：紫发西装"
-            />
-            <p className="mt-1 text-xs text-[var(--cadet-gray)]">
-              修改后会在任务列表与下载文件名中显示，保存在本浏览器。
-            </p>
-          </label>
-
-          <div className="mt-4 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] bg-[var(--eggshell)]/30 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-[var(--space-cadet)]">
-                  上传 {selectedCharacter?.accountLabel} 参考图
-                </p>
-                <p className="mt-1 text-xs text-[var(--cadet-gray)]">JPG / PNG / WEBP · 最大 10MB</p>
-              </div>
-              <button
-                type="button"
-                disabled={isUploading || !configured}
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-3 text-xs text-[var(--space-cadet)] transition hover:bg-white disabled:opacity-60"
-              >
-                {isUploading ? <LoaderCircle className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
-                选择照片
-              </button>
+              ))}
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void handleUploadRef(file);
-                event.target.value = "";
-              }}
-            />
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-[var(--space-cadet)]">动作与生成</h2>
-
-          <label className="mt-4 block">
-            <span className="text-sm font-medium text-[var(--space-cadet)]">漫画动作</span>
-            <input
-              value={action}
-              onChange={(event) => setAction(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 px-4 py-3 text-sm outline-none ring-[var(--carolina-blue)] focus:ring-2"
-              placeholder="例如：脱下手套"
-            />
-          </label>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {EXAMPLE_ACTIONS.map((example) => (
-              <button
-                key={example}
-                type="button"
-                onClick={() => setAction(example)}
-                className="rounded-full border border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] px-3 py-1 text-xs text-[var(--cadet-gray)] hover:bg-[var(--eggshell)]/70"
-              >
-                {example}
-              </button>
-            ))}
           </div>
 
-          <button
-            type="button"
-            disabled={isSubmitting || !configured || !action.trim()}
-            onClick={() => void handleGenerate()}
-            className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--space-cadet)] to-[var(--jet)] text-sm font-medium text-[var(--eggshell)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? <LoaderCircle className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
-            提交生成任务
-          </button>
-
-          {errorMessage ? <p className="mt-3 text-sm text-red-600">{errorMessage}</p> : null}
-        </section>
-      </div>
+          <div className="flex flex-col gap-3 lg:min-h-[108px] lg:justify-end">
+            <button
+              type="button"
+              disabled={isSubmitting || !configured || !action.trim()}
+              onClick={() => void handleGenerate()}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--space-cadet)] to-[var(--jet)] text-sm font-medium text-[var(--eggshell)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? <LoaderCircle className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+              提交生成任务
+            </button>
+            {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
+          </div>
+        </div>
+      </section>
 
       {selectedJob ? (
         <section className="rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
