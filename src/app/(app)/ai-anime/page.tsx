@@ -26,7 +26,6 @@ import {
   buildImageToVideoPrompt,
   DEFAULT_IMAGE_PROMPT_TEMPLATE,
   DEFAULT_VIDEO_PROMPT_TEMPLATE,
-  EXAMPLE_ACTIONS,
   VIDEO_DURATION_OPTIONS,
   VIDEO_RESOLUTION_OPTIONS,
 } from "@/lib/anime/prompts";
@@ -545,22 +544,6 @@ export default function AiAnimePage() {
               />
             </label>
 
-            <div className="flex flex-wrap gap-2">
-              {EXAMPLE_ACTIONS.map((example) => (
-                <button
-                  key={example}
-                  type="button"
-                  onClick={() => setAction(example)}
-                  className={`rounded-full border px-3 py-1 text-xs transition ${
-                    action === example
-                      ? "border-[var(--carolina-blue)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] text-[var(--space-cadet)]"
-                      : "border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] text-[var(--cadet-gray)] hover:bg-[var(--eggshell)]/70"
-                  }`}
-                >
-                  {example}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="flex flex-col gap-3 lg:min-h-[108px] lg:justify-end">

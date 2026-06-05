@@ -70,4 +70,3 @@ export function buildVideoCostPayload(
   };
 }
 
-export const EXAMPLE_ACTIONS = ["戴手套", "脱下手套", "整理领带", "看向窗外", "端起咖啡杯"];
