@@ -1,15 +1,24 @@
 import { NextResponse } from "next/server";
 import { fetchSnapshotsForDates, groupSnapshotsByDate, recordAllAccountSnapshots } from "@/lib/account-snapshots";
+import { getCurrentUser } from "@/lib/current-user";
 import { buildGrowthOverview } from "@/lib/growth-overview";
 import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
 import { supabase } from "@/lib/supabase";
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
+    const user = await getCurrentUser();
+
+    let accountsQuery = supabase
       .from("accounts")
       .select("*, videos(id, views_count, likes_count, posted_at)")
       .order("created_at", { ascending: false });
+
+    if (user?.role === "MEMBER") {
+      accountsQuery = accountsQuery.eq("owner_id", user.id);
+    }
+
+    const { data, error } = await accountsQuery;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

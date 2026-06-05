@@ -13,6 +13,7 @@ import {
   Rss,
   Settings,
   Sparkles,
+  UsersRound,
   Users,
 } from "lucide-react";
 import { UserCard } from "@/components/dashboard/user-card";
@@ -22,6 +23,7 @@ type NavItem = {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  adminOnly?: boolean;
 };
 
 const navItems: NavItem[] = [
@@ -33,6 +35,7 @@ const navItems: NavItem[] = [
   { label: "AI Anime", href: "/ai-anime", icon: Clapperboard },
   { label: "Growth Feed", href: "/growth-feed", icon: Rss },
   { label: "Sync Center", href: "/sync-center", icon: CloudDownload },
+  { label: "Team Management", href: "/team-management", icon: UsersRound, adminOnly: true },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -43,6 +46,8 @@ function isActivePath(pathname: string, href: string) {
 
 export function Sidebar({ user }: { user: SessionUser | null }) {
   const pathname = usePathname() ?? "/";
+  const isUserAdmin = user?.role === "ADMIN";
+  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isUserAdmin);
 
   return (
     <aside className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)]/95 px-4 py-4 backdrop-blur-xl lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:px-5">
@@ -66,7 +71,7 @@ export function Sidebar({ user }: { user: SessionUser | null }) {
       </div>
 
       <nav className="mt-6 grid grid-cols-2 gap-2 lg:grid-cols-1">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const active = isActivePath(pathname, item.href);
 
           return (

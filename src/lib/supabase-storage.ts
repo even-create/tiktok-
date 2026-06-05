@@ -148,24 +148,43 @@ async function recalculateAccountTotals(accountId: string) {
   return { totalViews, engagementRate };
 }
 
-export async function saveTikTokProfile(profile: NormalizedTikTokProfile) {
-  const accountResult = await upsertWithMissingColumnRetry(
-    "accounts",
-    {
-      tiktok_user_id: profile.tiktokUserId,
-      handle: profile.handle,
-      display_name: profile.displayName,
-      profile_url: profile.profileUrl,
-      avatar_url: profile.avatarUrl,
-      followers_count: profile.followersCount,
-      likes_count: profile.likesCount,
-      video_count: profile.videoCount,
-      total_views: profile.totalViews,
-      engagement_rate: profile.engagementRate,
-      last_synced_at: new Date().toISOString(),
-    },
-    { onConflict: "handle" },
-  );
+export type AccountOwner = { id: string; name: string };
+
+export async function saveTikTokProfile(
+  profile: NormalizedTikTokProfile,
+  owner?: AccountOwner | null,
+) {
+  // Owner is only assigned when an account is first created. Re-syncs must never
+  // overwrite an existing account's owner.
+  const { data: existingAccount } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("handle", profile.handle)
+    .maybeSingle();
+  const isNewAccount = !existingAccount;
+
+  const accountRecord: Record<string, RecordValue> = {
+    tiktok_user_id: profile.tiktokUserId,
+    handle: profile.handle,
+    display_name: profile.displayName,
+    profile_url: profile.profileUrl,
+    avatar_url: profile.avatarUrl,
+    followers_count: profile.followersCount,
+    likes_count: profile.likesCount,
+    video_count: profile.videoCount,
+    total_views: profile.totalViews,
+    engagement_rate: profile.engagementRate,
+    last_synced_at: new Date().toISOString(),
+  };
+
+  if (isNewAccount && owner) {
+    accountRecord.owner_id = owner.id;
+    accountRecord.owner_name = owner.name;
+  }
+
+  const accountResult = await upsertWithMissingColumnRetry("accounts", accountRecord, {
+    onConflict: "handle",
+  });
 
   const account = accountResult.data;
 

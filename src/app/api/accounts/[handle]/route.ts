@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchSnapshotForAccount } from "@/lib/account-snapshots";
+import { getCurrentUser } from "@/lib/current-user";
 import { buildAccountGrowthMetrics } from "@/lib/growth-overview";
 import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
 import { supabase } from "@/lib/supabase";
@@ -27,6 +28,12 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   if (!data) {
+    return NextResponse.json({ error: "未找到该账号" }, { status: 404 });
+  }
+
+  // Members may only view accounts they own.
+  const user = await getCurrentUser();
+  if (user?.role === "MEMBER" && (data.owner_id ?? "admin") !== user.id) {
     return NextResponse.json({ error: "未找到该账号" }, { status: 404 });
   }
 

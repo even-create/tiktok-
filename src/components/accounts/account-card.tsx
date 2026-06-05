@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Clock3, ExternalLink, Eye, Heart, ThumbsUp, Trash2, TrendingUp, Users } from "lucide-react";
+import { Clock3, ExternalLink, Eye, Heart, ThumbsUp, Trash2, TrendingUp, UserRound, Users } from "lucide-react";
 import { AccountAvatar } from "@/components/account-avatar";
 import { MiniSparkline } from "@/components/dashboard/mini-sparkline";
 import type { AccountListItem } from "@/lib/accounts";
@@ -31,6 +31,10 @@ export function AccountCard({ account, isDeleting = false, onDelete }: AccountCa
             <div className="min-w-0">
               <p className="truncate text-base font-semibold text-[var(--space-cadet)]">{account.displayName}</p>
               <p className="truncate text-sm text-[var(--cadet-gray)]">@{account.handle}</p>
+              <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-[var(--cadet-gray)]">
+                <UserRound className="size-3" />
+                负责人：<span className="font-medium text-[var(--space-cadet)]">{account.ownerName}</span>
+              </p>
             </div>
           </div>
 

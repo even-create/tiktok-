@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/current-user";
+import { ADMIN_USER } from "@/lib/session";
 import { syncTikTokAccount } from "@/lib/tiktok-sync";
 
 export const maxDuration = 300;
@@ -16,10 +18,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "请输入 TikTok 账号链接" }, { status: 400 });
     }
 
+    // New accounts are owned by whoever added them (admin or the logged-in member).
+    const user = (await getCurrentUser()) ?? ADMIN_USER;
+
     const result = await syncTikTokAccount({
       url: tiktokUrl,
       force: body?.force === true,
       lastSyncedAt: body?.lastSyncedAt,
+      owner: { id: user.id, name: user.name },
     });
 
     if (result.skipped) {

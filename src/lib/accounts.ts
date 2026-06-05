@@ -26,6 +26,8 @@ export type ApiAccount = {
   engagement_rate: number | null;
   video_count: number | null;
   last_synced_at: string | null;
+  owner_id?: string | null;
+  owner_name?: string | null;
   videos?: ApiVideo[];
 };
 
@@ -53,6 +55,8 @@ export type AccountListItem = {
   lastSyncedLabel: string;
   trendPoints: TrendPoint[];
   videoCount: number;
+  ownerId: string;
+  ownerName: string;
 };
 
 export function formatCompact(value: number) {
@@ -125,6 +129,8 @@ export function mapApiAccount(account: ApiAccount): AccountListItem {
     lastSyncedLabel: formatLastSynced(account.last_synced_at),
     trendPoints: buildViewsTrendPoints(account.videos),
     videoCount: account.video_count ?? account.videos?.length ?? 0,
+    ownerId: account.owner_id?.trim() || "admin",
+    ownerName: account.owner_name?.trim() || "Even",
   };
 }
 

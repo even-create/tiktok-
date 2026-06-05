@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildAiInsightsContext, buildHeuristicInsights } from "@/lib/ai-insights";
+import { getCurrentUser } from "@/lib/current-user";
 import { generateGeminiInsights, getGeminiModelName, isGeminiConfigured } from "@/lib/gemini-insights";
 import { supabase } from "@/lib/supabase";
 
@@ -7,10 +8,18 @@ export const maxDuration = 60;
 
 export async function POST() {
   try {
-    const { data: accounts, error } = await supabase
+    const user = await getCurrentUser();
+
+    let accountsQuery = supabase
       .from("accounts")
       .select("*, videos(*)")
       .order("created_at", { ascending: false });
+
+    if (user?.role === "MEMBER") {
+      accountsQuery = accountsQuery.eq("owner_id", user.id);
+    }
+
+    const { data: accounts, error } = await accountsQuery;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

@@ -71,6 +71,19 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "请提供要删除的账号 handle" }, { status: 400 });
   }
 
+  // Members may only delete accounts they own.
+  const user = await getCurrentUser();
+  if (user?.role === "MEMBER") {
+    const { data: target } = await supabase
+      .from("accounts")
+      .select("owner_id")
+      .eq("handle", handle)
+      .maybeSingle();
+    if (!target || (target.owner_id ?? "admin") !== user.id) {
+      return NextResponse.json({ error: "未找到该账号" }, { status: 404 });
+    }
+  }
+
   const { error, count } = await deleteAccountByHandle(handle);
 
   if (error) {

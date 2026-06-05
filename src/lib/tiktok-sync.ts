@@ -1,12 +1,14 @@
 import { isTikHubConfigured } from "@/lib/app-settings";
 import { scrapeTikTokProfileWithMeta } from "@/lib/providers/TikHubProvider";
 import { formatCacheTtlLabelAsync, shouldUseSyncCacheAsync } from "@/lib/sync-config";
-import { assertTikTokTablesReady, saveTikTokProfile } from "@/lib/supabase-storage";
+import { assertTikTokTablesReady, saveTikTokProfile, type AccountOwner } from "@/lib/supabase-storage";
 
 export type SyncTikTokAccountOptions = {
   url: string;
   force?: boolean;
   lastSyncedAt?: string | null;
+  /** Assigned only when this sync creates a brand-new account. */
+  owner?: AccountOwner | null;
 };
 
 export type SyncTikTokAccountResult =
@@ -42,7 +44,7 @@ export async function syncTikTokAccount(options: SyncTikTokAccountOptions): Prom
   }
 
   const { profile, apiCalls } = await scrapeTikTokProfileWithMeta(options.url);
-  const saved = await saveTikTokProfile(profile);
+  const saved = await saveTikTokProfile(profile, options.owner ?? null);
 
   return {
     skipped: false,
