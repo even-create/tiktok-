@@ -1,4 +1,3 @@
-import { after } from "next/server";
 import {
   buildImageCostPayload,
   buildImageToImagePrompt,
@@ -20,6 +19,118 @@ import {
   ensureVidmorReferenceUrl,
 } from "@/lib/vidmor/client";
 import { getAnimeCharacter, getPublicAssetUrl, resolveVidmorToken, GPT_IMAGE_20, SEEDANCE_20 } from "@/lib/vidmor/config";
+
+/**
+ * Submit the image->video generation for a job AT MOST ONCE.
+ *
+ * Safety guarantees (this is the ONLY place that ever submits a video):
+ * - `claimAnimeVideoSubmit` atomically flips progress 60 -> 62, so concurrent callers
+ *   (pipeline run + manual sync) can never both submit.
+ * - If a completed video already exists on Vidmor for this exact comic image, reuse it.
+ * - If a previous attempt already created an in-flight task for this comic image (e.g. the
+ *   submit response was lost), reuse that task instead of creating a new one.
+ * - `submitGeneration` itself never retries, so a slow/500 response cannot create duplicates.
+ *
+ * Returns the video task id, or null when the job already has a completed video.
+ */
+export async function submitVideoForJob(jobId: string): Promise<string | null> {
+  const job = await getAnimeJob(jobId);
+  if (!job) {
+    throw new Error("任务不存在");
+  }
+
+  if (job.video_url) {
+    return job.video_task_id;
+  }
+
+  if (!job.image_url) {
+    throw new Error("缺少生成的图片，无法提交图生视频");
+  }
+
+  const token = resolveVidmorToken();
+  if (!token) {
+    throw new Error("未配置 VIDMOR_TOKEN");
+  }
+
+  if (job.video_task_id) {
+    return job.video_task_id;
+  }
+
+  const existingVideo = await findCompletedVideoBySourceImage(job.image_url, job.created_at, token);
+  if (existingVideo?.videoUrl) {
+    await updateAnimeJob(jobId, {
+      status: "success",
+      stage: "completed",
+      progress: 100,
+      video_url: existingVideo.videoUrl,
+      video_task_id: existingVideo.taskId,
+      error_message: null,
+    });
+    return null;
+  }
+
+  const claimed = await claimAnimeVideoSubmit(jobId);
+  if (!claimed) {
+    const refreshed = await getAnimeJob(jobId);
+    return refreshed?.video_task_id ?? null;
+  }
+
+  const inFlight = await findVideoTaskBySourceImage(job.image_url, job.created_at, token);
+  let videoTaskId = inFlight?.taskId ?? null;
+
+  if (!videoTaskId) {
+    const videoTemplate = job.video_prompt_template || DEFAULT_VIDEO_PROMPT_TEMPLATE;
+    const videoDuration = job.video_duration || SEEDANCE_20.duration;
+    const videoResolution = job.video_resolution || SEEDANCE_20.resolution;
+    const videoPrompt = buildImageToVideoPrompt(job.action, videoTemplate);
+
+    const videoCost = await queryCoinCost(
+      buildVideoCostPayload(videoPrompt, { duration: videoDuration, resolution: videoResolution }),
+      token,
+    );
+
+    videoTaskId = await submitGeneration(
+      buildImageToVideoRequest({
+        prompt: videoPrompt,
+        imageUrl: job.image_url,
+        costCoin: videoCost,
+        duration: videoDuration,
+        resolution: videoResolution,
+      }),
+      token,
+    );
+  }
+
+  await updateAnimeJob(jobId, {
+    status: "running",
+    stage: "image_to_video",
+    progress: 70,
+    video_task_id: videoTaskId,
+    error_message: null,
+  });
+
+  return videoTaskId;
+}
+
+async function awaitVideoCompletion(jobId: string, videoTaskId: string, token: string) {
+  const generatedVideoUrl = await pollUntilComplete(SEEDANCE_20.pollMethod, videoTaskId, {
+    token,
+    timeoutMs: 240_000,
+    onTick: async (status) => {
+      if (status === "processing" || status === "pending" || status === "running") {
+        await updateAnimeJob(jobId, { progress: 85 });
+      }
+    },
+  });
+
+  await updateAnimeJob(jobId, {
+    status: "success",
+    stage: "completed",
+    progress: 100,
+    video_url: generatedVideoUrl,
+    error_message: null,
+  });
+}
 
 export async function runAnimePipeline(jobId: string) {
   const job = await getAnimeJob(jobId);
@@ -79,184 +190,33 @@ export async function runAnimePipeline(jobId: string) {
     image_url: generatedImageUrl,
   });
 
-  const existingVideo = await findCompletedVideoBySourceImage(generatedImageUrl, job.created_at, token);
-  if (existingVideo?.videoUrl) {
-    await updateAnimeJob(jobId, {
-      status: "success",
-      stage: "completed",
-      progress: 100,
-      video_url: existingVideo.videoUrl,
-      video_task_id: existingVideo.taskId,
-      error_message: null,
-    });
-    return;
+  // Submit the video in this same run, immediately after the image is ready, so a job is
+  // never left in a "image done, no video" state for a background loop to pick up later.
+  const videoTaskId = await submitVideoForJob(jobId);
+  if (videoTaskId) {
+    await awaitVideoCompletion(jobId, videoTaskId, token);
   }
-}
-
-export async function runVideoStageOnly(jobId: string) {
-  const job = await getAnimeJob(jobId);
-  if (!job) {
-    throw new Error("任务不存在");
-  }
-
-  if (job.video_url) {
-    return;
-  }
-
-  if (!job.image_url) {
-    throw new Error("缺少生成的图片，无法提交图生视频");
-  }
-
-  const token = resolveVidmorToken();
-  if (!token) {
-    throw new Error("未配置 VIDMOR_TOKEN");
-  }
-
-  const existingVideo = await findCompletedVideoBySourceImage(job.image_url, job.created_at, token);
-  if (existingVideo?.videoUrl) {
-    await updateAnimeJob(jobId, {
-      status: "success",
-      stage: "completed",
-      progress: 100,
-      video_url: existingVideo.videoUrl,
-      video_task_id: existingVideo.taskId,
-      error_message: null,
-    });
-    return;
-  }
-
-  const videoTemplate = job.video_prompt_template || DEFAULT_VIDEO_PROMPT_TEMPLATE;
-  const videoDuration = job.video_duration || SEEDANCE_20.duration;
-  const videoResolution = job.video_resolution || SEEDANCE_20.resolution;
-  const videoPrompt = buildImageToVideoPrompt(job.action, videoTemplate);
-
-  let videoTaskId = job.video_task_id;
-  if (!videoTaskId) {
-    if (job.progress !== 62) {
-      return;
-    }
-
-    const inFlightVideo = await findVideoTaskBySourceImage(job.image_url, job.created_at, token);
-    if (inFlightVideo?.taskId) {
-      videoTaskId = inFlightVideo.taskId;
-      await updateAnimeJob(jobId, {
-        status: "running",
-        stage: "image_to_video",
-        progress: 70,
-        video_task_id: videoTaskId,
-        error_message: null,
-      });
-    } else {
-    const videoCost = await queryCoinCost(
-      buildVideoCostPayload(videoPrompt, { duration: videoDuration, resolution: videoResolution }),
-      token,
-    );
-    videoTaskId = await submitGeneration(
-      buildImageToVideoRequest({
-        prompt: videoPrompt,
-        imageUrl: job.image_url,
-        costCoin: videoCost,
-        duration: videoDuration,
-        resolution: videoResolution,
-      }),
-      token,
-    );
-
-    await updateAnimeJob(jobId, {
-      status: "running",
-      stage: "image_to_video",
-      progress: 70,
-      video_task_id: videoTaskId,
-      error_message: null,
-    });
-    }
-  }
-
-  if (!videoTaskId) {
-    return;
-  }
-
-  const generatedVideoUrl = await pollUntilComplete(SEEDANCE_20.pollMethod, videoTaskId, {
-    token,
-    timeoutMs: 280_000,
-    onTick: async (status) => {
-      if (status === "processing" || status === "pending" || status === "running") {
-        await updateAnimeJob(jobId, { progress: 85 });
-      }
-    },
-  });
-
-  await updateAnimeJob(jobId, {
-    status: "success",
-    stage: "completed",
-    progress: 100,
-    video_url: generatedVideoUrl,
-    error_message: null,
-  });
-}
-
-export async function runVideoStageSafe(jobId: string) {
-  try {
-    await runVideoStageOnly(jobId);
-  } catch (error) {
-    const current = await getAnimeJob(jobId);
-    if (current?.status === "success" || current?.video_url) {
-      return;
-    }
-
-    const raw = error instanceof Error ? error.message : "图生视频失败";
-    const isTimeout = /生成超时|timeout/i.test(raw);
-
-    await updateAnimeJob(jobId, {
-      status: isTimeout ? "running" : "failed",
-      stage: isTimeout ? "image_to_video" : "failed",
-      progress: isTimeout ? 85 : undefined,
-      error_message: isTimeout
-        ? "图生视频仍在 Vidmor 后台生成，系统会自动同步成片。"
-        : raw,
-    });
-  } finally {
-    await processAnimeJobQueue();
-  }
-}
-
-export async function tryStartVideoStageOnce(jobId: string) {
-  const job = await getAnimeJob(jobId);
-  if (
-    !job ||
-    job.status !== "running" ||
-    !job.image_url ||
-    job.video_task_id ||
-    job.video_url ||
-    job.progress !== 60
-  ) {
-    return false;
-  }
-
-  const claimed = await claimAnimeVideoSubmit(jobId);
-  if (!claimed) {
-    return false;
-  }
-
-  after(async () => {
-    await runVideoStageSafe(jobId);
-  });
-
-  return true;
 }
 
 export async function runAnimePipelineSafe(jobId: string) {
   try {
     await runAnimePipeline(jobId);
   } catch (error) {
+    const current = await getAnimeJob(jobId);
+    if (current?.status === "success" || current?.video_url) {
+      return;
+    }
+
     const raw = error instanceof Error ? error.message : "生成失败";
     const isTimeout = /生成超时|timeout/i.test(raw);
     const message = /server internal error/i.test(raw)
-      ? "图生图阶段失败：Vidmor 服务端报错（参数或参考图问题）。请重新上传参考图后再试，或在 vidmor.ai 用同模型验证。"
+      ? "图生图阶段失败：Vidmor 服务端报错（参数或参考图问题）。请重新上传参考图后再试。"
       : isTimeout
-        ? "图生视频仍在 Vidmor 后台生成，系统会自动同步成片。"
+        ? "仍在 Vidmor 后台生成，系统会自动同步成片。"
         : raw;
 
+    // A timeout typically happens while polling the video, after the task id is already saved;
+    // keep the job running so read-only sync can finish it. Real errors fail the job.
     await updateAnimeJob(jobId, {
       status: isTimeout ? "running" : "failed",
       stage: isTimeout ? "image_to_video" : "failed",
@@ -264,16 +224,6 @@ export async function runAnimePipelineSafe(jobId: string) {
       error_message: message,
     });
   } finally {
-    const current = await getAnimeJob(jobId);
-    if (
-      current?.status === "running" &&
-      current.progress === 60 &&
-      current.image_url &&
-      !current.video_task_id &&
-      !current.video_url
-    ) {
-      await tryStartVideoStageOnce(jobId);
-    }
     await processAnimeJobQueue();
   }
 }

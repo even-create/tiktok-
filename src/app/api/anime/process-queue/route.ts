@@ -1,24 +1,19 @@
 import { NextResponse } from "next/server";
 import {
-  getAnimeJob,
   listActiveAnimeJobs,
   listRecentAnimeJobs,
   resolveMaxConcurrentAnimeJobs,
   updateAnimeJob,
 } from "@/lib/anime/jobs";
-import { tryStartVideoStageOnce } from "@/lib/anime/pipeline";
 import { processAnimeJobQueue } from "@/lib/anime/queue";
 import { syncAnimeJobFromVidmor } from "@/lib/anime/sync";
 import { getVidmorConfigStatus, isVidmorConfigured } from "@/lib/vidmor/config";
 
 export const maxDuration = 60;
 
-// Only jobs submitted within this window may be auto-advanced/auto-submitted by the
-// background recovery loop. This stops old, stuck jobs from previous sessions from
-// being "resurrected" and re-submitted to Vidmor on every poll.
-const RECENT_JOB_MS = 20 * 60 * 1000;
 // Running jobs older than this that never reached the video stage are aged out so they
-// stop polluting the active set (and stop being resurrected).
+// stop polluting the active set. This loop NEVER submits to Vidmor — it is read-only and
+// only pulls completed results back in (via syncAnimeJobFromVidmor).
 const STALE_JOB_MS = 40 * 60 * 1000;
 
 export async function POST() {
@@ -27,6 +22,8 @@ export async function POST() {
       return NextResponse.json({ error: "未配置 Vidmor" }, { status: 400 });
     }
 
+    // Start brand-new queued jobs. Each runs its full pipeline (image + single video submit)
+    // in its own execution; this loop never initiates a video submission itself.
     const queueResult = await processAnimeJobQueue();
 
     const activeJobs = await listActiveAnimeJobs();
@@ -41,8 +38,7 @@ export async function POST() {
       const createdAt = Date.parse(job.created_at);
       const age = Number.isNaN(createdAt) ? 0 : now - createdAt;
 
-      // Age out ancient stuck jobs that never reached the video stage so the
-      // recovery loop stops re-submitting brand new videos for them.
+      // Age out ancient stuck jobs that never reached the video stage.
       if (age > STALE_JOB_MS && !job.video_task_id && !job.video_url) {
         await updateAnimeJob(job.id, {
           status: "failed",
@@ -52,24 +48,9 @@ export async function POST() {
         continue;
       }
 
+      // Read-only: pull Vidmor status (poll the job's own video_task_id) without submitting.
       await syncAnimeJobFromVidmor(job.id);
       synced += 1;
-
-      // Never auto-submit a new video for old jobs; only freshly submitted tasks.
-      if (age > RECENT_JOB_MS) {
-        continue;
-      }
-
-      const refreshed = await getAnimeJob(job.id);
-      if (
-        refreshed?.status === "running" &&
-        refreshed.progress === 60 &&
-        refreshed.image_url &&
-        !refreshed.video_task_id &&
-        !refreshed.video_url
-      ) {
-        await tryStartVideoStageOnce(refreshed.id);
-      }
     }
 
     return NextResponse.json({
