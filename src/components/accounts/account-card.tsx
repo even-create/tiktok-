@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CirclePlay, Clock3, ExternalLink, Eye, Heart, ThumbsUp, Trash2, TrendingUp, UserRound, Users } from "lucide-react";
+import { Bookmark, CirclePlay, Clock3, ExternalLink, Eye, Heart, ThumbsUp, Trash2, TrendingUp, UserRound, Users } from "lucide-react";
 import { AccountAvatar } from "@/components/account-avatar";
 import { PlatformBadge } from "@/components/accounts/platform-badge";
 import { MiniSparkline } from "@/components/dashboard/mini-sparkline";
@@ -27,8 +27,8 @@ export function AccountCard({ account, isDeleting = false, onDelete }: AccountCa
     : [
         { label: "粉丝", value: account.followersLabel, icon: Users },
         { label: "点赞", value: account.likesLabel, icon: ThumbsUp },
+        { label: "收藏", value: account.collectsLabel, icon: Bookmark },
         { label: "作品", value: String(account.videoCount), icon: CirclePlay },
-        { label: "均赞", value: account.avgLikesLabel, icon: TrendingUp },
       ];
 
   return (

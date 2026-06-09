@@ -56,6 +56,8 @@ export type AccountListItem = {
   viewsLabel: string;
   engagementLabel: string;
   avgLikesLabel: string;
+  collectsCount: number;
+  collectsLabel: string;
   lastSyncedLabel: string;
   trendPoints: TrendPoint[];
   videoCount: number;
@@ -124,6 +126,7 @@ export function mapApiAccount(account: ApiAccount): AccountListItem {
   const engagementRate = Number(account.engagement_rate ?? 0);
   const videoCount = account.video_count ?? account.videos?.length ?? 0;
   const avgLikes = videoCount > 0 ? Math.round(likesCount / videoCount) : 0;
+  const collectsCount = (account.videos ?? []).reduce((sum, video) => sum + (video.collects_count ?? 0), 0);
 
   return {
     id: account.id,
@@ -143,6 +146,8 @@ export function mapApiAccount(account: ApiAccount): AccountListItem {
     viewsLabel: formatCompact(totalViews),
     engagementLabel: `${engagementRate.toFixed(1)}%`,
     avgLikesLabel: formatCompact(avgLikes),
+    collectsCount,
+    collectsLabel: formatCompact(collectsCount),
     lastSyncedLabel: formatLastSynced(account.last_synced_at),
     trendPoints: buildViewsTrendPoints(account.videos, 8, isViewPrimary ? "views" : "likes"),
     videoCount,

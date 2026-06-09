@@ -195,8 +195,8 @@ export default function AccountDetailPage() {
     : [
         { label: "粉丝数", value: account.followersLabel, icon: Users },
         { label: "总点赞", value: account.likesLabel, icon: ThumbsUp },
+        { label: "总收藏", value: account.collectsLabel, icon: Bookmark },
         { label: "作品数", value: String(account.videoCount), icon: CirclePlay },
-        { label: "平均点赞", value: account.avgLikesLabel, icon: TrendingUp },
       ];
 
   return (
