@@ -3,8 +3,8 @@ import { dig, isRecord, pickString, titleFromText, toNumber, unixToIso } from "@
 import { tikhubRequest } from "@/lib/tikhub";
 import type { NormalizedTikTokProfile } from "@/lib/tiktok/types";
 
-const USER_INFO_PATH = "/api/v1/instagram/web_app/fetch_user_info_by_username";
-const USER_POSTS_PATH = "/api/v1/instagram/web_app/fetch_user_posts_by_user_id";
+const USER_INFO_PATH = "/api/v1/instagram/v1/fetch_user_info_by_username";
+const USER_POSTS_PATH = "/api/v1/instagram/v1/fetch_user_posts";
 
 export type InstagramScrapeResult = {
   profile: NormalizedTikTokProfile;
@@ -77,7 +77,7 @@ export async function scrapeInstagramProfile(inputUrl: string): Promise<Instagra
   }
 
   const followers = toNumber(
-    userBlock.follower_count ?? userBlock.edge_followed_by ?? dig(userBlock, [["edge_followed_by", "count"]]),
+    userBlock.follower_count ?? dig(userBlock, [["edge_followed_by", "count"]]),
   );
   const displayName = pickString(userBlock.full_name, userBlock.fullName, username) ?? username;
   const avatarUrl = pickString(userBlock.profile_pic_url_hd, userBlock.profile_pic_url, userBlock.hd_profile_pic_url_info);
