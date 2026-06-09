@@ -28,6 +28,7 @@ export type ApiAccount = {
   engagement_rate: number | null;
   video_count: number | null;
   last_synced_at: string | null;
+  created_at?: string | null;
   owner_id?: string | null;
   owner_name?: string | null;
   videos?: ApiVideo[];
@@ -51,6 +52,7 @@ export type AccountListItem = {
   totalViews: number;
   engagementRate: number;
   lastSyncedAt: string | null;
+  createdAt: string | null;
   followersLabel: string;
   likesLabel: string;
   viewsLabel: string;
@@ -141,6 +143,7 @@ export function mapApiAccount(account: ApiAccount): AccountListItem {
     totalViews,
     engagementRate,
     lastSyncedAt: account.last_synced_at,
+    createdAt: account.created_at ?? null,
     followersLabel: formatCompact(followersCount),
     likesLabel: formatCompact(likesCount),
     viewsLabel: formatCompact(totalViews),
@@ -167,8 +170,35 @@ export function filterAccounts(accounts: AccountListItem[], query: string) {
   );
 }
 
-export function sortAccountsByFollowers(accounts: AccountListItem[], enabled: boolean) {
-  if (!enabled) return accounts;
+export type AccountSortMode = "latest" | "followers" | "views" | "engagement" | "updated";
 
-  return [...accounts].sort((left, right) => right.followersCount - left.followersCount);
+const PLATFORM_DISPLAY_ORDER: Platform[] = ["tiktok", "douyin", "xiaohongshu", "instagram"];
+
+function sortTimestamp(value: string | null) {
+  return getBeijingTimestamp(value) ?? 0;
+}
+
+export function getAvailablePlatforms(accounts: AccountListItem[]): Platform[] {
+  const present = new Set(accounts.map((account) => account.platform));
+  return PLATFORM_DISPLAY_ORDER.filter((platform) => present.has(platform));
+}
+
+export function sortAccounts(accounts: AccountListItem[], mode: AccountSortMode) {
+  const sorted = [...accounts];
+
+  switch (mode) {
+    case "followers":
+      return sorted.sort((left, right) => right.followersCount - left.followersCount);
+    case "views":
+      return sorted.sort((left, right) => right.totalViews - left.totalViews);
+    case "engagement":
+      return sorted.sort((left, right) => right.engagementRate - left.engagementRate);
+    case "updated":
+      return sorted.sort(
+        (left, right) => sortTimestamp(right.lastSyncedAt) - sortTimestamp(left.lastSyncedAt),
+      );
+    case "latest":
+    default:
+      return sorted.sort((left, right) => sortTimestamp(right.createdAt) - sortTimestamp(left.createdAt));
+  }
 }

@@ -8,8 +8,9 @@ import { AddAccountForm } from "@/components/accounts/add-account-form";
 import type { PlatformFilterValue } from "@/components/accounts/platform-filter-select";
 import {
   filterAccounts,
+  getAvailablePlatforms,
   mapApiAccount,
-  sortAccountsByFollowers,
+  sortAccounts,
   type AccountListItem,
   type ApiAccount,
 } from "@/lib/accounts";
@@ -52,12 +53,20 @@ export default function AccountsPage() {
     return () => window.clearTimeout(timer);
   }, [loadAccounts]);
 
+  const availablePlatforms = useMemo(() => getAvailablePlatforms(accounts), [accounts]);
+
+  useEffect(() => {
+    if (platformFilter !== "all" && !availablePlatforms.includes(platformFilter)) {
+      setPlatformFilter("all");
+    }
+  }, [availablePlatforms, platformFilter]);
+
   const visibleAccounts = useMemo(() => {
     let filtered = filterAccounts(accounts, searchQuery);
     if (platformFilter !== "all") {
       filtered = filtered.filter((account) => account.platform === platformFilter);
     }
-    return sortAccountsByFollowers(filtered, sortMode === "followers");
+    return sortAccounts(filtered, sortMode);
   }, [accounts, searchQuery, platformFilter, sortMode]);
 
   async function handleDeleteAccount(id: string) {
@@ -120,6 +129,7 @@ export default function AccountsPage() {
         </div>
 
         <AccountsFilterBar
+          availablePlatforms={availablePlatforms}
           platform={platformFilter}
           onPlatformChange={setPlatformFilter}
           sort={sortMode}

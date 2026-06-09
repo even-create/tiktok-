@@ -3,12 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpDown, ChevronDown, Search } from "lucide-react";
 import { PlatformBadge } from "@/components/accounts/platform-badge";
+import type { AccountSortMode } from "@/lib/accounts";
 import type { Platform } from "@/lib/providers/platform";
 import type { PlatformFilterValue } from "@/components/accounts/platform-filter-select";
 
-export type AccountSortMode = "latest" | "followers";
+export type { AccountSortMode };
+
+const SORT_OPTIONS: { value: AccountSortMode; label: string }[] = [
+  { value: "latest", label: "最新添加" },
+  { value: "followers", label: "粉丝数（高→低）" },
+  { value: "views", label: "总播放量（高→低）" },
+  { value: "engagement", label: "互动率（高→低）" },
+  { value: "updated", label: "最近更新" },
+];
 
 type AccountsFilterBarProps = {
+  availablePlatforms: Platform[];
   platform: PlatformFilterValue;
   onPlatformChange: (value: PlatformFilterValue) => void;
   sort: AccountSortMode;
@@ -17,12 +27,12 @@ type AccountsFilterBarProps = {
   onSearchChange: (value: string) => void;
 };
 
-const PLATFORM_OPTIONS: PlatformFilterValue[] = ["all", "tiktok", "douyin", "xiaohongshu", "instagram"];
-
 function PlatformPicker({
+  options,
   value,
   onChange,
 }: {
+  options: PlatformFilterValue[];
   value: PlatformFilterValue;
   onChange: (value: PlatformFilterValue) => void;
 }) {
@@ -56,7 +66,7 @@ function PlatformPicker({
 
       {open ? (
         <div className="absolute left-0 top-[calc(100%+0.35rem)] z-30 w-full min-w-[10rem] rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-1.5 shadow-lg">
-          {PLATFORM_OPTIONS.map((option) => (
+          {options.map((option) => (
             <button
               key={option}
               type="button"
@@ -80,6 +90,7 @@ function PlatformPicker({
 }
 
 export function AccountsFilterBar({
+  availablePlatforms,
   platform,
   onPlatformChange,
   sort,
@@ -87,12 +98,14 @@ export function AccountsFilterBar({
   searchQuery,
   onSearchChange,
 }: AccountsFilterBarProps) {
+  const platformOptions: PlatformFilterValue[] = ["all", ...availablePlatforms];
+
   return (
     <div className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--eggshell)]/25 p-4">
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-[var(--space-cadet)]">选择平台</span>
-          <PlatformPicker value={platform} onChange={onPlatformChange} />
+          <PlatformPicker options={platformOptions} value={platform} onChange={onPlatformChange} />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -105,8 +118,11 @@ export function AccountsFilterBar({
               onChange={(event) => onSortChange(event.target.value as AccountSortMode)}
               className="h-11 w-full appearance-none rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] pl-10 pr-10 text-sm text-[var(--space-cadet)] outline-none focus:border-[var(--carolina-blue)]"
             >
-              <option value="latest">最新添加</option>
-              <option value="followers">粉丝数</option>
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>
