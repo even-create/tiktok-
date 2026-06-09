@@ -5,6 +5,8 @@ const PLATFORM_STYLES: Record<Platform, string> = {
   douyin: "bg-[#161823] text-[#fe2c55]",
   xiaohongshu: "bg-[#ff2442] text-white",
   instagram: "bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#8134af] text-white",
+  youtube: "bg-[#ff0000] text-white",
+  reddit: "bg-[#ff4500] text-white",
 };
 
 export function PlatformBadge({ platform, className = "" }: { platform: Platform; className?: string }) {

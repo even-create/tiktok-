@@ -191,7 +191,7 @@ export default function AccountsPage() {
           <p className="mt-2 text-sm text-[var(--cadet-gray)]">
             {searchQuery.trim() || platformFilter !== "all"
               ? "试试其他关键词或筛选条件。"
-              : "请在右上角粘贴 抖音 / 小红书 / Instagram / TikTok 链接并添加账号。"}
+              : "请在右上角粘贴 抖音 / 小红书 / Instagram / TikTok / YouTube / Reddit 链接并添加账号。"}
           </p>
         </section>
       )}

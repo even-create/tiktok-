@@ -28,6 +28,14 @@ const ALLOWED_HOST_PATTERNS: RegExp[] = [
   // Instagram / Meta
   /cdninstagram\.com$/,
   /fbcdn\.net$/,
+  // YouTube / Google
+  /ytimg\.com$/,
+  /googleusercontent\.com$/,
+  // Reddit
+  /redditmedia\.com$/,
+  /redditstatic\.com$/,
+  /redd\.it$/,
+  /reddit\.com$/,
 ];
 
 function refererFor(host: string): string {
@@ -39,6 +47,12 @@ function refererFor(host: string): string {
   }
   if (host.includes("cdninstagram") || host.includes("fbcdn")) {
     return "https://www.instagram.com/";
+  }
+  if (host.includes("ytimg") || host.includes("googleusercontent")) {
+    return "https://www.youtube.com/";
+  }
+  if (host.includes("reddit")) {
+    return "https://www.reddit.com/";
   }
   return "https://www.tiktok.com/";
 }

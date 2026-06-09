@@ -172,7 +172,14 @@ export function filterAccounts(accounts: AccountListItem[], query: string) {
 
 export type AccountSortMode = "latest" | "followers" | "views" | "engagement" | "updated";
 
-const PLATFORM_DISPLAY_ORDER: Platform[] = ["tiktok", "douyin", "xiaohongshu", "instagram"];
+const PLATFORM_DISPLAY_ORDER: Platform[] = [
+  "tiktok",
+  "douyin",
+  "xiaohongshu",
+  "instagram",
+  "youtube",
+  "reddit",
+];
 
 function sortTimestamp(value: string | null) {
   return getBeijingTimestamp(value) ?? 0;

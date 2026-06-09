@@ -56,7 +56,7 @@ export function AddAccountForm({ disabled = false, className = "", onAdded, onEr
         <input
           value={tiktokUrl}
           onChange={(event) => setTiktokUrl(event.target.value)}
-          placeholder="粘贴 抖音 / 小红书 / Instagram / TikTok 链接"
+          placeholder="粘贴 抖音 / 小红书 / Instagram / TikTok / YouTube / Reddit 链接"
           className="h-11 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 pl-10 pr-4 text-sm text-[var(--space-cadet)] outline-none transition placeholder:text-[var(--cadet-gray)] focus:border-[var(--carolina-blue)] focus:bg-[var(--card)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)]"
           disabled={disabled || isSyncing}
         />

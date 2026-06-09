@@ -1,14 +1,16 @@
-export type Platform = "tiktok" | "douyin" | "xiaohongshu" | "instagram";
+export type Platform = "tiktok" | "douyin" | "xiaohongshu" | "instagram" | "youtube" | "reddit";
 
 export const PLATFORM_LABELS: Record<Platform, string> = {
   tiktok: "TikTok",
   douyin: "抖音",
   xiaohongshu: "小红书",
   instagram: "Instagram",
+  youtube: "YouTube",
+  reddit: "Reddit",
 };
 
 /** Platforms whose primary engagement metric is play/view count. */
-export const VIEW_PRIMARY_PLATFORMS: ReadonlySet<Platform> = new Set<Platform>(["tiktok", "douyin"]);
+export const VIEW_PRIMARY_PLATFORMS: ReadonlySet<Platform> = new Set<Platform>(["tiktok", "douyin", "youtube"]);
 
 export type PrimaryMetric = {
   key: "views" | "likes";
@@ -29,6 +31,8 @@ export function detectPlatform(input: string): Platform | null {
   if (/(?:^|\.)douyin\.com|iesdouyin\.com/.test(value)) return "douyin";
   if (/xiaohongshu\.com|xhslink\.com/.test(value)) return "xiaohongshu";
   if (/instagram\.com|instagr\.am/.test(value)) return "instagram";
+  if (/reddit\.com|redd\.it/.test(value)) return "reddit";
+  if (/youtube\.com|youtu\.be/.test(value)) return "youtube";
   if (/tiktok\.com/.test(value)) return "tiktok";
 
   // Bare @handle / username with no domain → assume TikTok (backwards compatible).

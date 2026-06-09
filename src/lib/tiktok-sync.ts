@@ -2,7 +2,9 @@ import { isTikHubConfigured } from "@/lib/app-settings";
 import { scrapeTikTokProfileWithMeta } from "@/lib/providers/TikHubProvider";
 import { scrapeDouyinProfile } from "@/lib/providers/douyin";
 import { scrapeInstagramProfile } from "@/lib/providers/instagram";
+import { scrapeRedditProfile } from "@/lib/providers/reddit";
 import { scrapeXiaohongshuProfile } from "@/lib/providers/xiaohongshu";
+import { scrapeYoutubeProfile } from "@/lib/providers/youtube";
 import { detectPlatform } from "@/lib/providers/platform";
 import { formatCacheTtlLabelAsync, shouldUseSyncCacheAsync } from "@/lib/sync-config";
 import { assertTikTokTablesReady, saveTikTokProfile, type AccountOwner } from "@/lib/supabase-storage";
@@ -74,11 +76,15 @@ async function scrapeProfileForUrl(
       return scrapeXiaohongshuProfile(url);
     case "instagram":
       return scrapeInstagramProfile(url);
+    case "youtube":
+      return scrapeYoutubeProfile(url);
+    case "reddit":
+      return scrapeRedditProfile(url);
     case "tiktok":
       return scrapeTikTokProfileWithMeta(url);
     default:
       throw new Error(
-        "无法识别平台链接，请粘贴 抖音 / 小红书 / Instagram / TikTok 的主页或分享链接。",
+        "无法识别平台链接，请粘贴 抖音 / 小红书 / Instagram / TikTok / YouTube / Reddit 的主页或分享链接。",
       );
   }
 }
