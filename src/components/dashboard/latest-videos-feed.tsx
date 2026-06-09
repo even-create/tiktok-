@@ -204,6 +204,13 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
             </select>
           </div>
 
+          <PlatformFilterSelect
+            value={platformFilter}
+            onChange={setPlatformFilter}
+            showLabel
+            variant="feed"
+          />
+
           <div className="flex flex-col gap-1.5">
             <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--cadet-gray)]">
               <Calendar className="size-3" />
@@ -242,14 +249,6 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
               </button>
             </div>
           </div>
-
-          <PlatformFilterSelect
-            value={platformFilter}
-            onChange={setPlatformFilter}
-            showLabel
-            compact
-            className="w-full sm:max-w-[11rem] lg:ml-auto"
-          />
         </div>
 
         <p className="flex items-center gap-1 text-[10px] text-[var(--cadet-gray)]">
