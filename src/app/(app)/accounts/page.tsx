@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownWideNarrow, Clock3, Search, Users } from "lucide-react";
+import { Clock3, Users } from "lucide-react";
 import { AccountCard } from "@/components/accounts/account-card";
+import { AccountsFilterBar, type AccountSortMode } from "@/components/accounts/accounts-filter-bar";
 import { AddAccountForm } from "@/components/accounts/add-account-form";
-import { PlatformFilterSelect, type PlatformFilterValue } from "@/components/accounts/platform-filter-select";
+import type { PlatformFilterValue } from "@/components/accounts/platform-filter-select";
 import {
   filterAccounts,
   mapApiAccount,
@@ -12,13 +13,12 @@ import {
   type AccountListItem,
   type ApiAccount,
 } from "@/lib/accounts";
-import { PLATFORM_LABELS } from "@/lib/providers/platform";
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState<PlatformFilterValue>("all");
-  const [sortByFollowers, setSortByFollowers] = useState(false);
+  const [sortMode, setSortMode] = useState<AccountSortMode>("latest");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -57,8 +57,8 @@ export default function AccountsPage() {
     if (platformFilter !== "all") {
       filtered = filtered.filter((account) => account.platform === platformFilter);
     }
-    return sortAccountsByFollowers(filtered, sortByFollowers);
-  }, [accounts, searchQuery, platformFilter, sortByFollowers]);
+    return sortAccountsByFollowers(filtered, sortMode === "followers");
+  }, [accounts, searchQuery, platformFilter, sortMode]);
 
   async function handleDeleteAccount(id: string) {
     const target = accounts.find((account) => account.id === id);
@@ -91,7 +91,7 @@ export default function AccountsPage() {
   return (
     <div className="space-y-5">
       <header className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
               <Users className="size-4" />
@@ -119,51 +119,24 @@ export default function AccountsPage() {
           />
         </div>
 
-        <div className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">
-          <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-            <PlatformFilterSelect
-              value={platformFilter}
-              onChange={setPlatformFilter}
-              className="min-w-0 flex-1"
-            />
-            <button
-              type="button"
-              onClick={() => setSortByFollowers((current) => !current)}
-              className={`inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-medium transition duration-200 ${
-                sortByFollowers
-                  ? "border-[color-mix(in_srgb,var(--carolina-blue)_45%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] text-[var(--space-cadet)]"
-                  : "border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] text-[var(--cadet-gray)] hover:border-[var(--carolina-blue)] hover:text-[var(--space-cadet)]"
-              }`}
-            >
-              <ArrowDownWideNarrow className="size-4" />
-              粉丝排序
-            </button>
-          </div>
+        <AccountsFilterBar
+          platform={platformFilter}
+          onPlatformChange={setPlatformFilter}
+          sort={sortMode}
+          onSortChange={setSortMode}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
 
-          <label className="relative w-full shrink-0 lg:ml-auto lg:w-72 xl:w-80">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
-            <input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="搜索账号名或 @handle"
-              className="h-11 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 pl-10 pr-4 text-sm text-[var(--space-cadet)] outline-none transition placeholder:text-[var(--cadet-gray)] focus:border-[var(--carolina-blue)] focus:bg-[var(--card)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--carolina-blue)_25%,transparent)]"
-            />
-          </label>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[var(--cadet-gray)]">
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[var(--cadet-gray)]">
           <span>
             共 <strong className="text-[var(--space-cadet)]">{accounts.length}</strong> 个账号
           </span>
-          {searchQuery.trim() ? (
+          {searchQuery.trim() || platformFilter !== "all" ? (
             <span>
-              搜索结果 <strong className="text-[var(--space-cadet)]">{visibleAccounts.length}</strong> 个
+              筛选结果 <strong className="text-[var(--space-cadet)]">{visibleAccounts.length}</strong> 个
             </span>
           ) : null}
-          {platformFilter !== "all" ? (
-            <span className="text-[var(--carolina-blue)]">平台：{PLATFORM_LABELS[platformFilter]}</span>
-          ) : null}
-          {sortByFollowers ? <span className="text-[var(--carolina-blue)]">已按粉丝数排序</span> : null}
         </div>
 
         {successMessage ? (
