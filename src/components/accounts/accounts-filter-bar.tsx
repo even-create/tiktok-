@@ -26,19 +26,27 @@ type AccountsFilterBarProps = {
   onSearchChange: (value: string) => void;
 };
 
+const fieldClass =
+  "flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-xs text-[var(--space-cadet)] transition hover:border-[color-mix(in_srgb,var(--carolina-blue)_40%,transparent)]";
+
+const labelClass =
+  "flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--cadet-gray)]";
+
 function platformLabel(option: PlatformFilterValue) {
   if (option === "all") return "全部平台";
   return PLATFORM_LABELS[option as Platform];
 }
 
-function PlatformPicker({
+function FilterDropdown<T extends string>({
   options,
   value,
   onChange,
+  getLabel,
 }: {
-  options: PlatformFilterValue[];
-  value: PlatformFilterValue;
-  onChange: (value: PlatformFilterValue) => void;
+  options: T[];
+  value: T;
+  onChange: (value: T) => void;
+  getLabel: (option: T) => string;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -52,13 +60,10 @@ function PlatformPicker({
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [open]);
 
-  const fieldClass =
-    "flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-xs text-[var(--space-cadet)] transition hover:border-[color-mix(in_srgb,var(--carolina-blue)_40%,transparent)]";
-
   return (
     <div ref={rootRef} className="relative">
       <button type="button" onClick={() => setOpen((current) => !current)} className={fieldClass}>
-        <span className="truncate">{platformLabel(value)}</span>
+        <span className="truncate">{getLabel(value)}</span>
         <ChevronDown className={`size-4 shrink-0 text-[var(--cadet-gray)] transition ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -84,7 +89,7 @@ function PlatformPicker({
                 <span className="flex w-4 shrink-0 justify-center">
                   {isActive ? <Check className="size-3.5 text-[var(--space-cadet)]" /> : null}
                 </span>
-                <span>{platformLabel(option)}</span>
+                <span>{getLabel(option)}</span>
               </button>
             );
           })}
@@ -104,35 +109,39 @@ export function AccountsFilterBar({
   onSearchChange,
 }: AccountsFilterBarProps) {
   const platformOptions: PlatformFilterValue[] = ["all", ...availablePlatforms];
+  const sortOptionValues = SORT_OPTIONS.map((option) => option.value);
+  const sortLabelByValue = Object.fromEntries(SORT_OPTIONS.map((option) => [option.value, option.label])) as Record<
+    AccountSortMode,
+    string
+  >;
 
   return (
     <div className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-white p-4">
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
-          <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--cadet-gray)]">
+          <span className={labelClass}>
             <Layers className="size-3" />
             平台
           </span>
-          <PlatformPicker options={platformOptions} value={platform} onChange={onPlatformChange} />
+          <FilterDropdown
+            options={platformOptions}
+            value={platform}
+            onChange={onPlatformChange}
+            getLabel={platformLabel}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-[var(--space-cadet)]">排序方式</span>
-          <div className="relative">
-            <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[var(--cadet-gray)]" />
-            <select
-              value={sort}
-              onChange={(event) => onSortChange(event.target.value as AccountSortMode)}
-              className="h-10 w-full appearance-none rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] pl-10 pr-10 text-xs text-[var(--space-cadet)] outline-none focus:border-[var(--carolina-blue)]"
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <span className={labelClass}>
+            <ArrowUpDown className="size-3" />
+            排序方式
+          </span>
+          <FilterDropdown
+            options={sortOptionValues}
+            value={sort}
+            onChange={onSortChange}
+            getLabel={(option) => sortLabelByValue[option]}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
