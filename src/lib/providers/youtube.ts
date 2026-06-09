@@ -18,11 +18,33 @@ type ParsedChannelInput = {
   profileUrl: string;
 };
 
-function parseChannelInput(input: string): ParsedChannelInput | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
 
-  const channelIdFromUrl = trimmed.match(/youtube\.com\/channel\/(UC[\w-]{10,})/i)?.[1];
+/** Decode percent-encoded paths (e.g. @%E8%B6%99...) before parsing handles. */
+function normalizeYoutubeInput(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return trimmed;
+
+  try {
+    const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+    const pathname = safeDecode(url.pathname);
+    return `${url.origin}${pathname}${url.search}`;
+  } catch {
+    return safeDecode(trimmed);
+  }
+}
+
+function parseChannelInput(input: string): ParsedChannelInput | null {
+  const normalized = normalizeYoutubeInput(input);
+  if (!normalized) return null;
+
+  const channelIdFromUrl = normalized.match(/youtube\.com\/channel\/(UC[\w-]{10,})/i)?.[1];
   if (channelIdFromUrl) {
     return {
       channelId: channelIdFromUrl,
@@ -31,29 +53,41 @@ function parseChannelInput(input: string): ParsedChannelInput | null {
     };
   }
 
-  const handleFromUrl = trimmed.match(/youtube\.com\/@([\w.-]+)/i)?.[1];
+  const handleFromUrl = normalized.match(/youtube\.com\/@([^/?#]+)/i)?.[1];
   if (handleFromUrl) {
+    const decodedHandle = safeDecode(handleFromUrl);
+    const handle = (decodedHandle === handleFromUrl ? handleFromUrl : decodedHandle).replace(/^@/, "");
+    const profileUrl = input.trim().startsWith("http")
+      ? input.trim().split(/[?#]/)[0]
+      : `https://www.youtube.com/@${handleFromUrl}`;
+
     return {
       channelId: null,
-      handle: handleFromUrl,
-      profileUrl: `https://www.youtube.com/@${handleFromUrl}`,
+      handle,
+      profileUrl,
     };
   }
 
-  const legacyHandle = trimmed.match(/youtube\.com\/(?:c|user)\/([\w.-]+)/i)?.[1];
+  const legacyHandle = normalized.match(/youtube\.com\/(?:c|user)\/([^/?#]+)/i)?.[1];
   if (legacyHandle) {
+    const decodedHandle = safeDecode(legacyHandle);
+    const handle = decodedHandle === legacyHandle ? legacyHandle : decodedHandle;
     return {
       channelId: null,
-      handle: legacyHandle,
-      profileUrl: trimmed.startsWith("http") ? trimmed : `https://www.youtube.com/c/${legacyHandle}`,
+      handle,
+      profileUrl: input.trim().startsWith("http")
+        ? input.trim().split(/[?#]/)[0]
+        : `https://www.youtube.com/c/${legacyHandle}`,
     };
   }
 
-  const bareHandle = trimmed.match(/^@?([\w.-]{2,})$/)?.[1];
-  if (bareHandle && !trimmed.includes("/")) {
+  const bareHandle = normalized.match(/^@?([^/?#\s]+)$/)?.[1];
+  if (bareHandle && !normalized.includes("/")) {
+    const decodedHandle = safeDecode(bareHandle);
+    const handle = decodedHandle === bareHandle ? bareHandle : decodedHandle;
     return {
       channelId: null,
-      handle: bareHandle,
+      handle,
       profileUrl: `https://www.youtube.com/@${bareHandle}`,
     };
   }
@@ -99,28 +133,38 @@ function pickPublishedAt(item: Record<string, unknown>): string | null {
 async function resolveChannelId(parsed: ParsedChannelInput, apiCalls: { count: number }): Promise<string> {
   if (parsed.channelId) return parsed.channelId;
 
-  const lookupName = parsed.handle?.startsWith("@") ? parsed.handle : `@${parsed.handle}`;
-  const payload = await tikhubRequest<unknown>({
-    path: CHANNEL_ID_PATH,
-    query: { channel_name: lookupName },
-  });
-  apiCalls.count += 1;
+  const lookupCandidates = [
+    parsed.handle?.startsWith("@") ? parsed.handle : `@${parsed.handle ?? ""}`,
+    parsed.profileUrl.match(/@[^/?#]+/)?.[0],
+  ].filter((value): value is string => Boolean(value?.trim()));
 
-  const channelId = pickString(
-    dig(payload, [
-      ["channel_id"],
-      ["channelId"],
-      ["data", "channel_id"],
-      ["data", "channelId"],
-      ["data"],
-    ]),
-  );
+  let lastError: Error | null = null;
 
-  if (!channelId) {
-    throw new Error("无法解析 YouTube 频道 ID，请确认链接或 @handle 正确。");
+  for (const channelName of lookupCandidates) {
+    try {
+      const payload = await tikhubRequest<unknown>({
+        path: CHANNEL_ID_PATH,
+        query: { channel_name: channelName },
+      });
+      apiCalls.count += 1;
+
+      const channelId = pickString(
+        dig(payload, [
+          ["channel_id"],
+          ["channelId"],
+          ["data", "channel_id"],
+          ["data", "channelId"],
+          ["data"],
+        ]),
+      );
+
+      if (channelId) return channelId;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("无法解析 YouTube 频道 ID");
+    }
   }
 
-  return channelId;
+  throw lastError ?? new Error("无法解析 YouTube 频道 ID，请确认链接或 @handle 正确。");
 }
 
 export async function scrapeYoutubeProfile(inputUrl: string): Promise<YoutubeScrapeResult> {
