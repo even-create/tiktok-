@@ -7,7 +7,7 @@ export const maxDuration = 60;
 export async function GET(request: Request) {
   const videoUrl = new URL(request.url).searchParams.get("url")?.trim();
 
-  if (!videoUrl || !videoUrl.includes("tiktok.com")) {
+  if (!videoUrl || !/(tiktok|douyin)\.com/i.test(videoUrl)) {
     return NextResponse.json({ error: "无效的视频链接" }, { status: 400 });
   }
 

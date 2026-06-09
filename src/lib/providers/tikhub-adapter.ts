@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { pickAvatarFromRecord } from "@/lib/providers/parse-utils";
+import { pickAvatarFromRecord, pickAvatarUrl } from "@/lib/providers/parse-utils";
 import type { Platform } from "@/lib/providers/platform";
 import type { NormalizedTikTokProfile, UnifiedTikTokAccountData, UnifiedTikTokVideo } from "@/lib/tiktok/types";
 
@@ -80,34 +80,31 @@ function parsePostedAt(aweme: UnknownRecord) {
 }
 
 function pickCoverUrl(video: UnknownRecord, aweme: UnknownRecord) {
-  const urlListPaths = [
-    ["cover", "url_list"],
-    ["origin_cover", "url_list"],
-    ["dynamic_cover", "url_list"],
-    ["animated_cover", "url_list"],
-    ["cover", "url_list", "0"],
-    ["origin_cover", "url_list", "0"],
-    ["dynamic_cover", "url_list", "0"],
-  ];
+  const urlLists: unknown[] = [];
 
-  for (const path of urlListPaths) {
-    const value = dig(video, [path]);
-    if (typeof value === "string" && value.trim()) return value.trim();
-    if (Array.isArray(value)) {
-      const first = value.find((item) => typeof item === "string" && item.trim());
-      if (typeof first === "string") return first.trim();
+  for (const key of ["cover", "origin_cover", "dynamic_cover", "animated_cover"]) {
+    for (const block of [video[key], aweme[key]]) {
+      if (isRecord(block) && Array.isArray(block.url_list)) {
+        urlLists.push(block.url_list);
+      }
     }
   }
 
-  const flat = pickString(
-    aweme.cover,
-    aweme.origin_cover,
-    aweme.dynamic_cover,
-    dig(aweme, [["video", "cover", "url_list", "0"]]),
-    dig(aweme, [["video", "origin_cover", "url_list", "0"]]),
+  urlLists.push(
+    dig(video, [
+      ["cover", "url_list"],
+      ["origin_cover", "url_list"],
+      ["dynamic_cover", "url_list"],
+      ["animated_cover", "url_list"],
+    ]),
+    dig(aweme, [
+      ["video", "cover", "url_list"],
+      ["video", "origin_cover", "url_list"],
+      ["video", "dynamic_cover", "url_list"],
+    ]),
   );
 
-  return flat;
+  return pickAvatarUrl(...urlLists, aweme.cover, aweme.origin_cover, aweme.dynamic_cover);
 }
 
 function mergeStatistics(aweme: UnknownRecord): UnknownRecord {

@@ -1,5 +1,7 @@
 import { mapOneVideoPayload } from "@/lib/providers/tikhub-adapter";
+import { normalizeMediaUrl } from "@/lib/providers/parse-utils";
 import { getTikHubProvider } from "@/lib/providers/TikHubProvider";
+import { tikhubRequest } from "@/lib/tikhub";
 
 export function parseAwemeIdFromVideoUrl(videoUrl: string) {
   return videoUrl.match(/\/video\/(\d+)/)?.[1] ?? null;
@@ -22,7 +24,7 @@ async function fetchCoverFromOembed(videoUrl: string) {
   if (!response.ok) return null;
 
   const payload = (await response.json()) as { thumbnail_url?: string };
-  return payload.thumbnail_url?.trim() || null;
+  return normalizeMediaUrl(payload.thumbnail_url);
 }
 
 async function fetchCoverFromTikHub(videoUrl: string) {
@@ -33,15 +35,38 @@ async function fetchCoverFromTikHub(videoUrl: string) {
     const handle = parseHandleFromVideoUrl(videoUrl);
     const payload = await getTikHubProvider().fetchOneVideoV2(awemeId);
     const mapped = mapOneVideoPayload(payload, handle);
-    return mapped?.thumbnailUrl ?? null;
+    return normalizeMediaUrl(mapped?.thumbnailUrl);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCoverFromDouyin(videoUrl: string) {
+  const awemeId = parseAwemeIdFromVideoUrl(videoUrl);
+  if (!awemeId) return null;
+
+  try {
+    const payload = await tikhubRequest({
+      path: "/api/v1/douyin/app/v3/fetch_one_video",
+      query: { aweme_id: awemeId },
+    });
+    const mapped = mapOneVideoPayload(payload, "unknown");
+    return normalizeMediaUrl(mapped?.thumbnailUrl);
   } catch {
     return null;
   }
 }
 
 export async function resolveVideoCoverUrl(videoUrl: string) {
-  const oembedCover = await fetchCoverFromOembed(videoUrl);
-  if (oembedCover) return oembedCover;
+  if (/tiktok\.com/i.test(videoUrl)) {
+    const oembedCover = await fetchCoverFromOembed(videoUrl);
+    if (oembedCover) return oembedCover;
+    return fetchCoverFromTikHub(videoUrl);
+  }
 
-  return fetchCoverFromTikHub(videoUrl);
+  if (/douyin\.com/i.test(videoUrl)) {
+    return fetchCoverFromDouyin(videoUrl);
+  }
+
+  return null;
 }

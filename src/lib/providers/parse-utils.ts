@@ -136,3 +136,32 @@ export function pickAvatarFromRecord(user: UnknownRecord): string | null {
 
   return pickAvatarUrl(...urlLists, user.avatar, user.avatar_url);
 }
+
+const PROXY_FIRST_HOST =
+  /douyinpic\.com|douyincdn\.com|byteimg\.com|ibyteimg\.com|pstatp\.com|tiktokcdn|ttwstatic|muscdn|tiktokv\.com|xhscdn|cdninstagram|fbcdn\.net$/i;
+
+/** Douyin/TikTok API often lists .heic first; browsers only render jpeg/png/webp. */
+export function toBrowserImageUrl(url: string): string {
+  return url.replace(/\.heic(\?)/i, ".jpeg$1");
+}
+
+export function needsImageProxy(url: string): boolean {
+  try {
+    return PROXY_FIRST_HOST.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** Normalize, prefer browser formats, and route hotlink-protected CDNs through our proxy. */
+export function resolveDisplayImageUrl(raw: string | null | undefined): string | null {
+  const normalized = normalizeMediaUrl(raw);
+  if (!normalized) return null;
+
+  const browserUrl = toBrowserImageUrl(normalized);
+  if (needsImageProxy(browserUrl)) {
+    return `/api/image-proxy?url=${encodeURIComponent(browserUrl)}`;
+  }
+
+  return browserUrl;
+}

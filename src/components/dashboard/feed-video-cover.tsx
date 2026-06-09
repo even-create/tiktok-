@@ -2,6 +2,7 @@
 
 import { CirclePlay } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { normalizeMediaUrl, resolveDisplayImageUrl } from "@/lib/providers/parse-utils";
 
 type FeedVideoCoverProps = {
   title: string;
@@ -11,7 +12,7 @@ type FeedVideoCoverProps = {
 };
 
 export function FeedVideoCover({ title, thumbnailUrl, videoUrl, className = "aspect-[3/4] w-full" }: FeedVideoCoverProps) {
-  const [displayUrl, setDisplayUrl] = useState<string | null>(thumbnailUrl);
+  const [displayUrl, setDisplayUrl] = useState<string | null>(() => resolveDisplayImageUrl(thumbnailUrl));
   const [isLoading, setIsLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const remoteLoadedRef = useRef(false);
@@ -27,7 +28,7 @@ export function FeedVideoCover({ title, thumbnailUrl, videoUrl, className = "asp
       if (!response.ok) return null;
 
       const payload = (await response.json()) as { thumbnailUrl?: string };
-      return payload.thumbnailUrl?.trim() || null;
+      return resolveDisplayImageUrl(payload.thumbnailUrl?.trim() || null);
     } catch {
       return null;
     } finally {
@@ -37,7 +38,7 @@ export function FeedVideoCover({ title, thumbnailUrl, videoUrl, className = "asp
 
   useEffect(() => {
     remoteLoadedRef.current = false;
-    setDisplayUrl(thumbnailUrl);
+    setDisplayUrl(resolveDisplayImageUrl(thumbnailUrl));
     setFailed(false);
     setIsLoading(false);
   }, [thumbnailUrl, videoUrl]);
@@ -62,10 +63,13 @@ export function FeedVideoCover({ title, thumbnailUrl, videoUrl, className = "asp
   }, [displayUrl, videoUrl, failed, fetchRemoteCover]);
 
   const handleImageError = () => {
-    // Retry hotlink-protected CDNs (Douyin/XHS/IG) once through our image proxy.
-    if (displayUrl && displayUrl.startsWith("https://") && !displayUrl.startsWith("/api/image-proxy")) {
-      setDisplayUrl(`/api/image-proxy?url=${encodeURIComponent(displayUrl)}`);
-      return;
+    // Retry hotlink-protected CDNs once through our image proxy.
+    if (displayUrl?.startsWith("https://")) {
+      const normalized = normalizeMediaUrl(displayUrl);
+      if (normalized) {
+        setDisplayUrl(`/api/image-proxy?url=${encodeURIComponent(normalized)}`);
+        return;
+      }
     }
 
     if (!videoUrl || remoteLoadedRef.current) {
