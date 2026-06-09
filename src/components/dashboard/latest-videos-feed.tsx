@@ -11,9 +11,11 @@ import { enrichVideosWithQuality, type ContentVideoWithQuality } from "@/lib/con
 import {
   buildFeedAccountOptions,
   filterVideosByAccountHandle,
+  filterVideosByPlatform,
   sortVideosByPostedAt,
   type FeedSortMode,
 } from "@/lib/latest-videos-feed";
+import { PlatformFilterSelect, type PlatformFilterValue } from "@/components/accounts/platform-filter-select";
 
 type LatestVideosFeedProps = {
   apiAccounts: ApiAccount[];
@@ -130,6 +132,7 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
   const [searchQuery, setSearchQuery] = useState("");
   const [postedDate, setPostedDate] = useState<string | null>(null);
   const [accountFilter, setAccountFilter] = useState("all");
+  const [platformFilter, setPlatformFilter] = useState<PlatformFilterValue>("all");
   const [sortMode, setSortMode] = useState<FeedSortMode>("posted");
   const [selectedVideo, setSelectedVideo] = useState<ContentVideoWithQuality | null>(null);
 
@@ -140,6 +143,7 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
   const filteredVideos = useMemo((): ContentVideoWithQuality[] => {
     let list = filterVideosByPostedDate(allVideos, postedDate);
     list = filterVideosByAccountHandle(list, accountFilter);
+    list = filterVideosByPlatform(list, platformFilter);
     list = filterVideosBySearch(list, searchQuery);
     const enriched: ContentVideoWithQuality[] = enrichVideosWithQuality(list);
 
@@ -148,9 +152,10 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
     }
 
     return sortVideosByPostedAt(enriched);
-  }, [allVideos, postedDate, accountFilter, searchQuery, sortMode]);
+  }, [allVideos, postedDate, accountFilter, platformFilter, searchQuery, sortMode]);
 
-  const hasActiveFilters = accountFilter !== "all" || postedDate !== null || searchQuery.trim().length > 0;
+  const hasActiveFilters =
+    accountFilter !== "all" || platformFilter !== "all" || postedDate !== null || searchQuery.trim().length > 0;
 
   return (
     <section className="mt-5 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
@@ -237,6 +242,14 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
               </button>
             </div>
           </div>
+
+          <PlatformFilterSelect
+            value={platformFilter}
+            onChange={setPlatformFilter}
+            showLabel
+            compact
+            className="w-full sm:max-w-[11rem] lg:ml-auto"
+          />
         </div>
 
         <p className="flex items-center gap-1 text-[10px] text-[var(--cadet-gray)]">

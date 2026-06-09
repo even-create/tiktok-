@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDownWideNarrow, Clock3, Search, Users } from "lucide-react";
 import { AccountCard } from "@/components/accounts/account-card";
 import { AddAccountForm } from "@/components/accounts/add-account-form";
+import { PlatformFilterSelect, type PlatformFilterValue } from "@/components/accounts/platform-filter-select";
 import {
   filterAccounts,
   mapApiAccount,
@@ -11,10 +12,12 @@ import {
   type AccountListItem,
   type ApiAccount,
 } from "@/lib/accounts";
+import { PLATFORM_LABELS } from "@/lib/providers/platform";
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [platformFilter, setPlatformFilter] = useState<PlatformFilterValue>("all");
   const [sortByFollowers, setSortByFollowers] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -50,9 +53,12 @@ export default function AccountsPage() {
   }, [loadAccounts]);
 
   const visibleAccounts = useMemo(() => {
-    const filtered = filterAccounts(accounts, searchQuery);
+    let filtered = filterAccounts(accounts, searchQuery);
+    if (platformFilter !== "all") {
+      filtered = filtered.filter((account) => account.platform === platformFilter);
+    }
     return sortAccountsByFollowers(filtered, sortByFollowers);
-  }, [accounts, searchQuery, sortByFollowers]);
+  }, [accounts, searchQuery, platformFilter, sortByFollowers]);
 
   async function handleDeleteAccount(id: string) {
     const target = accounts.find((account) => account.id === id);
@@ -85,32 +91,40 @@ export default function AccountsPage() {
   return (
     <div className="space-y-5">
       <header className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
-            <Users className="size-4" />
-            Accounts
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--carolina-blue)]">
+              <Users className="size-4" />
+              Accounts
+            </div>
+            <h1 className="mt-3 text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">账号管理</h1>
           </div>
-          <h1 className="mt-3 text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">账号管理</h1>
+
+          <AddAccountForm
+            className="w-full shrink-0 lg:w-auto lg:min-w-[28rem] xl:min-w-[32rem]"
+            disabled={isLoading || deletingId !== null}
+            onError={(message) => {
+              setSuccessMessage(null);
+              setErrorMessage(message);
+            }}
+            onAdded={(handle, videosCount) => {
+              setErrorMessage("");
+              setSuccessMessage(
+                handle
+                  ? `账号 @${handle} 已添加并同步，共 ${videosCount ?? 0} 条视频。`
+                  : `账号已添加并同步，共 ${videosCount ?? 0} 条视频。`,
+              );
+              void loadAccounts();
+            }}
+          />
         </div>
 
         <div className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">
           <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-            <AddAccountForm
+            <PlatformFilterSelect
+              value={platformFilter}
+              onChange={setPlatformFilter}
               className="min-w-0 flex-1"
-              disabled={isLoading || deletingId !== null}
-              onError={(message) => {
-                setSuccessMessage(null);
-                setErrorMessage(message);
-              }}
-              onAdded={(handle, videosCount) => {
-                setErrorMessage("");
-                setSuccessMessage(
-                  handle
-                    ? `账号 @${handle} 已添加并同步，共 ${videosCount ?? 0} 条视频。`
-                    : `账号已添加并同步，共 ${videosCount ?? 0} 条视频。`,
-                );
-                void loadAccounts();
-              }}
             />
             <button
               type="button"
@@ -145,6 +159,9 @@ export default function AccountsPage() {
             <span>
               搜索结果 <strong className="text-[var(--space-cadet)]">{visibleAccounts.length}</strong> 个
             </span>
+          ) : null}
+          {platformFilter !== "all" ? (
+            <span className="text-[var(--carolina-blue)]">平台：{PLATFORM_LABELS[platformFilter]}</span>
           ) : null}
           {sortByFollowers ? <span className="text-[var(--carolina-blue)]">已按粉丝数排序</span> : null}
         </div>
@@ -186,12 +203,12 @@ export default function AccountsPage() {
         <section className="rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] bg-[var(--card)] px-6 py-16 text-center shadow-sm">
           <Users className="mx-auto size-10 text-[var(--cadet-gray)]" />
           <p className="mt-4 text-base font-medium text-[var(--space-cadet)]">
-            {searchQuery.trim() ? "没有匹配的账号" : "暂无追踪账号"}
+            {searchQuery.trim() || platformFilter !== "all" ? "没有匹配的账号" : "暂无追踪账号"}
           </p>
           <p className="mt-2 text-sm text-[var(--cadet-gray)]">
-            {searchQuery.trim()
-              ? "试试其他关键词，或清空搜索条件。"
-              : "请在上方粘贴 抖音 / 小红书 / Instagram / TikTok 链接并添加账号。"}
+            {searchQuery.trim() || platformFilter !== "all"
+              ? "试试其他关键词或筛选条件。"
+              : "请在右上角粘贴 抖音 / 小红书 / Instagram / TikTok 链接并添加账号。"}
           </p>
         </section>
       )}

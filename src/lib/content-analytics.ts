@@ -1,4 +1,5 @@
 import { formatCompact, type ApiAccount, type ApiVideo } from "@/lib/accounts";
+import type { Platform } from "@/lib/providers/platform";
 import {
   formatBeijingTime,
   formatBeijingTimeChinese,
@@ -15,6 +16,7 @@ export type ContentVideo = {
   accountId: string;
   accountHandle: string;
   accountDisplayName: string;
+  accountPlatform: Platform;
   accountProfileUrl: string;
   accountAvatarUrl: string | null;
   title: string;
@@ -97,6 +99,7 @@ export function flattenVideosFromAccounts(accounts: ApiAccount[]): ContentVideo[
           account.id,
           account.handle,
           displayName,
+          (account.platform as Platform) || "tiktok",
           account.profile_url,
           account.avatar_url ?? null,
         ),
@@ -112,6 +115,7 @@ export function mapApiVideoToContentVideo(
   accountId: string,
   accountHandle: string,
   accountDisplayName: string,
+  accountPlatform: Platform,
   accountProfileUrl: string | null,
   accountAvatarUrl: string | null = null,
 ): ContentVideo {
@@ -129,6 +133,7 @@ export function mapApiVideoToContentVideo(
     accountId,
     accountHandle,
     accountDisplayName,
+    accountPlatform,
     accountProfileUrl: profileUrl,
     accountAvatarUrl,
     title: video.title,

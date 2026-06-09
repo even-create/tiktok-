@@ -34,6 +34,11 @@ export function filterVideosByAccountHandle(videos: ContentVideo[], handle: stri
   return videos.filter((video) => video.accountHandle === handle);
 }
 
+export function filterVideosByPlatform(videos: ContentVideo[], platform: string) {
+  if (!platform || platform === "all") return videos;
+  return videos.filter((video) => video.accountPlatform === platform);
+}
+
 export function buildFeedAccountOptions(videos: ContentVideo[]): FeedAccountOption[] {
   const map = new Map<string, FeedAccountOption>();
 
