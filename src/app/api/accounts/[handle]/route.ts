@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchSnapshotForAccount, fetchViewsSeriesForAccount } from "@/lib/account-snapshots";
+import { fetchSnapshotForAccount } from "@/lib/account-snapshots";
 import { getCurrentUser } from "@/lib/current-user";
 import { buildAccountGrowthMetrics } from "@/lib/growth-overview";
 import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
@@ -46,7 +46,6 @@ export async function GET(_request: Request, context: RouteContext) {
   const yesterdayKey = addDaysToDateKey(getSnapshotDateKey(), -1);
   const { row: growthBaseline } = await fetchSnapshotForAccount(data.id, yesterdayKey);
   const growthMetrics = buildAccountGrowthMetrics(data, videos, growthBaseline);
-  const viewsSeries = await fetchViewsSeriesForAccount(data.id);
 
-  return NextResponse.json({ account: { ...data, videos }, growthMetrics, viewsSeries });
+  return NextResponse.json({ account: { ...data, videos }, growthMetrics });
 }

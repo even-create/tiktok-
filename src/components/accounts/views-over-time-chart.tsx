@@ -62,7 +62,15 @@ function ChartTooltip({
   );
 }
 
-export function ViewsOverTimeChart({ data }: { data: ViewsSeriesPoint[] }) {
+export function ViewsOverTimeChart({
+  data,
+  last30Views,
+  maxDayViews,
+}: {
+  data: ViewsSeriesPoint[];
+  last30Views: number;
+  maxDayViews: number;
+}) {
   const [range, setRange] = useState<RangeKey>("30");
 
   const sorted = useMemo(
@@ -75,18 +83,6 @@ export function ViewsOverTimeChart({ data }: { data: ViewsSeriesPoint[] }) {
     if (!days) return sorted;
     return sorted.slice(-days);
   }, [sorted, range]);
-
-  const totalViews = sorted.length ? sorted[sorted.length - 1].views : 0;
-
-  const weekGrowth = useMemo(() => {
-    if (sorted.length < 2) return null;
-    const latest = sorted[sorted.length - 1].views;
-    // Compare against the point ~7 days back (or the earliest available).
-    const baselineIndex = Math.max(0, sorted.length - 8);
-    const baseline = sorted[baselineIndex].views;
-    if (baseline <= 0) return null;
-    return ((latest - baseline) / baseline) * 100;
-  }, [sorted]);
 
   return (
     <section
@@ -105,25 +101,23 @@ export function ViewsOverTimeChart({ data }: { data: ViewsSeriesPoint[] }) {
 
         <div className="flex items-center gap-5">
           <div>
-            <p className="text-[11px]" style={{ color: COLORS.grid }}>
-              总播放量
+            <p className="text-[11px]" style={{ color: COLORS.muted }}>
+              近 30 天视频总播放
             </p>
             <p className="text-2xl font-semibold" style={{ color: COLORS.text }}>
-              {formatCompact(totalViews)}
+              {formatCompact(last30Views)}
             </p>
           </div>
           <div>
-            <p className="text-[11px]" style={{ color: COLORS.grid }}>
-              近 7 日增长
+            <p className="text-[11px]" style={{ color: COLORS.muted }}>
+              单日最高播放
             </p>
             <p
               className="inline-flex items-center gap-1 text-lg font-semibold"
-              style={{ color: weekGrowth === null ? COLORS.grid : weekGrowth >= 0 ? COLORS.line : "#E2786B" }}
+              style={{ color: COLORS.line }}
             >
               <TrendingUp className="size-4" />
-              {weekGrowth === null
-                ? "N/A"
-                : `${weekGrowth >= 0 ? "+" : ""}${weekGrowth.toFixed(1)}%`}
+              {formatCompact(maxDayViews)}
             </p>
           </div>
         </div>
@@ -170,10 +164,10 @@ export function ViewsOverTimeChart({ data }: { data: ViewsSeriesPoint[] }) {
           <div className="grid h-full place-items-center text-center">
             <div>
               <p className="text-sm font-medium" style={{ color: COLORS.text }}>
-                暂无足够的历史数据
+                暂无视频数据
               </p>
-              <p className="mt-1 text-xs" style={{ color: COLORS.grid }}>
-                系统每日会自动记录播放量快照，明天起即可显示趋势。
+              <p className="mt-1 text-xs" style={{ color: COLORS.muted }}>
+                同步该账号的视频后，将按发布日期展示每日发布视频的总播放量。
               </p>
             </div>
           </div>

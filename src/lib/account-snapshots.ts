@@ -115,26 +115,6 @@ export async function fetchSnapshotsForDates(dates: string[]) {
   return { rows: (data ?? []) as AccountSnapshotRow[], tableReady: true };
 }
 
-export type ViewsSeriesPoint = { date: string; views: number };
-
-/** Daily total-views series for a single account, oldest → newest. Used by the trend chart. */
-export async function fetchViewsSeriesForAccount(accountId: string): Promise<ViewsSeriesPoint[]> {
-  const { data, error } = await supabase
-    .from("account_daily_snapshots")
-    .select("snapshot_date, total_views")
-    .eq("account_id", accountId)
-    .order("snapshot_date", { ascending: true });
-
-  if (error) {
-    return [];
-  }
-
-  return (data ?? []).map((row) => ({
-    date: row.snapshot_date as string,
-    views: (row.total_views as number | null) ?? 0,
-  }));
-}
-
 export function groupSnapshotsByDate(rows: AccountSnapshotRow[]) {
   const map = new Map<string, AccountSnapshotRow[]>();
 

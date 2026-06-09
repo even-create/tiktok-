@@ -18,12 +18,14 @@ import {
 } from "lucide-react";
 import type { AccountGrowthMetric } from "@/lib/growth-overview";
 import { AccountAvatar } from "@/components/account-avatar";
-import { ViewsOverTimeChart, type ViewsSeriesPoint } from "@/components/accounts/views-over-time-chart";
+import { ViewsOverTimeChart } from "@/components/accounts/views-over-time-chart";
 import { VideoDetailModal } from "@/components/dashboard/video-detail-modal";
 import { VideoFeedCard, VideoFeedSkeleton } from "@/components/dashboard/video-feed-card";
 import { mapApiAccount, type ApiAccount } from "@/lib/accounts";
 import { flattenVideosFromAccounts } from "@/lib/content-analytics";
 import { enrichVideosWithQuality, type ContentVideoWithQuality } from "@/lib/content-quality";
+import { getBeijingDateKey } from "@/lib/format-beijing-time";
+import { addDaysToDateKey } from "@/lib/snapshot-date";
 
 export default function AccountDetailPage() {
   const params = useParams<{ handle: string }>();
@@ -32,7 +34,6 @@ export default function AccountDetailPage() {
 
   const [apiAccount, setApiAccount] = useState<ApiAccount | null>(null);
   const [growthMetrics, setGrowthMetrics] = useState<AccountGrowthMetric[]>([]);
-  const [viewsSeries, setViewsSeries] = useState<ViewsSeriesPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -49,7 +50,6 @@ export default function AccountDetailPage() {
       const payload = (await response.json()) as {
         account?: ApiAccount;
         growthMetrics?: AccountGrowthMetric[];
-        viewsSeries?: ViewsSeriesPoint[];
         error?: string;
       };
 
@@ -63,12 +63,10 @@ export default function AccountDetailPage() {
 
       setApiAccount(payload.account);
       setGrowthMetrics(payload.growthMetrics ?? []);
-      setViewsSeries(payload.viewsSeries ?? []);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "读取账号详情失败");
       setApiAccount(null);
       setGrowthMetrics([]);
-      setViewsSeries([]);
     } finally {
       setIsLoading(false);
     }
@@ -85,6 +83,32 @@ export default function AccountDetailPage() {
   const videoCards = useMemo(
     () => (apiAccount ? enrichVideosWithQuality(flattenVideosFromAccounts([apiAccount])) : []),
     [apiAccount],
+  );
+
+  // Content performance by publish date: sum the views of videos posted on each day.
+  const viewsByDay = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const video of apiAccount?.videos ?? []) {
+      if (!video.posted_at) continue;
+      const dateKey = getBeijingDateKey(video.posted_at);
+      if (!dateKey) continue;
+      map.set(dateKey, (map.get(dateKey) ?? 0) + (video.views_count ?? 0));
+    }
+    return [...map.entries()]
+      .map(([date, views]) => ({ date, views }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [apiAccount]);
+
+  const last30Views = useMemo(() => {
+    const threshold = addDaysToDateKey(getBeijingDateKey(), -29);
+    return viewsByDay
+      .filter((point) => point.date >= threshold)
+      .reduce((sum, point) => sum + point.views, 0);
+  }, [viewsByDay]);
+
+  const maxDayViews = useMemo(
+    () => viewsByDay.reduce((max, point) => Math.max(max, point.views), 0),
+    [viewsByDay],
   );
 
   async function handleDeleteAccount() {
@@ -276,7 +300,7 @@ export default function AccountDetailPage() {
         })}
       </div>
 
-      <ViewsOverTimeChart data={viewsSeries} />
+      <ViewsOverTimeChart data={viewsByDay} last30Views={last30Views} maxDayViews={maxDayViews} />
 
       <section className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
