@@ -55,8 +55,7 @@ function parseChannelInput(input: string): ParsedChannelInput | null {
 
   const handleFromUrl = normalized.match(/youtube\.com\/@([^/?#]+)/i)?.[1];
   if (handleFromUrl) {
-    const decodedHandle = safeDecode(handleFromUrl);
-    const handle = (decodedHandle === handleFromUrl ? handleFromUrl : decodedHandle).replace(/^@/, "");
+    const handle = safeDecode(handleFromUrl).replace(/^@/, "");
     const profileUrl = input.trim().startsWith("http")
       ? input.trim().split(/[?#]/)[0]
       : `https://www.youtube.com/@${handleFromUrl}`;
@@ -133,10 +132,14 @@ function pickPublishedAt(item: Record<string, unknown>): string | null {
 async function resolveChannelId(parsed: ParsedChannelInput, apiCalls: { count: number }): Promise<string> {
   if (parsed.channelId) return parsed.channelId;
 
-  const lookupCandidates = [
-    parsed.handle?.startsWith("@") ? parsed.handle : `@${parsed.handle ?? ""}`,
-    parsed.profileUrl.match(/@[^/?#]+/)?.[0],
-  ].filter((value): value is string => Boolean(value?.trim()));
+  const handle = parsed.handle?.replace(/^@/, "").trim();
+  if (!handle) {
+    throw new Error("无法解析 YouTube 频道 ID，请确认链接或 @handle 正确。");
+  }
+
+  const lookupCandidates = Array.from(
+    new Set([handle, safeDecode(handle)].filter((value) => value.trim())),
+  );
 
   let lastError: Error | null = null;
 
@@ -154,11 +157,10 @@ async function resolveChannelId(parsed: ParsedChannelInput, apiCalls: { count: n
           ["channelId"],
           ["data", "channel_id"],
           ["data", "channelId"],
-          ["data"],
         ]),
       );
 
-      if (channelId) return channelId;
+      if (channelId?.startsWith("UC")) return channelId;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("无法解析 YouTube 频道 ID");
     }
@@ -200,7 +202,6 @@ export async function scrapeYoutubeProfile(inputUrl: string): Promise<YoutubeScr
     pickString(infoBlock.title, infoBlock.name, infoBlock.channel_name, infoBlock.channelName, handle) ?? handle;
 
   const avatarUrl = pickString(
-    infoBlock.avatar,
     infoBlock.avatar_url,
     infoBlock.avatarUrl,
     dig(infoBlock, [
@@ -208,6 +209,13 @@ export async function scrapeYoutubeProfile(inputUrl: string): Promise<YoutubeScr
       ["thumbnails", "0", "url"],
       ["thumbnail", "thumbnails", "0", "url"],
     ]),
+    Array.isArray(infoBlock.avatar)
+      ? pickString(
+          ...(infoBlock.avatar as unknown[])
+            .map((item) => (isRecord(item) ? item.url : item))
+            .reverse(),
+        )
+      : pickString(infoBlock.avatar),
   );
 
   const followers = toNumber(
@@ -239,7 +247,11 @@ export async function scrapeYoutubeProfile(inputUrl: string): Promise<YoutubeScr
       "YouTube video",
     );
     const views = toNumber(
-      item.view_count ?? item.viewCount ?? item.views ?? dig(item, [["stats", "viewCount"], ["viewCountText"]]),
+      item.view_count ??
+        item.viewCount ??
+        item.views ??
+        item.viewCountText ??
+        dig(item, [["stats", "viewCount"], ["viewCountText"]]),
     );
     const likes = toNumber(
       item.like_count ?? item.likeCount ?? item.likes ?? dig(item, [["stats", "likeCount"]]),

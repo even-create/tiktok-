@@ -7,8 +7,19 @@ export function isRecord(value: unknown): value is UnknownRecord {
 export function toNumber(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value.replace(/[,_]/g, ""));
+    const normalized = value.trim().replace(/,/g, "");
+    const parsed = Number(normalized.replace(/_/g, ""));
     if (Number.isFinite(parsed)) return parsed;
+
+    const match = normalized.match(/([\d.]+)\s*([KMBkmb])?/);
+    if (match) {
+      let amount = Number(match[1]);
+      const suffix = (match[2] ?? "").toUpperCase();
+      if (suffix === "K") amount *= 1_000;
+      if (suffix === "M") amount *= 1_000_000;
+      if (suffix === "B") amount *= 1_000_000_000;
+      if (Number.isFinite(amount)) return amount;
+    }
   }
   return 0;
 }
