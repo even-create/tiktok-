@@ -5,10 +5,12 @@ import type { NormalizedTikTokProfile } from "@/lib/tiktok/types";
 
 const USER_INFO_PATH = "/api/v1/xiaohongshu/app_v2/get_user_info";
 const USER_NOTES_PATH = "/api/v1/xiaohongshu/app/get_user_notes";
-// Per-note detail endpoints carry engagement data (views/comments/collects/time)
-// that the list endpoint omits. One request per note (billed each).
+// Per-note detail endpoints carry engagement data (comments/collects/time)
+// that the list endpoint omits. One request per note (billed each), so we only
+// enrich the most recent few notes to balance data richness against cost.
 const VIDEO_NOTE_DETAIL_PATH = "/api/v1/xiaohongshu/app_v2/get_video_note_detail";
 const IMAGE_NOTE_DETAIL_PATH = "/api/v1/xiaohongshu/app_v2/get_image_note_detail";
+const NOTE_DETAIL_ENRICH_LIMIT = 6;
 
 export type XiaohongshuScrapeResult = {
   profile: NormalizedTikTokProfile;
@@ -193,7 +195,7 @@ export async function scrapeXiaohongshuProfile(inputUrl: string): Promise<Xiaoho
   const notes = extractNoteList(notesPayload).slice(0, MAX_VIDEOS_PER_SYNC);
 
   const videos = await Promise.all(
-    notes.map(async (note) => {
+    notes.map(async (note, index) => {
       const noteId =
         pickString(note.note_id, note.noteId, note.id) ??
         pickString(dig(note, [["note", "id"]])) ??
@@ -210,8 +212,8 @@ export async function scrapeXiaohongshuProfile(inputUrl: string): Promise<Xiaoho
       let collects = toNumber(note.collected_count ?? dig(note, [["interact_info", "collected_count"]]));
       let postedAt = unixToIso(note.time ?? note.create_time ?? note.timestamp);
 
-      // Enrich with the note detail endpoint (carries views / publish time / etc.).
-      if (noteId) {
+      // Only enrich the most recent notes (detail endpoint is billed per note).
+      if (noteId && index < NOTE_DETAIL_ENRICH_LIMIT) {
         try {
           const detail = await fetchNoteDetail(noteId, isVideoNote(note));
           detailCalls += 1;
