@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUpDown, ChevronDown, Search } from "lucide-react";
-import { PlatformBadge } from "@/components/accounts/platform-badge";
+import { ArrowUpDown, Check, ChevronDown, Layers, Search } from "lucide-react";
 import type { AccountSortMode } from "@/lib/accounts";
-import type { Platform } from "@/lib/providers/platform";
+import { PLATFORM_LABELS, type Platform } from "@/lib/providers/platform";
 import type { PlatformFilterValue } from "@/components/accounts/platform-filter-select";
 
 export type { AccountSortMode };
@@ -26,6 +25,11 @@ type AccountsFilterBarProps = {
   searchQuery: string;
   onSearchChange: (value: string) => void;
 };
+
+function platformLabel(option: PlatformFilterValue) {
+  if (option === "all") return "全部平台";
+  return PLATFORM_LABELS[option as Platform];
+}
 
 function PlatformPicker({
   options,
@@ -54,35 +58,36 @@ function PlatformPicker({
   return (
     <div ref={rootRef} className="relative">
       <button type="button" onClick={() => setOpen((current) => !current)} className={fieldClass}>
-        <span className="flex min-w-0 items-center gap-2">
-          {value === "all" ? (
-            <span className="truncate">全部平台</span>
-          ) : (
-            <PlatformBadge platform={value as Platform} />
-          )}
-        </span>
+        <span className="truncate">{platformLabel(value)}</span>
         <ChevronDown className={`size-4 shrink-0 text-[var(--cadet-gray)] transition ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open ? (
-        <div className="absolute left-0 top-[calc(100%+0.35rem)] z-50 w-full min-w-[10rem] rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-1.5 shadow-lg">
-          {options.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => {
-                onChange(option);
-                setOpen(false);
-              }}
-              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${
-                value === option
-                  ? "bg-[color-mix(in_srgb,var(--carolina-blue)_12%,white)] font-medium text-[var(--space-cadet)]"
-                  : "text-[var(--space-cadet)] hover:bg-[var(--eggshell)]"
-              }`}
-            >
-              {option === "all" ? "全部平台" : <PlatformBadge platform={option as Platform} />}
-            </button>
-          ))}
+        <div
+          role="menu"
+          className="absolute left-0 top-[calc(100%+0.35rem)] z-50 w-full min-w-[10rem] overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] py-1 shadow-lg"
+        >
+          {options.map((option) => {
+            const isActive = value === option;
+
+            return (
+              <button
+                key={option}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onChange(option);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--space-cadet)] transition hover:bg-[var(--eggshell)]"
+              >
+                <span className="flex w-4 shrink-0 justify-center">
+                  {isActive ? <Check className="size-3.5 text-[var(--space-cadet)]" /> : null}
+                </span>
+                <span>{platformLabel(option)}</span>
+              </button>
+            );
+          })}
         </div>
       ) : null}
     </div>
@@ -104,7 +109,10 @@ export function AccountsFilterBar({
     <div className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--eggshell)]/25 p-4">
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-[var(--space-cadet)]">选择平台</span>
+          <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--cadet-gray)]">
+            <Layers className="size-3" />
+            平台
+          </span>
           <PlatformPicker options={platformOptions} value={platform} onChange={onPlatformChange} />
         </div>
 
