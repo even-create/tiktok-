@@ -62,6 +62,12 @@ export function FeedVideoCover({ title, thumbnailUrl, videoUrl, className = "asp
   }, [displayUrl, videoUrl, failed, fetchRemoteCover]);
 
   const handleImageError = () => {
+    // Retry hotlink-protected CDNs (Douyin/XHS/IG) once through our image proxy.
+    if (displayUrl && displayUrl.startsWith("https://") && !displayUrl.startsWith("/api/image-proxy")) {
+      setDisplayUrl(`/api/image-proxy?url=${encodeURIComponent(displayUrl)}`);
+      return;
+    }
+
     if (!videoUrl || remoteLoadedRef.current) {
       setFailed(true);
       return;

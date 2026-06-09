@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type AccountAvatarProps = {
   name: string;
@@ -10,15 +10,22 @@ type AccountAvatarProps = {
 };
 
 export function AccountAvatar({ name, avatarUrl, initialsText, className = "size-11" }: AccountAvatarProps) {
-  const [failed, setFailed] = useState(false);
+  // 0 = direct load, 1 = retry via server proxy (for hotlink-protected CDNs), 2 = give up.
+  const [stage, setStage] = useState(0);
 
-  if (avatarUrl && !failed) {
+  useEffect(() => {
+    setStage(0);
+  }, [avatarUrl]);
+
+  if (avatarUrl && stage < 2) {
+    const src = stage === 0 ? avatarUrl : `/api/image-proxy?url=${encodeURIComponent(avatarUrl)}`;
     return (
       <img
-        src={avatarUrl}
+        key={src}
+        src={src}
         alt={name}
         className={`${className} shrink-0 rounded-xl object-cover ring-1 ring-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)]`}
-        onError={() => setFailed(true)}
+        onError={() => setStage((current) => current + 1)}
         referrerPolicy="no-referrer"
       />
     );
