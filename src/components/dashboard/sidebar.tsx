@@ -57,7 +57,7 @@ export function Sidebar({ user }: { user: SessionUser | null }) {
             <Flame className="size-5" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-[var(--space-cadet)]">TikTok Tracker</p>
+            <p className="text-sm font-semibold text-[var(--space-cadet)]">EvenFlow</p>
             <p className="text-xs text-[var(--cadet-gray)]">Data analytics</p>
           </div>
         </div>
