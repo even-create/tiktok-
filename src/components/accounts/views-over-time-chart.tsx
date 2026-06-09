@@ -16,10 +16,11 @@ import { formatCompact } from "@/lib/accounts";
 export type ViewsSeriesPoint = { date: string; views: number };
 
 const COLORS = {
-  bg: "#2D3350",
+  bg: "#FFFFFF",
   line: "#70B0CC",
   grid: "#8795A5",
-  text: "#E9E3CE",
+  text: "#2D3350",
+  muted: "#8795A5",
 };
 
 type RangeKey = "7" | "30" | "all";
@@ -50,10 +51,10 @@ function ChartTooltip({
 
   return (
     <div
-      style={{ backgroundColor: "rgba(20,24,40,0.95)", borderColor: COLORS.grid, color: COLORS.text }}
-      className="rounded-xl border px-3 py-2 text-xs shadow-lg"
+      style={{ backgroundColor: "#FFFFFF", borderColor: COLORS.grid, color: COLORS.text }}
+      className="rounded-xl border px-3 py-2 text-xs shadow-md"
     >
-      <p className="opacity-70">{label}</p>
+      <p className="opacity-60">{label}</p>
       <p className="mt-0.5 font-semibold" style={{ color: COLORS.line }}>
         {formatCompact(value)} 播放
       </p>
@@ -90,7 +91,7 @@ export function ViewsOverTimeChart({ data }: { data: ViewsSeriesPoint[] }) {
   return (
     <section
       style={{ backgroundColor: COLORS.bg, color: COLORS.text, borderRadius: 20 }}
-      className="overflow-hidden p-5 shadow-[0_8px_30px_rgba(20,24,40,0.25)] sm:p-6"
+      className="overflow-hidden border border-[color-mix(in_srgb,var(--cadet-gray)_22%,transparent)] p-5 shadow-[0_6px_24px_rgba(45,51,80,0.08)] sm:p-6"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -160,7 +161,7 @@ export function ViewsOverTimeChart({ data }: { data: ViewsSeriesPoint[] }) {
                 stroke={COLORS.line}
                 strokeWidth={2.5}
                 dot={{ r: 3, fill: COLORS.line, strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: COLORS.text, stroke: COLORS.line, strokeWidth: 2 }}
+                activeDot={{ r: 5, fill: "#FFFFFF", stroke: COLORS.line, strokeWidth: 2 }}
                 isAnimationActive
               />
             </LineChart>
@@ -189,11 +190,13 @@ export function ViewsOverTimeChart({ data }: { data: ViewsSeriesPoint[] }) {
               onClick={() => setRange(item.key)}
               style={
                 active
-                  ? { backgroundColor: COLORS.line, color: COLORS.bg }
-                  : { color: COLORS.text, borderColor: COLORS.grid }
+                  ? { backgroundColor: COLORS.line, color: "#FFFFFF" }
+                  : { color: COLORS.muted }
               }
               className={`rounded-lg px-3.5 py-1.5 text-xs font-medium transition ${
-                active ? "" : "border bg-white/5 hover:bg-white/10"
+                active
+                  ? ""
+                  : "border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--eggshell)]/40 hover:bg-[var(--eggshell)]/70"
               }`}
             >
               {item.label}
