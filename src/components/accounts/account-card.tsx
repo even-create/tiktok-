@@ -36,50 +36,54 @@ export function AccountCard({ account, isDeleting = false, onDelete }: AccountCa
       <Link href={detailHref} className="absolute inset-0 z-0 rounded-2xl" aria-label={`查看 @${account.handle} 详情`} />
 
       <div className="relative z-10 flex flex-col p-4 pointer-events-none">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <AccountAvatar
-              name={account.displayName}
-              avatarUrl={account.avatarUrl}
-              initialsText={account.initials}
-              className="size-12"
-            />
-            <div className="min-w-0">
-              <p className="truncate text-base font-semibold text-[var(--space-cadet)]">{account.displayName}</p>
-              <p className="truncate text-sm text-[var(--cadet-gray)]">@{account.handle}</p>
-              <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-[var(--cadet-gray)]">
-                <UserRound className="size-3" />
-                负责人：<span className="font-medium text-[var(--space-cadet)]">{account.ownerName}</span>
-              </p>
+        <div className="relative">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <AccountAvatar
+                name={account.displayName}
+                avatarUrl={account.avatarUrl}
+                initialsText={account.initials}
+                className="size-12"
+              />
+              <div className="min-w-0">
+                <p className="truncate text-base font-semibold text-[var(--space-cadet)]">{account.displayName}</p>
+                <p className="truncate text-sm text-[var(--cadet-gray)]">@{account.handle}</p>
+                <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-[var(--cadet-gray)]">
+                  <UserRound className="size-3" />
+                  负责人：<span className="font-medium text-[var(--space-cadet)]">{account.ownerName}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1 pointer-events-auto">
+              <a
+                href={account.profileUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(event) => event.stopPropagation()}
+                className="grid size-8 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/50 text-[var(--cadet-gray)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)]"
+                aria-label={`打开 @${account.handle} 的主页`}
+              >
+                <ExternalLink className="size-3.5" />
+              </a>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onDelete(account.id);
+                }}
+                className="grid size-8 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/50 text-[var(--cadet-gray)] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60"
+                aria-label={`删除账号 ${account.handle}`}
+              >
+                {isDeleting ? <Clock3 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+              </button>
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <div className="flex items-center gap-1 pointer-events-auto">
-            <a
-              href={account.profileUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(event) => event.stopPropagation()}
-              className="grid size-8 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/50 text-[var(--cadet-gray)] transition hover:border-[var(--carolina-blue)] hover:text-[var(--carolina-blue)]"
-              aria-label={`打开 @${account.handle} 的 TikTok 主页`}
-            >
-              <ExternalLink className="size-3.5" />
-            </a>
-            <button
-              type="button"
-              disabled={isDeleting}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onDelete(account.id);
-              }}
-              className="grid size-8 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/50 text-[var(--cadet-gray)] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60"
-              aria-label={`删除账号 ${account.handle}`}
-            >
-              {isDeleting ? <Clock3 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-            </button>
-            </div>
+          {/* Vertically centered in the gap between action buttons and the metrics row below. */}
+          <div className="pointer-events-none absolute right-0 top-8 -bottom-4 flex items-center justify-end">
             <PlatformBadge platform={account.platform} />
           </div>
         </div>
