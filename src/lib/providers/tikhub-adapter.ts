@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { pickAvatarFromRecord } from "@/lib/providers/parse-utils";
 import type { Platform } from "@/lib/providers/platform";
 import type { NormalizedTikTokProfile, UnifiedTikTokAccountData, UnifiedTikTokVideo } from "@/lib/tiktok/types";
 
@@ -208,6 +209,7 @@ export function mapProfilePayload(
     ["user_info"],
     ["userInfo"],
     ["data", "user"],
+    ["data", "user_info"],
   ]) as UnknownRecord) ?? (isRecord(profilePayload) ? profilePayload : {});
 
   const handle =
@@ -218,10 +220,7 @@ export function mapProfilePayload(
     handle,
     displayName: pickString(user.nickname, user.nick_name, user.display_name, handle) ?? handle,
     profileUrl: `https://www.tiktok.com/@${handle}`,
-    avatarUrl: pickString(
-      dig(user, [["avatar_larger", "url_list", "0"], ["avatar_thumb", "url_list", "0"], ["avatar_medium", "url_list", "0"]]),
-      user.avatar,
-    ),
+    avatarUrl: pickAvatarFromRecord(user),
     followers: toNumber(user.follower_count ?? user.followerCount ?? user.fans),
     likes: toNumber(user.total_favorited ?? user.heartCount ?? user.heart),
     videoCount: toNumber(user.aweme_count ?? user.videoCount ?? user.video),

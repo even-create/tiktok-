@@ -68,3 +68,71 @@ export function titleFromText(text: string | null | undefined, fallback: string)
   if (!clean) return fallback;
   return clean.length > 160 ? `${clean.slice(0, 157)}...` : clean;
 }
+
+const BROWSER_IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif)(\?|$)/i;
+
+/** Normalize CDN URLs for storage and display (protocol, HTML entities). */
+export function normalizeMediaUrl(raw: unknown): string | null {
+  const value = pickString(raw);
+  if (!value) return null;
+
+  let url = value.replace(/&amp;/g, "&");
+  if (url.startsWith("//")) url = `https:${url}`;
+  if (url.startsWith("http://")) url = `https://${url.slice(7)}`;
+
+  return url.startsWith("https://") ? url : null;
+}
+
+function scoreAvatarUrl(url: string): number {
+  if (BROWSER_IMAGE_EXT.test(url)) return 10;
+  if (/\.heic(\?|$)/i.test(url)) return 0;
+  return 5;
+}
+
+/** Pick the best browser-renderable avatar from flat strings and url_list arrays. */
+export function pickAvatarUrl(...sources: unknown[]): string | null {
+  const candidates: string[] = [];
+
+  for (const source of sources) {
+    if (typeof source === "string" || typeof source === "number") {
+      const normalized = normalizeMediaUrl(source);
+      if (normalized) candidates.push(normalized);
+      continue;
+    }
+
+    if (Array.isArray(source)) {
+      for (const item of source) {
+        const normalized = normalizeMediaUrl(item);
+        if (normalized) candidates.push(normalized);
+      }
+    }
+  }
+
+  if (!candidates.length) return null;
+
+  candidates.sort((left, right) => scoreAvatarUrl(right) - scoreAvatarUrl(left));
+  return candidates[0];
+}
+
+/** Extract avatar from Douyin/TikTok-style user objects (avatar_* blocks with url_list). */
+export function pickAvatarFromRecord(user: UnknownRecord): string | null {
+  const blocks = [user.avatar_larger, user.avatar_medium, user.avatar_thumb, user.avatar_168x168];
+
+  const urlLists: unknown[] = [];
+  for (const block of blocks) {
+    if (isRecord(block) && Array.isArray(block.url_list)) {
+      urlLists.push(block.url_list);
+    }
+  }
+
+  const flatList = dig(user, [
+    ["avatar_larger", "url_list"],
+    ["avatar_medium", "url_list"],
+    ["avatar_thumb", "url_list"],
+    ["avatar_168x168", "url_list"],
+  ]);
+
+  if (Array.isArray(flatList)) urlLists.push(flatList);
+
+  return pickAvatarUrl(...urlLists, user.avatar, user.avatar_url);
+}

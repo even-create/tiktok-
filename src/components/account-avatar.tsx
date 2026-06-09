@@ -9,16 +9,33 @@ type AccountAvatarProps = {
   className?: string;
 };
 
+const PROXY_FIRST_HOSTS = /douyinpic\.com|douyincdn\.com|byteimg\.com|ibyteimg\.com|pstatp\.com|xhscdn\.com|cdninstagram\.com|fbcdn\.net$/i;
+
+function needsProxyFirst(url: string): boolean {
+  try {
+    return PROXY_FIRST_HOSTS.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** Douyin API often stores .heic first; browsers only render jpeg/png/webp. */
+function toBrowserImageUrl(url: string): string {
+  return url.replace(/\.heic(\?)/i, ".jpeg$1");
+}
+
 export function AccountAvatar({ name, avatarUrl, initialsText, className = "size-11" }: AccountAvatarProps) {
   // 0 = direct load, 1 = retry via server proxy (for hotlink-protected CDNs), 2 = give up.
   const [stage, setStage] = useState(0);
 
-  useEffect(() => {
-    setStage(0);
-  }, [avatarUrl]);
+  const displayUrl = avatarUrl ? toBrowserImageUrl(avatarUrl) : null;
 
-  if (avatarUrl && stage < 2) {
-    const src = stage === 0 ? avatarUrl : `/api/image-proxy?url=${encodeURIComponent(avatarUrl)}`;
+  useEffect(() => {
+    setStage(displayUrl && needsProxyFirst(displayUrl) ? 1 : 0);
+  }, [displayUrl]);
+
+  if (displayUrl && stage < 2) {
+    const src = stage === 0 ? displayUrl : `/api/image-proxy?url=${encodeURIComponent(displayUrl)}`;
     return (
       <img
         key={src}

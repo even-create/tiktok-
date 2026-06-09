@@ -2,7 +2,7 @@ import { PLATFORM_LABELS, type Platform } from "@/lib/providers/platform";
 
 const PLATFORM_STYLES: Record<Platform, string> = {
   tiktok: "bg-[#111]/90 text-white",
-  douyin: "bg-[#161823] text-[#fe2c55]",
+  douyin: "bg-[#161823] text-white",
   xiaohongshu: "bg-[#ff2442] text-white",
   instagram: "bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#8134af] text-white",
   youtube: "bg-[#ff0000] text-white",
