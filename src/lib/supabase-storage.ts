@@ -159,11 +159,13 @@ export async function saveTikTokProfile(
   const { data: existingAccount } = await supabase
     .from("accounts")
     .select("id")
+    .eq("platform", profile.platform)
     .eq("handle", profile.handle)
     .maybeSingle();
   const isNewAccount = !existingAccount;
 
   const accountRecord: Record<string, RecordValue> = {
+    platform: profile.platform,
     tiktok_user_id: profile.tiktokUserId,
     handle: profile.handle,
     display_name: profile.displayName,
@@ -183,7 +185,7 @@ export async function saveTikTokProfile(
   }
 
   const accountResult = await upsertWithMissingColumnRetry("accounts", accountRecord, {
-    onConflict: "handle",
+    onConflict: "platform,handle",
   });
 
   const account = accountResult.data;

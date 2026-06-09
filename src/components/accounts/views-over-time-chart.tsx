@@ -41,10 +41,12 @@ function ChartTooltip({
   active,
   payload,
   label,
+  metricNoun,
 }: {
   active?: boolean;
   payload?: Array<{ value?: number | string }>;
   label?: string | number;
+  metricNoun: string;
 }) {
   if (!active || !payload?.length) return null;
   const value = Number(payload[0]?.value ?? 0);
@@ -56,7 +58,7 @@ function ChartTooltip({
     >
       <p className="opacity-60">{label}</p>
       <p className="mt-0.5 font-semibold" style={{ color: COLORS.line }}>
-        {formatCompact(value)} 播放
+        {formatCompact(value)} {metricNoun}
       </p>
     </div>
   );
@@ -66,10 +68,16 @@ export function ViewsOverTimeChart({
   data,
   last30Views,
   maxDayViews,
+  metricNoun = "播放",
+  titleZh = "播放量趋势",
+  titleEn = "Views Over Time",
 }: {
   data: ViewsSeriesPoint[];
   last30Views: number;
   maxDayViews: number;
+  metricNoun?: string;
+  titleZh?: string;
+  titleEn?: string;
 }) {
   const [range, setRange] = useState<RangeKey>("30");
 
@@ -92,17 +100,17 @@ export function ViewsOverTimeChart({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold" style={{ color: COLORS.text }}>
-            播放量趋势
+            {titleZh}
           </h2>
           <p className="mt-0.5 text-xs uppercase tracking-[0.18em]" style={{ color: COLORS.grid }}>
-            Views Over Time
+            {titleEn}
           </p>
         </div>
 
         <div className="flex items-center gap-5">
           <div>
             <p className="text-[11px]" style={{ color: COLORS.muted }}>
-              近 30 天视频总播放
+              近 30 天总{metricNoun}
             </p>
             <p className="text-2xl font-semibold" style={{ color: COLORS.text }}>
               {formatCompact(last30Views)}
@@ -110,7 +118,7 @@ export function ViewsOverTimeChart({
           </div>
           <div>
             <p className="text-[11px]" style={{ color: COLORS.muted }}>
-              单日最高播放
+              单日最高{metricNoun}
             </p>
             <p
               className="inline-flex items-center gap-1 text-lg font-semibold"
@@ -148,7 +156,10 @@ export function ViewsOverTimeChart({
                 tickLine={false}
                 axisLine={false}
               />
-              <Tooltip content={<ChartTooltip />} cursor={{ stroke: COLORS.grid, strokeOpacity: 0.4 }} />
+              <Tooltip
+                content={<ChartTooltip metricNoun={metricNoun} />}
+                cursor={{ stroke: COLORS.grid, strokeOpacity: 0.4 }}
+              />
               <Line
                 type="monotone"
                 dataKey="views"
@@ -167,7 +178,7 @@ export function ViewsOverTimeChart({
                 暂无视频数据
               </p>
               <p className="mt-1 text-xs" style={{ color: COLORS.muted }}>
-                同步该账号的视频后，将按发布日期展示每日发布视频的总播放量。
+                同步该账号的作品后，将按发布日期展示每日发布作品的总{metricNoun}。
               </p>
             </div>
           </div>

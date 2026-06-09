@@ -1,4 +1,5 @@
 import { formatBeijingTime, getBeijingTimestamp } from "@/lib/format-beijing-time";
+import { VIEW_PRIMARY_PLATFORMS, type Platform } from "@/lib/providers/platform";
 
 export type ApiVideo = {
   id: string;
@@ -16,6 +17,7 @@ export type ApiVideo = {
 
 export type ApiAccount = {
   id: string;
+  platform?: string | null;
   handle: string;
   display_name: string | null;
   profile_url: string | null;
@@ -38,6 +40,7 @@ export type TrendPoint = {
 
 export type AccountListItem = {
   id: string;
+  platform: Platform;
   handle: string;
   displayName: string;
   profileUrl: string;
@@ -52,6 +55,7 @@ export type AccountListItem = {
   likesLabel: string;
   viewsLabel: string;
   engagementLabel: string;
+  avgLikesLabel: string;
   lastSyncedLabel: string;
   trendPoints: TrendPoint[];
   videoCount: number;
@@ -87,31 +91,43 @@ export function tiktokProfileUrl(handle: string, profileUrl?: string | null) {
   return `https://www.tiktok.com/@${handle}`;
 }
 
-export function buildViewsTrendPoints(videos: ApiVideo[] | undefined, maxPoints = 8): TrendPoint[] {
+export function buildViewsTrendPoints(
+  videos: ApiVideo[] | undefined,
+  maxPoints = 8,
+  metric: "views" | "likes" = "views",
+): TrendPoint[] {
   if (!videos?.length) return [];
+
+  const valueOf = (video: ApiVideo) =>
+    metric === "likes" ? video.likes_count ?? 0 : video.views_count ?? 0;
 
   const sorted = [...videos].sort((left, right) => {
     const leftTime = left.posted_at ? (getBeijingTimestamp(left.posted_at) ?? 0) : 0;
     const rightTime = right.posted_at ? (getBeijingTimestamp(right.posted_at) ?? 0) : 0;
     if (leftTime !== rightTime) return leftTime - rightTime;
-    return (left.views_count ?? 0) - (right.views_count ?? 0);
+    return valueOf(left) - valueOf(right);
   });
 
   return sorted.slice(-maxPoints).map((video, index) => ({
     label: String(index + 1),
-    value: video.views_count ?? 0,
+    value: valueOf(video),
   }));
 }
 
 export function mapApiAccount(account: ApiAccount): AccountListItem {
   const displayName = account.display_name?.trim() || account.handle;
+  const platform = (account.platform as Platform) || "tiktok";
+  const isViewPrimary = VIEW_PRIMARY_PLATFORMS.has(platform);
   const followersCount = account.followers_count ?? 0;
   const likesCount = account.likes_count ?? 0;
   const totalViews = account.total_views ?? 0;
   const engagementRate = Number(account.engagement_rate ?? 0);
+  const videoCount = account.video_count ?? account.videos?.length ?? 0;
+  const avgLikes = videoCount > 0 ? Math.round(likesCount / videoCount) : 0;
 
   return {
     id: account.id,
+    platform,
     handle: account.handle,
     displayName,
     profileUrl: tiktokProfileUrl(account.handle, account.profile_url),
@@ -126,9 +142,10 @@ export function mapApiAccount(account: ApiAccount): AccountListItem {
     likesLabel: formatCompact(likesCount),
     viewsLabel: formatCompact(totalViews),
     engagementLabel: `${engagementRate.toFixed(1)}%`,
+    avgLikesLabel: formatCompact(avgLikes),
     lastSyncedLabel: formatLastSynced(account.last_synced_at),
-    trendPoints: buildViewsTrendPoints(account.videos),
-    videoCount: account.video_count ?? account.videos?.length ?? 0,
+    trendPoints: buildViewsTrendPoints(account.videos, 8, isViewPrimary ? "views" : "likes"),
+    videoCount,
     ownerId: account.owner_id?.trim() || "admin",
     ownerName: account.owner_name?.trim() || "Even",
   };

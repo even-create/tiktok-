@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { Platform } from "@/lib/providers/platform";
 import type { NormalizedTikTokProfile, UnifiedTikTokAccountData, UnifiedTikTokVideo } from "@/lib/tiktok/types";
 
 type UnknownRecord = Record<string, unknown>;
@@ -238,7 +239,11 @@ export function mapProfilePayload(
   return { author, videos };
 }
 
-export function toNormalizedProfile(data: UnifiedTikTokAccountData, maxVideos: number): NormalizedTikTokProfile {
+export function toNormalizedProfile(
+  data: UnifiedTikTokAccountData,
+  maxVideos: number,
+  platform: Platform = "tiktok",
+): NormalizedTikTokProfile {
   const recentVideos = data.videos.slice(0, maxVideos);
   const scrapedViews = recentVideos.reduce((sum, video) => sum + video.views, 0);
   const videoLikes = recentVideos.reduce((sum, video) => sum + video.likes, 0);
@@ -250,6 +255,7 @@ export function toNormalizedProfile(data: UnifiedTikTokAccountData, maxVideos: n
       : 0;
 
   return {
+    platform,
     tiktokUserId: data.author.id,
     handle: data.author.handle,
     displayName: data.author.displayName,

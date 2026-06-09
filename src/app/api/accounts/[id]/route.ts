@@ -6,21 +6,21 @@ import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
 import { supabase } from "@/lib/supabase";
 
 type RouteContext = {
-  params: Promise<{ handle: string }>;
+  params: Promise<{ id: string }>;
 };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const { handle: rawHandle } = await context.params;
-  const handle = decodeURIComponent(rawHandle).trim();
+  const { id: rawId } = await context.params;
+  const id = decodeURIComponent(rawId).trim();
 
-  if (!handle) {
-    return NextResponse.json({ error: "请提供账号 handle" }, { status: 400 });
+  if (!id) {
+    return NextResponse.json({ error: "请提供账号 id" }, { status: 400 });
   }
 
   const { data, error } = await supabase
     .from("accounts")
     .select("*, videos(*)")
-    .eq("handle", handle)
+    .eq("id", id)
     .maybeSingle();
 
   if (error) {

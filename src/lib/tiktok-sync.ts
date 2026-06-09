@@ -1,7 +1,12 @@
 import { isTikHubConfigured } from "@/lib/app-settings";
 import { scrapeTikTokProfileWithMeta } from "@/lib/providers/TikHubProvider";
+import { scrapeDouyinProfile } from "@/lib/providers/douyin";
+import { scrapeInstagramProfile } from "@/lib/providers/instagram";
+import { scrapeXiaohongshuProfile } from "@/lib/providers/xiaohongshu";
+import { detectPlatform } from "@/lib/providers/platform";
 import { formatCacheTtlLabelAsync, shouldUseSyncCacheAsync } from "@/lib/sync-config";
 import { assertTikTokTablesReady, saveTikTokProfile, type AccountOwner } from "@/lib/supabase-storage";
+import type { NormalizedTikTokProfile } from "@/lib/tiktok/types";
 
 export type SyncTikTokAccountOptions = {
   url: string;
@@ -43,7 +48,7 @@ export async function syncTikTokAccount(options: SyncTikTokAccountOptions): Prom
     };
   }
 
-  const { profile, apiCalls } = await scrapeTikTokProfileWithMeta(options.url);
+  const { profile, apiCalls } = await scrapeProfileForUrl(options.url);
   const saved = await saveTikTokProfile(profile, options.owner ?? null);
 
   return {
@@ -55,4 +60,25 @@ export async function syncTikTokAccount(options: SyncTikTokAccountOptions): Prom
     videosUpdated: saved.videosUpdated,
     apifyCalls: apiCalls,
   };
+}
+
+async function scrapeProfileForUrl(
+  url: string,
+): Promise<{ profile: NormalizedTikTokProfile; apiCalls: number }> {
+  const platform = detectPlatform(url);
+
+  switch (platform) {
+    case "douyin":
+      return scrapeDouyinProfile(url);
+    case "xiaohongshu":
+      return scrapeXiaohongshuProfile(url);
+    case "instagram":
+      return scrapeInstagramProfile(url);
+    case "tiktok":
+      return scrapeTikTokProfileWithMeta(url);
+    default:
+      throw new Error(
+        "无法识别平台链接，请粘贴 抖音 / 小红书 / Instagram / TikTok 的主页或分享链接。",
+      );
+  }
 }

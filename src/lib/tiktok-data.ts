@@ -57,6 +57,16 @@ export async function upsertAccount(account: Pick<AccountRow, "handle" | "profil
     .single();
 }
 
+export async function deleteAccountById(id: string) {
+  const { error: videosError } = await supabase.from("videos").delete().eq("account_id", id);
+
+  if (videosError) {
+    return { error: videosError, count: null };
+  }
+
+  return supabase.from("accounts").delete({ count: "exact" }).eq("id", id);
+}
+
 export async function deleteAccountByHandle(handle: string) {
   const { data: account, error: findError } = await supabase
     .from("accounts")

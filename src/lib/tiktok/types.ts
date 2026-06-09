@@ -22,8 +22,11 @@ export type UnifiedTikTokVideo = {
   postedAt: string | null;
 };
 
+import type { Platform } from "@/lib/providers/platform";
+
 /** Normalized profile payload consumed by Supabase storage (UI-agnostic). */
 export type NormalizedTikTokProfile = {
+  platform: Platform;
   tiktokUserId: string | null;
   handle: string;
   displayName: string;

@@ -1,19 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { Clock3, ExternalLink, Eye, Heart, ThumbsUp, Trash2, TrendingUp, UserRound, Users } from "lucide-react";
+import { CirclePlay, Clock3, ExternalLink, Eye, Heart, ThumbsUp, Trash2, TrendingUp, UserRound, Users } from "lucide-react";
 import { AccountAvatar } from "@/components/account-avatar";
+import { PlatformBadge } from "@/components/accounts/platform-badge";
 import { MiniSparkline } from "@/components/dashboard/mini-sparkline";
 import type { AccountListItem } from "@/lib/accounts";
+import { VIEW_PRIMARY_PLATFORMS } from "@/lib/providers/platform";
 
 type AccountCardProps = {
   account: AccountListItem;
   isDeleting?: boolean;
-  onDelete: (handle: string) => void;
+  onDelete: (id: string) => void;
 };
 
 export function AccountCard({ account, isDeleting = false, onDelete }: AccountCardProps) {
-  const detailHref = `/accounts/${encodeURIComponent(account.handle)}`;
+  const detailHref = `/accounts/${encodeURIComponent(account.id)}`;
+  const isViewPrimary = VIEW_PRIMARY_PLATFORMS.has(account.platform);
+  const metrics = isViewPrimary
+    ? [
+        { label: "粉丝", value: account.followersLabel, icon: Users },
+        { label: "点赞", value: account.likesLabel, icon: ThumbsUp },
+        { label: "播放", value: account.viewsLabel, icon: Eye },
+        { label: "互动率", value: account.engagementLabel, icon: TrendingUp },
+      ]
+    : [
+        { label: "粉丝", value: account.followersLabel, icon: Users },
+        { label: "点赞", value: account.likesLabel, icon: ThumbsUp },
+        { label: "作品", value: String(account.videoCount), icon: CirclePlay },
+        { label: "均赞", value: account.avgLikesLabel, icon: TrendingUp },
+      ];
 
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--carolina-blue)_40%,transparent)] hover:shadow-md">
@@ -29,7 +45,10 @@ export function AccountCard({ account, isDeleting = false, onDelete }: AccountCa
               className="size-12"
             />
             <div className="min-w-0">
-              <p className="truncate text-base font-semibold text-[var(--space-cadet)]">{account.displayName}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="truncate text-base font-semibold text-[var(--space-cadet)]">{account.displayName}</p>
+                <PlatformBadge platform={account.platform} className="shrink-0" />
+              </div>
               <p className="truncate text-sm text-[var(--cadet-gray)]">@{account.handle}</p>
               <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-[var(--cadet-gray)]">
                 <UserRound className="size-3" />
@@ -55,7 +74,7 @@ export function AccountCard({ account, isDeleting = false, onDelete }: AccountCa
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                onDelete(account.handle);
+                onDelete(account.id);
               }}
               className="grid size-8 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/50 text-[var(--cadet-gray)] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60"
               aria-label={`删除账号 ${account.handle}`}
@@ -66,12 +85,7 @@ export function AccountCard({ account, isDeleting = false, onDelete }: AccountCa
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {[
-            { label: "粉丝", value: account.followersLabel, icon: Users },
-            { label: "点赞", value: account.likesLabel, icon: ThumbsUp },
-            { label: "播放", value: account.viewsLabel, icon: Eye },
-            { label: "互动率", value: account.engagementLabel, icon: TrendingUp },
-          ].map((metric) => (
+          {metrics.map((metric) => (
             <div
               key={metric.label}
               className="rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_22%,transparent)] bg-[var(--eggshell)]/35 px-2.5 py-2"
@@ -98,7 +112,7 @@ export function AccountCard({ account, isDeleting = false, onDelete }: AccountCa
 
         <div className="mt-3">
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cadet-gray)]">
-            播放趋势
+            {isViewPrimary ? "播放趋势" : "点赞趋势"}
           </p>
           <MiniSparkline points={account.trendPoints} />
         </div>

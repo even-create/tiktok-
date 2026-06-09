@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchSnapshotsForDates, recordAllAccountSnapshots } from "@/lib/account-snapshots";
-import { deleteAccountByHandle } from "@/lib/tiktok-data";
+import { deleteAccountById } from "@/lib/tiktok-data";
 import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
 import { getCurrentUser } from "@/lib/current-user";
 import { supabase } from "@/lib/supabase";
@@ -65,10 +65,10 @@ export async function GET() {
 }
 
 export async function DELETE(request: Request) {
-  const handle = new URL(request.url).searchParams.get("handle")?.trim();
+  const id = new URL(request.url).searchParams.get("id")?.trim();
 
-  if (!handle) {
-    return NextResponse.json({ error: "请提供要删除的账号 handle" }, { status: 400 });
+  if (!id) {
+    return NextResponse.json({ error: "请提供要删除的账号 id" }, { status: 400 });
   }
 
   // Members may only delete accounts they own.
@@ -77,14 +77,14 @@ export async function DELETE(request: Request) {
     const { data: target } = await supabase
       .from("accounts")
       .select("owner_id")
-      .eq("handle", handle)
+      .eq("id", id)
       .maybeSingle();
     if (!target || (target.owner_id ?? "admin") !== user.id) {
       return NextResponse.json({ error: "未找到该账号" }, { status: 404 });
     }
   }
 
-  const { error, count } = await deleteAccountByHandle(handle);
+  const { error, count } = await deleteAccountById(id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -94,5 +94,5 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "未找到该账号" }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, handle });
+  return NextResponse.json({ ok: true, id });
 }

@@ -19,7 +19,7 @@ export default function AccountsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [deletingHandle, setDeletingHandle] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadAccounts = useCallback(async () => {
     setIsLoading(true);
@@ -54,15 +54,18 @@ export default function AccountsPage() {
     return sortAccountsByFollowers(filtered, sortByFollowers);
   }, [accounts, searchQuery, sortByFollowers]);
 
-  async function handleDeleteAccount(handle: string) {
-    const confirmed = window.confirm(`确定要停止追踪 @${handle} 吗？相关视频数据也会一并删除。`);
+  async function handleDeleteAccount(id: string) {
+    const target = accounts.find((account) => account.id === id);
+    const confirmed = window.confirm(
+      `确定要停止追踪 @${target?.handle ?? ""} 吗？相关视频数据也会一并删除。`,
+    );
     if (!confirmed) return;
 
-    setDeletingHandle(handle);
+    setDeletingId(id);
     setErrorMessage("");
 
     try {
-      const response = await fetch(`/api/accounts?handle=${encodeURIComponent(handle)}`, {
+      const response = await fetch(`/api/accounts?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
       });
       const payload = (await response.json()) as { error?: string };
@@ -71,11 +74,11 @@ export default function AccountsPage() {
         throw new Error(payload.error ?? "删除账号失败");
       }
 
-      setAccounts((current) => current.filter((account) => account.handle !== handle));
+      setAccounts((current) => current.filter((account) => account.id !== id));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "删除账号失败");
     } finally {
-      setDeletingHandle(null);
+      setDeletingId(null);
     }
   }
 
@@ -94,7 +97,7 @@ export default function AccountsPage() {
           <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
             <AddAccountForm
               className="min-w-0 flex-1"
-              disabled={isLoading || deletingHandle !== null}
+              disabled={isLoading || deletingId !== null}
               onError={(message) => {
                 setSuccessMessage(null);
                 setErrorMessage(message);
@@ -174,7 +177,7 @@ export default function AccountsPage() {
             <AccountCard
               key={account.id}
               account={account}
-              isDeleting={deletingHandle === account.handle}
+              isDeleting={deletingId === account.id}
               onDelete={handleDeleteAccount}
             />
           ))}
@@ -188,7 +191,7 @@ export default function AccountsPage() {
           <p className="mt-2 text-sm text-[var(--cadet-gray)]">
             {searchQuery.trim()
               ? "试试其他关键词，或清空搜索条件。"
-              : "请在右上角粘贴 TikTok 链接并添加账号。"}
+              : "请在上方粘贴 抖音 / 小红书 / Instagram / TikTok 链接并添加账号。"}
           </p>
         </section>
       )}
