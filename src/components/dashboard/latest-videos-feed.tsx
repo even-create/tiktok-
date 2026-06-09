@@ -66,22 +66,6 @@ function PostedDateFilter({
 
       {open ? (
         <div className="absolute left-0 top-[calc(100%+0.35rem)] z-30 w-64 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-3 shadow-lg">
-          <button
-            type="button"
-            onClick={() => {
-              onChange(null);
-              setOpen(false);
-            }}
-            className={`mb-3 flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition ${
-              value === null
-                ? "bg-[var(--space-cadet)] font-medium text-[var(--eggshell)]"
-                : "text-[var(--space-cadet)] hover:bg-[var(--eggshell)]"
-            }`}
-          >
-            全部
-            <span className="text-xs opacity-80">显示所有视频</span>
-          </button>
-
           <label className="block text-xs font-medium text-[var(--cadet-gray)]">选择发布日期（北京时间）</label>
           <input
             type="date"
