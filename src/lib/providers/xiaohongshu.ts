@@ -63,20 +63,27 @@ async function fetchNoteDetail(noteId: string, video: boolean): Promise<NoteDeta
     query: { note_id: noteId },
   });
 
-  const root =
-    (dig(payload, [["note"], ["data", "note"], ["note_detail"], ["data"]]) as Record<string, unknown>) ??
-    (isRecord(payload) ? payload : null);
+  // The note object is nested: envelope.data -> { data: [ note ] } (or { note }).
+  const container = dig(payload, [["data"], ["note"], ["note_detail"]]) ?? payload;
+  const root: Record<string, unknown> | null = Array.isArray(container)
+    ? (container.find(isRecord) as Record<string, unknown> | undefined) ?? null
+    : isRecord(container)
+      ? container
+      : null;
   if (!root) return null;
 
   const interact =
-    (dig(root, [["interact_info"], ["interactInfo"]]) as Record<string, unknown> | undefined) ?? null;
+    (dig(root, [["interact_info"], ["interactInfo"], ["interaction_info"]]) as Record<string, unknown> | undefined) ??
+    null;
 
   return {
+    // NOTE: Xiaohongshu only exposes view_count to the author; the public API
+    // always returns 0, so views are effectively unavailable for XHS.
     views: extractViews(root, interact),
     likes: toNumber(interact?.liked_count ?? root.liked_count ?? root.likes),
-    comments: toNumber(interact?.comment_count ?? root.comment_count ?? root.comments_count),
-    shares: toNumber(interact?.share_count ?? root.share_count ?? root.shared_count),
-    collects: toNumber(interact?.collected_count ?? root.collected_count ?? root.collects),
+    comments: toNumber(root.comments_count ?? interact?.comment_count ?? root.comment_count),
+    shares: toNumber(root.shared_count ?? interact?.share_count ?? root.share_count),
+    collects: toNumber(root.collected_count ?? interact?.collected_count ?? root.collects),
     postedAt: unixToIso(root.time ?? root.create_time ?? root.last_update_time ?? interact?.time),
   };
 }
