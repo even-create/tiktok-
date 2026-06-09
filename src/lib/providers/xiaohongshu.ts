@@ -5,11 +5,81 @@ import type { NormalizedTikTokProfile } from "@/lib/tiktok/types";
 
 const USER_INFO_PATH = "/api/v1/xiaohongshu/app_v2/get_user_info";
 const USER_NOTES_PATH = "/api/v1/xiaohongshu/app/get_user_notes";
+// Per-note detail endpoints carry engagement data (views/comments/collects/time)
+// that the list endpoint omits. One request per note (billed each).
+const VIDEO_NOTE_DETAIL_PATH = "/api/v1/xiaohongshu/app_v2/get_video_note_detail";
+const IMAGE_NOTE_DETAIL_PATH = "/api/v1/xiaohongshu/app_v2/get_image_note_detail";
 
 export type XiaohongshuScrapeResult = {
   profile: NormalizedTikTokProfile;
   apiCalls: number;
 };
+
+type NoteDetail = {
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  collects: number;
+  postedAt: string | null;
+};
+
+function isVideoNote(note: Record<string, unknown>): boolean {
+  const type = pickString(note.type, note.note_type, dig(note, [["note", "type"]]));
+  return type === "video" || type === "1";
+}
+
+/** Pull the view/play count out of an XHS note detail payload (field name varies). */
+function extractViews(root: Record<string, unknown>, interact: Record<string, unknown> | null): number {
+  const candidates = [
+    interact?.view_count,
+    interact?.viewed_count,
+    interact?.read_count,
+    interact?.play_count,
+    interact?.video_play_count,
+    root.view_count,
+    root.viewed_count,
+    root.read_count,
+    root.play_count,
+    dig(root, [
+      ["video", "consume", "view_count"],
+      ["video", "consume", "played_count"],
+      ["video", "consume", "play_count"],
+      ["page_info", "view_count"],
+      ["page_info", "views"],
+    ]),
+  ];
+
+  for (const candidate of candidates) {
+    const value = toNumber(candidate);
+    if (value > 0) return value;
+  }
+  return 0;
+}
+
+async function fetchNoteDetail(noteId: string, video: boolean): Promise<NoteDetail | null> {
+  const payload = await tikhubRequest<unknown>({
+    path: video ? VIDEO_NOTE_DETAIL_PATH : IMAGE_NOTE_DETAIL_PATH,
+    query: { note_id: noteId },
+  });
+
+  const root =
+    (dig(payload, [["note"], ["data", "note"], ["note_detail"], ["data"]]) as Record<string, unknown>) ??
+    (isRecord(payload) ? payload : null);
+  if (!root) return null;
+
+  const interact =
+    (dig(root, [["interact_info"], ["interactInfo"]]) as Record<string, unknown> | undefined) ?? null;
+
+  return {
+    views: extractViews(root, interact),
+    likes: toNumber(interact?.liked_count ?? root.liked_count ?? root.likes),
+    comments: toNumber(interact?.comment_count ?? root.comment_count ?? root.comments_count),
+    shares: toNumber(interact?.share_count ?? root.share_count ?? root.shared_count),
+    collects: toNumber(interact?.collected_count ?? root.collected_count ?? root.collects),
+    postedAt: unixToIso(root.time ?? root.create_time ?? root.last_update_time ?? interact?.time),
+  };
+}
 
 function parseUserId(input: string): string | null {
   const fromUrl = input.match(/xiaohongshu\.com\/user\/profile\/([a-z0-9]+)/i)?.[1];
@@ -50,6 +120,7 @@ function pickCover(note: Record<string, unknown>): string | null {
 
 export async function scrapeXiaohongshuProfile(inputUrl: string): Promise<XiaohongshuScrapeResult> {
   let apiCalls = 0;
+  let detailCalls = 0;
   let userId = parseUserId(inputUrl);
 
   const infoPayload = await tikhubRequest<unknown>({
@@ -114,32 +185,58 @@ export async function scrapeXiaohongshuProfile(inputUrl: string): Promise<Xiaoho
 
   const notes = extractNoteList(notesPayload).slice(0, MAX_VIDEOS_PER_SYNC);
 
-  const videos = notes.map((note) => {
-    const noteId =
-      pickString(note.note_id, note.noteId, note.id) ??
-      pickString(dig(note, [["note", "id"]])) ??
-      "";
-    const title = pickString(note.display_title, note.title, note.desc, note.name);
-    const likes = toNumber(
-      note.liked_count ??
-        note.likes ??
-        note.like_count ??
-        dig(note, [["interact_info", "liked_count"]]),
-    );
+  const videos = await Promise.all(
+    notes.map(async (note) => {
+      const noteId =
+        pickString(note.note_id, note.noteId, note.id) ??
+        pickString(dig(note, [["note", "id"]])) ??
+        "";
+      const title = pickString(note.display_title, note.title, note.desc, note.name);
 
-    return {
-      tiktokVideoId: noteId,
-      title: titleFromText(title, "小红书笔记"),
-      videoUrl: noteId ? `https://www.xiaohongshu.com/explore/${noteId}` : null,
-      thumbnailUrl: pickCover(note),
-      viewsCount: toNumber(note.view_count ?? note.viewed_count ?? dig(note, [["interact_info", "view_count"]])),
-      likesCount: likes,
-      commentsCount: toNumber(note.comment_count ?? dig(note, [["interact_info", "comment_count"]])),
-      sharesCount: toNumber(note.share_count ?? dig(note, [["interact_info", "share_count"]])),
-      collectsCount: toNumber(note.collected_count ?? dig(note, [["interact_info", "collected_count"]])),
-      postedAt: unixToIso(note.time ?? note.create_time ?? note.timestamp),
-    };
-  });
+      // List-level values (always present).
+      let views = toNumber(note.view_count ?? note.viewed_count ?? dig(note, [["interact_info", "view_count"]]));
+      let likes = toNumber(
+        note.liked_count ?? note.likes ?? note.like_count ?? dig(note, [["interact_info", "liked_count"]]),
+      );
+      let comments = toNumber(note.comment_count ?? dig(note, [["interact_info", "comment_count"]]));
+      let shares = toNumber(note.share_count ?? dig(note, [["interact_info", "share_count"]]));
+      let collects = toNumber(note.collected_count ?? dig(note, [["interact_info", "collected_count"]]));
+      let postedAt = unixToIso(note.time ?? note.create_time ?? note.timestamp);
+
+      // Enrich with the note detail endpoint (carries views / publish time / etc.).
+      if (noteId) {
+        try {
+          const detail = await fetchNoteDetail(noteId, isVideoNote(note));
+          detailCalls += 1;
+          if (detail) {
+            if (detail.views > 0) views = detail.views;
+            if (detail.likes > 0) likes = detail.likes;
+            if (detail.comments > 0) comments = detail.comments;
+            if (detail.shares > 0) shares = detail.shares;
+            if (detail.collects > 0) collects = detail.collects;
+            if (!postedAt && detail.postedAt) postedAt = detail.postedAt;
+          }
+        } catch (error) {
+          console.warn(`[xiaohongshu] note detail failed for ${noteId}`, error);
+        }
+      }
+
+      return {
+        tiktokVideoId: noteId,
+        title: titleFromText(title, "小红书笔记"),
+        videoUrl: noteId ? `https://www.xiaohongshu.com/explore/${noteId}` : null,
+        thumbnailUrl: pickCover(note),
+        viewsCount: views,
+        likesCount: likes,
+        commentsCount: comments,
+        sharesCount: shares,
+        collectsCount: collects,
+        postedAt,
+      };
+    }),
+  );
+
+  apiCalls += detailCalls;
 
   const aggregatedViews = videos.reduce((sum, video) => sum + video.viewsCount, 0);
 
