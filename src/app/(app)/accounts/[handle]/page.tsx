@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { AccountGrowthMetric } from "@/lib/growth-overview";
 import { AccountAvatar } from "@/components/account-avatar";
+import { ViewsOverTimeChart, type ViewsSeriesPoint } from "@/components/accounts/views-over-time-chart";
 import { VideoDetailModal } from "@/components/dashboard/video-detail-modal";
 import { VideoFeedCard, VideoFeedSkeleton } from "@/components/dashboard/video-feed-card";
 import { mapApiAccount, type ApiAccount } from "@/lib/accounts";
@@ -31,6 +32,7 @@ export default function AccountDetailPage() {
 
   const [apiAccount, setApiAccount] = useState<ApiAccount | null>(null);
   const [growthMetrics, setGrowthMetrics] = useState<AccountGrowthMetric[]>([]);
+  const [viewsSeries, setViewsSeries] = useState<ViewsSeriesPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -47,6 +49,7 @@ export default function AccountDetailPage() {
       const payload = (await response.json()) as {
         account?: ApiAccount;
         growthMetrics?: AccountGrowthMetric[];
+        viewsSeries?: ViewsSeriesPoint[];
         error?: string;
       };
 
@@ -60,10 +63,12 @@ export default function AccountDetailPage() {
 
       setApiAccount(payload.account);
       setGrowthMetrics(payload.growthMetrics ?? []);
+      setViewsSeries(payload.viewsSeries ?? []);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "读取账号详情失败");
       setApiAccount(null);
       setGrowthMetrics([]);
+      setViewsSeries([]);
     } finally {
       setIsLoading(false);
     }
@@ -270,6 +275,8 @@ export default function AccountDetailPage() {
           );
         })}
       </div>
+
+      <ViewsOverTimeChart data={viewsSeries} />
 
       <section className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
