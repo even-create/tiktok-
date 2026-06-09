@@ -19,10 +19,10 @@ BEGIN
     AND nsp.nspname = 'public'
     AND con.contype = 'u'
     AND (
-      SELECT array_agg(att.attname ORDER BY att.attnum)
+      SELECT array_agg(att.attname::text ORDER BY att.attnum)
       FROM unnest(con.conkey) AS k(attnum)
       JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = k.attnum
-    ) = ARRAY['handle']
+    ) = ARRAY['handle']::text[]
   LIMIT 1;
 
   IF target_conname IS NOT NULL THEN
