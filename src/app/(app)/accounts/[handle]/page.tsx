@@ -10,8 +10,6 @@ import {
   Clock3,
   ExternalLink,
   Eye,
-  MessageCircle,
-  Share2,
   ThumbsUp,
   Trash2,
   TrendingUp,
@@ -20,26 +18,23 @@ import {
 } from "lucide-react";
 import type { AccountGrowthMetric } from "@/lib/growth-overview";
 import { AccountAvatar } from "@/components/account-avatar";
-import { LineChart } from "@/components/dashboard/line-chart";
-import { buildViewsTrendPoints, formatCompact, mapApiAccount, type ApiAccount } from "@/lib/accounts";
-import { formatBeijingTime } from "@/lib/format-beijing-time";
-
-function calcInteractionRate(likes: number, comments: number, shares: number, views: number) {
-  if (views <= 0) return "0%";
-  return `${(((likes + comments + shares) / views) * 100).toFixed(2)}%`;
-}
+import { VideoDetailModal } from "@/components/dashboard/video-detail-modal";
+import { VideoFeedCard, VideoFeedSkeleton } from "@/components/dashboard/video-feed-card";
+import { mapApiAccount, type ApiAccount } from "@/lib/accounts";
+import { flattenVideosFromAccounts } from "@/lib/content-analytics";
+import { enrichVideosWithQuality, type ContentVideoWithQuality } from "@/lib/content-quality";
 
 export default function AccountDetailPage() {
   const params = useParams<{ handle: string }>();
   const router = useRouter();
   const handle = decodeURIComponent(params.handle ?? "");
 
-  const [account, setAccount] = useState<ReturnType<typeof mapApiAccount> | null>(null);
-  const [videos, setVideos] = useState<NonNullable<ApiAccount["videos"]>>([]);
+  const [apiAccount, setApiAccount] = useState<ApiAccount | null>(null);
   const [growthMetrics, setGrowthMetrics] = useState<AccountGrowthMetric[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<ContentVideoWithQuality | null>(null);
 
   const loadAccount = useCallback(async () => {
     if (!handle) return;
@@ -63,13 +58,11 @@ export default function AccountDetailPage() {
         throw new Error("账号不存在");
       }
 
-      setAccount(mapApiAccount(payload.account));
-      setVideos(payload.account.videos ?? []);
+      setApiAccount(payload.account);
       setGrowthMetrics(payload.growthMetrics ?? []);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "读取账号详情失败");
-      setAccount(null);
-      setVideos([]);
+      setApiAccount(null);
       setGrowthMetrics([]);
     } finally {
       setIsLoading(false);
@@ -83,7 +76,11 @@ export default function AccountDetailPage() {
     return () => window.clearTimeout(timer);
   }, [loadAccount]);
 
-  const chartPoints = useMemo(() => buildViewsTrendPoints(videos), [videos]);
+  const account = useMemo(() => (apiAccount ? mapApiAccount(apiAccount) : null), [apiAccount]);
+  const videoCards = useMemo(
+    () => (apiAccount ? enrichVideosWithQuality(flattenVideosFromAccounts([apiAccount])) : []),
+    [apiAccount],
+  );
 
   async function handleDeleteAccount() {
     if (!account) return;
@@ -132,6 +129,7 @@ export default function AccountDetailPage() {
             />
           ))}
         </div>
+        <VideoFeedSkeleton />
       </div>
     );
   }
@@ -273,98 +271,30 @@ export default function AccountDetailPage() {
         })}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
-        <section className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
-            <h2 className="text-base font-semibold">视频数据</h2>
-            <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs">{videos.length} 条</span>
-          </div>
+      <section className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] shadow-sm">
+        <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--cadet-gray)_25%,transparent)] bg-gradient-to-r from-[var(--space-cadet)] via-[var(--jet)] to-[var(--space-cadet)] p-4 text-[var(--eggshell)]">
+          <h2 className="text-base font-semibold">视频数据</h2>
+          <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs">{videoCards.length} 条</span>
+        </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse text-left">
-              <thead>
-                <tr className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/50 text-xs uppercase tracking-[0.16em] text-[var(--cadet-gray)]">
-                  <th className="px-4 py-3 font-medium">Video</th>
-                  <th className="px-4 py-3 font-medium">Views</th>
-                  <th className="px-4 py-3 font-medium">Likes</th>
-                  <th className="px-4 py-3 font-medium">Comments</th>
-                  <th className="px-4 py-3 font-medium">Shares</th>
-                  <th className="px-4 py-3 font-medium">互动率</th>
-                  <th className="px-4 py-3 font-medium">Posted</th>
-                </tr>
-              </thead>
-              <tbody>
-                {videos.map((video) => {
-                  const views = video.views_count ?? 0;
-                  const likes = video.likes_count ?? 0;
-                  const comments = video.comments_count ?? 0;
-                  const shares = video.shares_count ?? 0;
+        <div className="p-4 sm:p-5">
+          {videoCards.length ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {videoCards.map((video) => (
+                <VideoFeedCard key={video.id} video={video} onSelect={setSelectedVideo} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+              <CirclePlay className="size-10 text-[var(--cadet-gray)]" />
+              <p className="mt-3 text-sm font-medium text-[var(--space-cadet)]">暂无视频数据</p>
+              <p className="mt-1 text-sm text-[var(--cadet-gray)]">请先在 Sync Center 同步该账号。</p>
+            </div>
+          )}
+        </div>
+      </section>
 
-                  return (
-                    <tr
-                      key={video.id}
-                      className="border-b border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] transition duration-200 last:border-0 hover:bg-[var(--eggshell)]/50"
-                    >
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          {video.video_url ? (
-                            <a
-                              href={video.video_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="grid size-10 place-items-center rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] text-[var(--carolina-blue)] shadow-sm transition hover:border-[var(--carolina-blue)]"
-                            >
-                              <CirclePlay className="size-5" />
-                            </a>
-                          ) : (
-                            <div className="grid size-10 place-items-center rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/60 text-[var(--cadet-gray)]">
-                              <CirclePlay className="size-5" />
-                            </div>
-                          )}
-                          <p className="max-w-sm truncate text-sm font-medium text-[var(--space-cadet)]">
-                            {video.title}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-[var(--jet)]">{formatCompact(views)}</td>
-                      <td className="px-4 py-4 text-sm text-[var(--jet)]">{formatCompact(likes)}</td>
-                      <td className="px-4 py-4 text-sm text-[var(--jet)]">
-                        <span className="inline-flex items-center gap-1">
-                          <MessageCircle className="size-3.5 text-[var(--cadet-gray)]" />
-                          {formatCompact(comments)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-[var(--jet)]">
-                        <span className="inline-flex items-center gap-1">
-                          <Share2 className="size-3.5 text-[var(--cadet-gray)]" />
-                          {formatCompact(shares)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="inline-flex rounded-full bg-[color-mix(in_srgb,var(--carolina-blue)_15%,white)] px-2.5 py-1 text-sm font-medium text-[var(--space-cadet)]">
-                          {calcInteractionRate(likes, comments, shares, views)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-[var(--cadet-gray)]">{formatBeijingTime(video.posted_at)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {!videos.length ? (
-              <p className="px-4 py-10 text-center text-sm text-[var(--cadet-gray)]">暂无视频数据，请先在 Sync Center 同步。</p>
-            ) : null}
-          </div>
-        </section>
-
-        <LineChart
-          title="播放量趋势"
-          subtitle="按发布时间展示最近视频播放走势"
-          points={chartPoints}
-          className="h-full min-h-[320px]"
-        />
-      </div>
+      <VideoDetailModal video={selectedVideo} onClose={() => setSelectedVideo(null)} />
     </div>
   );
 }
