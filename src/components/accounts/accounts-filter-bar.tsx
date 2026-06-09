@@ -65,7 +65,7 @@ function PlatformPicker({
       </button>
 
       {open ? (
-        <div className="absolute left-0 top-[calc(100%+0.35rem)] z-30 w-full min-w-[10rem] rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-1.5 shadow-lg">
+        <div className="absolute left-0 top-[calc(100%+0.35rem)] z-50 w-full min-w-[10rem] rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-1.5 shadow-lg">
           {options.map((option) => (
             <button
               key={option}
