@@ -45,10 +45,7 @@ export function AccountCard({ account, isDeleting = false, onDelete }: AccountCa
               className="size-12"
             />
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className="truncate text-base font-semibold text-[var(--space-cadet)]">{account.displayName}</p>
-                <PlatformBadge platform={account.platform} className="shrink-0" />
-              </div>
+              <p className="truncate text-base font-semibold text-[var(--space-cadet)]">{account.displayName}</p>
               <p className="truncate text-sm text-[var(--cadet-gray)]">@{account.handle}</p>
               <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-[var(--cadet-gray)]">
                 <UserRound className="size-3" />
@@ -57,7 +54,8 @@ export function AccountCard({ account, isDeleting = false, onDelete }: AccountCa
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1 pointer-events-auto">
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <div className="flex items-center gap-1 pointer-events-auto">
             <a
               href={account.profileUrl}
               target="_blank"
@@ -81,6 +79,8 @@ export function AccountCard({ account, isDeleting = false, onDelete }: AccountCa
             >
               {isDeleting ? <Clock3 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
             </button>
+            </div>
+            <PlatformBadge platform={account.platform} />
           </div>
         </div>
 
