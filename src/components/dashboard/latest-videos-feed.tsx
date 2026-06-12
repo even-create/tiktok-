@@ -207,6 +207,8 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
             <PostedDateFilter value={postedDate} onChange={setPostedDate} />
           </div>
 
+          <OwnerFilterSelect value={ownerFilter} onChange={setOwnerFilter} owners={ownerOptions} />
+
           <div className="flex min-w-0 flex-col gap-1.5">
             <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--cadet-gray)]">
               <Filter className="size-3" />
@@ -237,8 +239,6 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
               </button>
             </div>
           </div>
-
-          <OwnerFilterSelect value={ownerFilter} onChange={setOwnerFilter} owners={ownerOptions} />
         </div>
 
         <p className="flex items-center gap-1 text-[10px] text-[var(--cadet-gray)]">

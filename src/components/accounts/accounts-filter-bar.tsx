@@ -11,9 +11,9 @@ export type { AccountSortMode };
 
 const SORT_OPTIONS: { value: AccountSortMode; label: string }[] = [
   { value: "latest", label: "最新添加" },
-  { value: "followers", label: "粉丝数（高→低）" },
-  { value: "views", label: "总播放量（高→低）" },
-  { value: "engagement", label: "互动率（高→低）" },
+  { value: "followers", label: "粉丝数" },
+  { value: "views", label: "总播放量" },
+  { value: "engagement", label: "互动率" },
   { value: "updated", label: "最近更新" },
 ];
 
