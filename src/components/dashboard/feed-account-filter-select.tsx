@@ -97,7 +97,7 @@ export function FeedAccountFilterSelect({ value, onChange, options }: FeedAccoun
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-2.5 text-sm text-[var(--space-cadet)] transition hover:border-[color-mix(in_srgb,var(--carolina-blue)_40%,transparent)]"
+        className="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-2.5 text-xs text-[var(--space-cadet)] transition hover:border-[color-mix(in_srgb,var(--carolina-blue)_40%,transparent)]"
         aria-expanded={open}
         aria-haspopup="listbox"
       >
@@ -110,8 +110,8 @@ export function FeedAccountFilterSelect({ value, onChange, options }: FeedAccoun
                 initialsText={selected.handle.slice(0, 2).toUpperCase()}
                 className="size-6 rounded-full text-[9px]"
               />
-              <span className="truncate text-left">
-                <span className="block truncate font-medium">{selected.displayName}</span>
+              <span className="min-w-0 truncate text-left leading-tight">
+                <span className="block truncate text-xs font-medium">{selected.displayName}</span>
                 <span className="block truncate text-[10px] text-[var(--cadet-gray)]">
                   {PLATFORM_LABELS[selected.platform]}
                 </span>
