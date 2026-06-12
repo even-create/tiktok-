@@ -20,6 +20,7 @@ import {
 } from "@/lib/latest-videos-feed";
 import { OwnerFilterSelect, type OwnerFilterValue } from "@/components/accounts/owner-filter-select";
 import { PlatformFilterSelect, type PlatformFilterValue } from "@/components/accounts/platform-filter-select";
+import { useSessionUser } from "@/hooks/use-session-user";
 
 type LatestVideosFeedProps = {
   apiAccounts: ApiAccount[];
@@ -117,6 +118,8 @@ function FeedEmptyState({ hasFilters }: { hasFilters: boolean }) {
 }
 
 export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedProps) {
+  const user = useSessionUser();
+  const showOwnerFilter = user?.role === "ADMIN";
   const [searchQuery, setSearchQuery] = useState("");
   const [postedDate, setPostedDate] = useState<string | null>(null);
   const [accountFilter, setAccountFilter] = useState("all");
@@ -131,16 +134,22 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
   const ownerOptions = useMemo(() => buildFeedOwnerOptions(allVideos), [allVideos]);
 
   useEffect(() => {
+    if (!showOwnerFilter) {
+      setOwnerFilter("all");
+      return;
+    }
     if (ownerFilter !== "all" && !ownerOptions.includes(ownerFilter)) {
       setOwnerFilter("all");
     }
-  }, [ownerFilter, ownerOptions]);
+  }, [ownerFilter, ownerOptions, showOwnerFilter]);
 
   const filteredVideos = useMemo((): ContentVideoWithQuality[] => {
     let list = filterVideosByPostedDate(allVideos, postedDate);
     list = filterVideosByAccountHandle(list, accountFilter);
     list = filterVideosByPlatform(list, platformFilter);
-    list = filterVideosByOwner(list, ownerFilter);
+    if (showOwnerFilter) {
+      list = filterVideosByOwner(list, ownerFilter);
+    }
     list = filterVideosBySearch(list, searchQuery);
     const enriched: ContentVideoWithQuality[] = enrichVideosWithQuality(list);
 
@@ -149,14 +158,16 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
     }
 
     return sortVideosByPostedAt(enriched);
-  }, [allVideos, postedDate, accountFilter, platformFilter, ownerFilter, searchQuery, sortMode]);
+  }, [allVideos, postedDate, accountFilter, platformFilter, ownerFilter, searchQuery, sortMode, showOwnerFilter]);
 
   const hasActiveFilters =
     accountFilter !== "all" ||
     platformFilter !== "all" ||
-    ownerFilter !== "all" ||
+    (showOwnerFilter && ownerFilter !== "all") ||
     postedDate !== null ||
     searchQuery.trim().length > 0;
+
+  const filterGridCols = showOwnerFilter ? "lg:grid-cols-5" : "lg:grid-cols-4";
 
   return (
     <section className="mt-5 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
@@ -185,7 +196,7 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
           />
         </label>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className={`grid grid-cols-2 gap-3 sm:grid-cols-3 ${filterGridCols}`}>
           <FeedAccountFilterSelect
             value={accountFilter}
             onChange={setAccountFilter}
@@ -207,7 +218,9 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
             <PostedDateFilter value={postedDate} onChange={setPostedDate} />
           </div>
 
-          <OwnerFilterSelect value={ownerFilter} onChange={setOwnerFilter} owners={ownerOptions} />
+          {showOwnerFilter ? (
+            <OwnerFilterSelect value={ownerFilter} onChange={setOwnerFilter} owners={ownerOptions} />
+          ) : null}
 
           <div className="flex min-w-0 flex-col gap-1.5">
             <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--cadet-gray)]">

@@ -23,11 +23,12 @@ type AccountsFilterBarProps = {
   onPlatformChange: (value: PlatformFilterValue) => void;
   sort: AccountSortMode;
   onSortChange: (value: AccountSortMode) => void;
-  availableOwners: string[];
-  owner: OwnerFilterValue;
-  onOwnerChange: (value: OwnerFilterValue) => void;
   searchQuery: string;
   onSearchChange: (value: string) => void;
+  showOwnerFilter?: boolean;
+  availableOwners?: string[];
+  owner?: OwnerFilterValue;
+  onOwnerChange?: (value: OwnerFilterValue) => void;
 };
 
 function platformLabel(option: PlatformFilterValue) {
@@ -41,11 +42,12 @@ export function AccountsFilterBar({
   onPlatformChange,
   sort,
   onSortChange,
-  availableOwners,
-  owner,
-  onOwnerChange,
   searchQuery,
   onSearchChange,
+  showOwnerFilter = false,
+  availableOwners = [],
+  owner = "all",
+  onOwnerChange,
 }: AccountsFilterBarProps) {
   const platformOptions: PlatformFilterValue[] = ["all", ...availablePlatforms];
   const sortOptionValues = SORT_OPTIONS.map((option) => option.value);
@@ -53,10 +55,11 @@ export function AccountsFilterBar({
     AccountSortMode,
     string
   >;
+  const gridCols = showOwnerFilter ? "lg:grid-cols-4" : "lg:grid-cols-3";
 
   return (
     <div className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-white p-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${gridCols}`}>
         <div className="flex min-w-0 flex-col gap-1.5">
           <span className={filterLabelClass}>
             <Layers className="size-3" />
@@ -83,7 +86,9 @@ export function AccountsFilterBar({
           />
         </div>
 
-        <OwnerFilterSelect value={owner} onChange={onOwnerChange} owners={availableOwners} />
+        {showOwnerFilter && onOwnerChange ? (
+          <OwnerFilterSelect value={owner} onChange={onOwnerChange} owners={availableOwners} />
+        ) : null}
 
         <div className="flex min-w-0 flex-col gap-1.5">
           <span className={filterLabelClass}>
