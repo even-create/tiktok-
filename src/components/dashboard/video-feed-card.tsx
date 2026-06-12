@@ -113,7 +113,7 @@ export function VideoFeedCard({
       </button>
 
       <div className="flex flex-1 flex-col gap-2 border-t border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] p-2.5 sm:p-3">
-        <button type="button" onClick={() => onSelect(video)} className="text-left">
+        <button type="button" onClick={() => onSelect(video)} className="block h-[2.75rem] w-full shrink-0 text-left">
           <p className="line-clamp-2 text-xs font-medium leading-snug text-[var(--space-cadet)] transition group-hover:text-[var(--carolina-blue)]">
             {video.title}
           </p>
