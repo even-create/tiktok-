@@ -1,10 +1,13 @@
 import type { ContentVideo } from "@/lib/content-analytics";
 import { getBeijingTimestamp } from "@/lib/format-beijing-time";
 import type { QualityTier } from "@/lib/content-quality";
+import type { Platform } from "@/lib/providers/platform";
 
 export type FeedAccountOption = {
   handle: string;
   displayName: string;
+  avatarUrl: string | null;
+  platform: Platform;
 };
 
 export type FeedSortMode = "posted" | "views";
@@ -47,6 +50,8 @@ export function buildFeedAccountOptions(videos: ContentVideo[]): FeedAccountOpti
       map.set(video.accountHandle, {
         handle: video.accountHandle,
         displayName: video.accountDisplayName,
+        avatarUrl: video.accountAvatarUrl,
+        platform: video.accountPlatform,
       });
     }
   }

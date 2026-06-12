@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, ChevronDown, CirclePlay, Filter, Hash, Search, Users } from "lucide-react";
+import { Calendar, ChevronDown, CirclePlay, Filter, Hash, Search } from "lucide-react";
+import { FeedAccountFilterSelect } from "@/components/dashboard/feed-account-filter-select";
 import { VideoDetailModal } from "@/components/dashboard/video-detail-modal";
 import { VideoFeedCard, VideoFeedSkeleton } from "@/components/dashboard/video-feed-card";
 import type { ApiAccount } from "@/lib/accounts";
@@ -169,24 +170,11 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
         </label>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:max-w-xs">
-            <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--cadet-gray)]">
-              <Users className="size-3" />
-              账号
-            </span>
-            <select
-              value={accountFilter}
-              onChange={(event) => setAccountFilter(event.target.value)}
-              className="h-10 w-full rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-sm text-[var(--space-cadet)] outline-none focus:border-[var(--carolina-blue)]"
-            >
-              <option value="all">全部账号</option>
-              {accountOptions.map((account) => (
-                <option key={account.handle} value={account.handle}>
-                  @{account.handle}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FeedAccountFilterSelect
+            value={accountFilter}
+            onChange={setAccountFilter}
+            options={accountOptions}
+          />
 
           <PlatformFilterSelect
             value={platformFilter}
