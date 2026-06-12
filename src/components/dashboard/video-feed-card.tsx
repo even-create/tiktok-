@@ -1,8 +1,9 @@
 "use client";
 
-import { Bookmark, Eye, ExternalLink, Heart, MessageCircle, TrendingUp } from "lucide-react";
+import { Bookmark, Eye, ExternalLink, Heart, MessageCircle, TrendingUp, UserRound } from "lucide-react";
 import { AccountAvatar } from "@/components/account-avatar";
 import { FeedVideoCover } from "@/components/dashboard/feed-video-cover";
+import { PlatformBadge } from "@/components/accounts/platform-badge";
 import { TikTokIcon } from "@/components/dashboard/tiktok-icon";
 import { qualityTierStyles, type ContentVideoWithQuality } from "@/lib/content-quality";
 import { qualityTierDisplayLabel, qualityTierEmoji } from "@/lib/latest-videos-feed";
@@ -86,6 +87,11 @@ export function VideoFeedCard({
           <span className="hidden min-[420px]:inline">{qualityTierDisplayLabel[video.qualityTier]}</span>
         </span>
 
+        <PlatformBadge
+          platform={video.accountPlatform}
+          className="pointer-events-none absolute right-1.5 top-1.5 z-10 px-1.5 py-0 text-[9px] shadow-sm sm:right-2"
+        />
+
         <VideoCoverStatsOverlay video={video} />
 
         <span className="absolute bottom-2 left-2 z-10 rounded-lg bg-black/55 px-2 py-1 text-[10px] font-medium text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100">
@@ -139,10 +145,16 @@ export function VideoFeedCard({
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-          <span className="inline-flex items-center gap-0.5 rounded-full bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)] px-2 py-0.5 text-[10px] font-semibold text-[var(--space-cadet)]">
+          <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)] px-2 py-0.5 text-[10px] font-semibold text-[var(--space-cadet)]">
             <TrendingUp className="size-2.5" />
             {video.engagementLabel}
           </span>
+          <p className="inline-flex min-w-0 items-center gap-1 truncate text-[10px] text-[var(--cadet-gray)]">
+            <UserRound className="size-3 shrink-0" />
+            <span className="truncate">
+              负责人：<span className="font-medium text-[var(--space-cadet)]">{video.accountOwnerName}</span>
+            </span>
+          </p>
         </div>
       </div>
     </article>

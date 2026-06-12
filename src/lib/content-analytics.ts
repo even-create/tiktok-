@@ -19,6 +19,7 @@ export type ContentVideo = {
   accountPlatform: Platform;
   accountProfileUrl: string;
   accountAvatarUrl: string | null;
+  accountOwnerName: string;
   title: string;
   videoUrl: string | null;
   thumbnailUrl: string | null;
@@ -102,6 +103,7 @@ export function flattenVideosFromAccounts(accounts: ApiAccount[]): ContentVideo[
           (account.platform as Platform) || "tiktok",
           account.profile_url,
           account.avatar_url ?? null,
+          account.owner_name?.trim() || "Even",
         ),
       );
     }
@@ -118,6 +120,7 @@ export function mapApiVideoToContentVideo(
   accountPlatform: Platform,
   accountProfileUrl: string | null,
   accountAvatarUrl: string | null = null,
+  accountOwnerName = "Even",
 ): ContentVideo {
   const profileUrl =
     accountProfileUrl?.trim() || `https://www.tiktok.com/@${accountHandle.replace(/^@/, "")}`;
@@ -136,6 +139,7 @@ export function mapApiVideoToContentVideo(
     accountPlatform,
     accountProfileUrl: profileUrl,
     accountAvatarUrl,
+    accountOwnerName,
     title: video.title,
     videoUrl: video.video_url,
     thumbnailUrl: video.thumbnail_url ?? null,
