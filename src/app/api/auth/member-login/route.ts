@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   const user: SessionUser = {
     id: member.id,
     name: member.name?.trim() || member.email,
-    role: "MEMBER",
+    role: member.role?.toUpperCase() === "ADMIN" ? "ADMIN" : "MEMBER",
     email: member.email,
   };
 

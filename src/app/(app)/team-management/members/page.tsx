@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Power, ShieldCheck, Trash2, UsersRound } from "lucide-react";
+import { Loader2, Power, ShieldCheck, ShieldOff, Trash2, UsersRound } from "lucide-react";
 import { TeamTabs } from "@/components/team/team-tabs";
 
 type TeamMember = {
@@ -61,6 +61,35 @@ export default function MembersPage() {
     }
   }
 
+  async function toggleRole(member: TeamMember) {
+    const nextRole = member.role === "ADMIN" ? "MEMBER" : "ADMIN";
+    const message =
+      nextRole === "ADMIN"
+        ? `确定将 ${member.name} 设为管理员吗？该成员将获得完整管理权限（需重新登录后生效）。`
+        : `确定取消 ${member.name} 的管理员身份吗？（需重新登录后生效）`;
+
+    if (!window.confirm(message)) return;
+
+    setPendingId(member.id);
+    setErrorMessage("");
+    try {
+      const response = await fetch(`/api/team/members/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: nextRole }),
+      });
+      const payload = (await response.json()) as { role?: TeamMember["role"]; error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "操作失败");
+      setMembers((current) =>
+        current.map((m) => (m.id === member.id ? { ...m, role: payload.role ?? nextRole } : m)),
+      );
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "操作失败");
+    } finally {
+      setPendingId(null);
+    }
+  }
+
   async function removeMember(member: TeamMember) {
     if (!window.confirm(`确定要删除成员 ${member.name}（${member.email}）吗？`)) return;
     setPendingId(member.id);
@@ -85,7 +114,9 @@ export default function MembersPage() {
           Team Management
         </div>
         <h1 className="mt-3 text-3xl font-semibold text-[var(--space-cadet)] sm:text-4xl">Team Members</h1>
-        <p className="mt-1 text-sm text-[var(--cadet-gray)]">团队成员</p>
+        <p className="mt-1 text-sm text-[var(--cadet-gray)]">
+          团队成员 · 管理员可将成员提升为管理员，授予完整后台权限
+        </p>
         <div className="mt-4">
           <TeamTabs />
         </div>
@@ -157,6 +188,25 @@ export default function MembersPage() {
                             <span className="text-xs text-[var(--cadet-gray)]">受保护</span>
                           ) : (
                             <>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => toggleRole(member)}
+                                className={`inline-flex h-8 items-center gap-1 rounded-lg border px-3 text-xs font-medium transition disabled:opacity-60 ${
+                                  member.role === "ADMIN"
+                                    ? "border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--eggshell)]/40 text-[var(--cadet-gray)] hover:text-[var(--space-cadet)]"
+                                    : "border-[color-mix(in_srgb,var(--carolina-blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--carolina-blue)_10%,white)] text-[var(--space-cadet)] hover:bg-[color-mix(in_srgb,var(--carolina-blue)_16%,white)]"
+                                }`}
+                              >
+                                {busy ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : member.role === "ADMIN" ? (
+                                  <ShieldOff className="size-3.5" />
+                                ) : (
+                                  <ShieldCheck className="size-3.5" />
+                                )}
+                                {member.role === "ADMIN" ? "取消管理员" : "设为管理员"}
+                              </button>
                               <button
                                 type="button"
                                 disabled={busy}

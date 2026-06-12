@@ -18,7 +18,26 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ error: "管理员账号受保护，无法修改" }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => null)) as { status?: string } | null;
+  const body = (await request.json().catch(() => null)) as { status?: string; role?: string } | null;
+
+  if (body?.role !== undefined) {
+    const nextRole = body.role === "ADMIN" ? "ADMIN" : body.role === "MEMBER" ? "MEMBER" : null;
+    if (!nextRole) {
+      return NextResponse.json({ error: "无效角色" }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from("app_members")
+      .update({ role: nextRole, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true, role: nextRole });
+  }
+
   const next = body?.status === "DISABLED" ? "DISABLED" : body?.status === "ACTIVE" ? "ACTIVE" : null;
   if (!next) {
     return NextResponse.json({ error: "无效状态" }, { status: 400 });
