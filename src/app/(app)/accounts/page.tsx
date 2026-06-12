@@ -8,17 +8,20 @@ import { AddAccountForm } from "@/components/accounts/add-account-form";
 import type { PlatformFilterValue } from "@/components/accounts/platform-filter-select";
 import {
   filterAccounts,
+  getAvailableOwners,
   getAvailablePlatforms,
   mapApiAccount,
   sortAccounts,
   type AccountListItem,
   type ApiAccount,
 } from "@/lib/accounts";
+import type { OwnerFilterValue } from "@/components/accounts/owner-filter-select";
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState<PlatformFilterValue>("all");
+  const [ownerFilter, setOwnerFilter] = useState<OwnerFilterValue>("all");
   const [sortMode, setSortMode] = useState<AccountSortMode>("latest");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -54,6 +57,7 @@ export default function AccountsPage() {
   }, [loadAccounts]);
 
   const availablePlatforms = useMemo(() => getAvailablePlatforms(accounts), [accounts]);
+  const availableOwners = useMemo(() => getAvailableOwners(accounts), [accounts]);
 
   useEffect(() => {
     if (platformFilter !== "all" && !availablePlatforms.includes(platformFilter)) {
@@ -61,13 +65,22 @@ export default function AccountsPage() {
     }
   }, [availablePlatforms, platformFilter]);
 
+  useEffect(() => {
+    if (ownerFilter !== "all" && !availableOwners.includes(ownerFilter)) {
+      setOwnerFilter("all");
+    }
+  }, [availableOwners, ownerFilter]);
+
   const visibleAccounts = useMemo(() => {
     let filtered = filterAccounts(accounts, searchQuery);
     if (platformFilter !== "all") {
       filtered = filtered.filter((account) => account.platform === platformFilter);
     }
+    if (ownerFilter !== "all") {
+      filtered = filtered.filter((account) => account.ownerName === ownerFilter);
+    }
     return sortAccounts(filtered, sortMode);
-  }, [accounts, searchQuery, platformFilter, sortMode]);
+  }, [accounts, searchQuery, platformFilter, ownerFilter, sortMode]);
 
   async function handleDeleteAccount(id: string) {
     const target = accounts.find((account) => account.id === id);
@@ -134,6 +147,9 @@ export default function AccountsPage() {
           onPlatformChange={setPlatformFilter}
           sort={sortMode}
           onSortChange={setSortMode}
+          availableOwners={availableOwners}
+          owner={ownerFilter}
+          onOwnerChange={setOwnerFilter}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
@@ -142,7 +158,7 @@ export default function AccountsPage() {
           <span>
             共 <strong className="text-[var(--space-cadet)]">{accounts.length}</strong> 个账号
           </span>
-          {searchQuery.trim() || platformFilter !== "all" ? (
+          {searchQuery.trim() || platformFilter !== "all" || ownerFilter !== "all" ? (
             <span>
               筛选结果 <strong className="text-[var(--space-cadet)]">{visibleAccounts.length}</strong> 个
             </span>
@@ -186,10 +202,10 @@ export default function AccountsPage() {
         <section className="rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--cadet-gray)_35%,transparent)] bg-[var(--card)] px-6 py-16 text-center shadow-sm">
           <Users className="mx-auto size-10 text-[var(--cadet-gray)]" />
           <p className="mt-4 text-base font-medium text-[var(--space-cadet)]">
-            {searchQuery.trim() || platformFilter !== "all" ? "没有匹配的账号" : "暂无追踪账号"}
+            {searchQuery.trim() || platformFilter !== "all" || ownerFilter !== "all" ? "没有匹配的账号" : "暂无追踪账号"}
           </p>
           <p className="mt-2 text-sm text-[var(--cadet-gray)]">
-            {searchQuery.trim() || platformFilter !== "all"
+            {searchQuery.trim() || platformFilter !== "all" || ownerFilter !== "all"
               ? "试试其他关键词或筛选条件。"
               : "请在右上角粘贴 抖音 / 小红书 / Instagram / TikTok / YouTube / Reddit 链接并添加账号。"}
           </p>

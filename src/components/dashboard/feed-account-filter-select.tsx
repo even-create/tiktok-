@@ -88,7 +88,7 @@ export function FeedAccountFilterSelect({ value, onChange, options }: FeedAccoun
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative min-w-0 flex-1 sm:max-w-xs">
+    <div ref={rootRef} className="relative w-full min-w-0">
       <span className="mb-1.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--cadet-gray)]">
         <Users className="size-3" />
         账号

@@ -42,6 +42,21 @@ export function filterVideosByPlatform(videos: ContentVideo[], platform: string)
   return videos.filter((video) => video.accountPlatform === platform);
 }
 
+export function filterVideosByOwner(videos: ContentVideo[], owner: string) {
+  if (!owner || owner === "all") return videos;
+  return videos.filter((video) => video.accountOwnerName === owner);
+}
+
+export function buildFeedOwnerOptions(videos: ContentVideo[]): string[] {
+  const names = new Set<string>();
+  for (const video of videos) {
+    if (video.accountOwnerName.trim()) {
+      names.add(video.accountOwnerName.trim());
+    }
+  }
+  return [...names].sort((left, right) => left.localeCompare(right, "zh-CN"));
+}
+
 export function buildFeedAccountOptions(videos: ContentVideo[]): FeedAccountOption[] {
   const map = new Map<string, FeedAccountOption>();
 

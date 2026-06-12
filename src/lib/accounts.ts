@@ -159,6 +159,16 @@ export function mapApiAccount(account: ApiAccount): AccountListItem {
   };
 }
 
+export function getAvailableOwners(accounts: AccountListItem[]): string[] {
+  const names = new Set<string>();
+  for (const account of accounts) {
+    if (account.ownerName.trim()) {
+      names.add(account.ownerName.trim());
+    }
+  }
+  return [...names].sort((left, right) => left.localeCompare(right, "zh-CN"));
+}
+
 export function filterAccounts(accounts: AccountListItem[], query: string) {
   const keyword = query.trim().toLowerCase();
   if (!keyword) return accounts;

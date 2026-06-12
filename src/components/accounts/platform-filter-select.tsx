@@ -45,7 +45,7 @@ export function PlatformFilterSelect({
 
   return (
     <div
-      className={`flex flex-col gap-1.5 ${isFeed ? "min-w-0 flex-1 sm:max-w-xs" : ""} ${className}`.trim()}
+      className={`flex min-w-0 w-full flex-col gap-1.5 ${isFeed ? "" : ""} ${className}`.trim()}
     >
       <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--cadet-gray)]">
         <Layers className="size-3" />

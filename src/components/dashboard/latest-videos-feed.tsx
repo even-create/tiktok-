@@ -11,11 +11,14 @@ import { formatBeijingDateChinese, getBeijingDateKey } from "@/lib/format-beijin
 import { enrichVideosWithQuality, type ContentVideoWithQuality } from "@/lib/content-quality";
 import {
   buildFeedAccountOptions,
+  buildFeedOwnerOptions,
   filterVideosByAccountHandle,
+  filterVideosByOwner,
   filterVideosByPlatform,
   sortVideosByPostedAt,
   type FeedSortMode,
 } from "@/lib/latest-videos-feed";
+import { OwnerFilterSelect, type OwnerFilterValue } from "@/components/accounts/owner-filter-select";
 import { PlatformFilterSelect, type PlatformFilterValue } from "@/components/accounts/platform-filter-select";
 
 type LatestVideosFeedProps = {
@@ -50,11 +53,11 @@ function PostedDateFilter({
   const buttonLabel = value ? formatBeijingDateChinese(value) : "全部";
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative w-full min-w-0">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex h-10 min-w-[9.5rem] items-center justify-between gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[color-mix(in_srgb,var(--carolina-blue)_40%,transparent)]"
+        className="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--space-cadet)] transition hover:border-[color-mix(in_srgb,var(--carolina-blue)_40%,transparent)]"
         aria-expanded={open}
         aria-haspopup="dialog"
       >
@@ -118,17 +121,26 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
   const [postedDate, setPostedDate] = useState<string | null>(null);
   const [accountFilter, setAccountFilter] = useState("all");
   const [platformFilter, setPlatformFilter] = useState<PlatformFilterValue>("all");
+  const [ownerFilter, setOwnerFilter] = useState<OwnerFilterValue>("all");
   const [sortMode, setSortMode] = useState<FeedSortMode>("posted");
   const [selectedVideo, setSelectedVideo] = useState<ContentVideoWithQuality | null>(null);
 
   const allVideos = useMemo(() => flattenVideosFromAccounts(apiAccounts), [apiAccounts]);
 
   const accountOptions = useMemo(() => buildFeedAccountOptions(allVideos), [allVideos]);
+  const ownerOptions = useMemo(() => buildFeedOwnerOptions(allVideos), [allVideos]);
+
+  useEffect(() => {
+    if (ownerFilter !== "all" && !ownerOptions.includes(ownerFilter)) {
+      setOwnerFilter("all");
+    }
+  }, [ownerFilter, ownerOptions]);
 
   const filteredVideos = useMemo((): ContentVideoWithQuality[] => {
     let list = filterVideosByPostedDate(allVideos, postedDate);
     list = filterVideosByAccountHandle(list, accountFilter);
     list = filterVideosByPlatform(list, platformFilter);
+    list = filterVideosByOwner(list, ownerFilter);
     list = filterVideosBySearch(list, searchQuery);
     const enriched: ContentVideoWithQuality[] = enrichVideosWithQuality(list);
 
@@ -137,10 +149,14 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
     }
 
     return sortVideosByPostedAt(enriched);
-  }, [allVideos, postedDate, accountFilter, platformFilter, searchQuery, sortMode]);
+  }, [allVideos, postedDate, accountFilter, platformFilter, ownerFilter, searchQuery, sortMode]);
 
   const hasActiveFilters =
-    accountFilter !== "all" || platformFilter !== "all" || postedDate !== null || searchQuery.trim().length > 0;
+    accountFilter !== "all" ||
+    platformFilter !== "all" ||
+    ownerFilter !== "all" ||
+    postedDate !== null ||
+    searchQuery.trim().length > 0;
 
   return (
     <section className="mt-5 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
@@ -169,7 +185,7 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
           />
         </label>
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <FeedAccountFilterSelect
             value={accountFilter}
             onChange={setAccountFilter}
@@ -183,7 +199,7 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
             variant="feed"
           />
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--cadet-gray)]">
               <Calendar className="size-3" />
               发布时间
@@ -191,16 +207,16 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
             <PostedDateFilter value={postedDate} onChange={setPostedDate} />
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--cadet-gray)]">
               <Filter className="size-3" />
               排序
             </span>
-            <div className="flex flex-wrap gap-1 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-1">
+            <div className="flex h-10 w-full gap-1 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-1">
               <button
                 type="button"
                 onClick={() => setSortMode("posted")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                className={`flex-1 rounded-lg px-2 py-1 text-xs font-medium transition ${
                   sortMode === "posted"
                     ? "bg-[var(--space-cadet)] text-[var(--eggshell)]"
                     : "text-[var(--cadet-gray)] hover:bg-[var(--eggshell)]"
@@ -211,7 +227,7 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
               <button
                 type="button"
                 onClick={() => setSortMode("views")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                className={`flex-1 rounded-lg px-2 py-1 text-xs font-medium transition ${
                   sortMode === "views"
                     ? "bg-[var(--space-cadet)] text-[var(--eggshell)]"
                     : "text-[var(--cadet-gray)] hover:bg-[var(--eggshell)]"
@@ -221,6 +237,8 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
               </button>
             </div>
           </div>
+
+          <OwnerFilterSelect value={ownerFilter} onChange={setOwnerFilter} owners={ownerOptions} />
         </div>
 
         <p className="flex items-center gap-1 text-[10px] text-[var(--cadet-gray)]">
