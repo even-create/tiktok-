@@ -10,9 +10,6 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import {
-  DashboardViewModeToggle,
-} from "@/components/dashboard/dashboard-view-mode-toggle";
 import type { DashboardViewMode } from "@/lib/dashboard-totals";
 import type { ApiAccount } from "@/lib/accounts";
 import type { AccountSnapshotRow } from "@/lib/account-snapshots";
@@ -27,7 +24,6 @@ type GrowthOverviewProps = {
   growthSnapshots: AccountSnapshotRow[];
   viewMode: DashboardViewMode;
   ownerId: string;
-  onViewModeChange: (mode: DashboardViewMode) => void;
   setupHint?: string | null;
   isLoading?: boolean;
 };
@@ -100,7 +96,6 @@ export function GrowthOverview({
   growthSnapshots,
   viewMode,
   ownerId,
-  onViewModeChange,
   setupHint = null,
   isLoading = false,
 }: GrowthOverviewProps) {
@@ -126,14 +121,11 @@ export function GrowthOverview({
 
   return (
     <section className="mt-2 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm">
-            <BarChart3 className="size-5" />
-          </div>
-          <h2 className="text-lg font-semibold text-[var(--space-cadet)] sm:text-xl">增长概览</h2>
+      <div className="flex items-center gap-3">
+        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm">
+          <BarChart3 className="size-5" />
         </div>
-        <DashboardViewModeToggle value={viewMode} onChange={onViewModeChange} />
+        <h2 className="text-lg font-semibold text-[var(--space-cadet)] sm:text-xl">增长概览</h2>
       </div>
 
       {setupHint ? (

@@ -16,7 +16,7 @@ export function DashboardViewModeToggle({
 
   return (
     <div
-      className="inline-flex h-9 shrink-0 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--eggshell)]/30 p-1"
+      className="inline-flex h-10 shrink-0 items-center rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_22%,transparent)] bg-white p-1 shadow-sm"
       role="tablist"
       aria-label="数据视图"
     >
@@ -29,10 +29,10 @@ export function DashboardViewModeToggle({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(option.id)}
-            className={`min-w-[3.25rem] rounded-lg px-3 py-1 text-xs font-semibold transition ${
+            className={`h-8 min-w-[3.5rem] rounded-lg px-4 text-sm font-medium transition duration-200 ${
               active
-                ? "bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm"
-                : "text-[var(--cadet-gray)] hover:bg-[var(--eggshell)] hover:text-[var(--space-cadet)]"
+                ? "bg-[var(--space-cadet)] text-white shadow-sm"
+                : "text-[var(--cadet-gray)] hover:text-[var(--space-cadet)]"
             }`}
           >
             {option.label}

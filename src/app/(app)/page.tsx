@@ -416,6 +416,7 @@ export default function DashboardPage() {
               {isSyncingAll ? <Clock3 className="size-4 animate-spin" /> : <CloudDownload className="size-4" />}
               {isSyncingAll ? "Syncing..." : "Sync Now"}
             </button>
+            <DashboardViewModeToggle value={viewMode} onChange={setViewMode} />
           </div>
         </div>
 
@@ -443,11 +444,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="flex items-center justify-end pt-5">
-        <DashboardViewModeToggle value={viewMode} onChange={setViewMode} />
-      </div>
-
-      <div className="pb-5">
+      <div className="py-5">
         <DashboardMetricsGrid totals={displayTotals} labelPrefix={metricsLabelPrefix} />
       </div>
 
@@ -456,12 +453,11 @@ export default function DashboardPage() {
         growthSnapshots={growthSnapshots}
         viewMode={viewMode}
         ownerId={user?.id ?? "admin"}
-        onViewModeChange={setViewMode}
         setupHint={growthSetupHint}
         isLoading={isLoading}
       />
 
-      <LatestVideosFeed apiAccounts={activeAccounts} isLoading={isLoading} />
+      <LatestVideosFeed apiAccounts={apiAccounts} isLoading={isLoading} />
 
     </>
   );
