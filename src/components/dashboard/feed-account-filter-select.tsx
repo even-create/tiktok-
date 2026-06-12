@@ -28,38 +28,36 @@ function AccountOptionRow({
       type="button"
       role="menuitem"
       onClick={onSelect}
-      className={`flex w-full justify-center px-3 py-2 transition ${
+      className={`flex w-full items-center gap-2.5 px-3 py-2 text-left transition ${
         isActive
           ? "bg-[color-mix(in_srgb,var(--cadet-gray)_14%,var(--eggshell))]"
           : "hover:bg-[var(--eggshell)]"
       }`}
     >
-      <div className="flex min-w-0 max-w-full items-center gap-2.5">
-        {isAll ? (
-          <div className="grid size-8 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--cadet-gray)_10%,white)] text-[var(--cadet-gray)]">
-            <Users className="size-4" />
-          </div>
-        ) : (
-          <AccountAvatar
-            name={account.displayName}
-            avatarUrl={account.avatarUrl}
-            initialsText={account.handle.slice(0, 2).toUpperCase()}
-            className="size-8 shrink-0 rounded-full text-[10px]"
-          />
-        )}
-
-        <div className="min-w-0 text-left">
-          <p className="truncate text-xs font-medium text-[var(--space-cadet)]">
-            {isAll ? "全部账号" : account.displayName}
-          </p>
-          {!isAll ? (
-            <p className="truncate text-[10px] text-[var(--cadet-gray)]">
-              @{account.handle} · {PLATFORM_LABELS[account.platform]}
-            </p>
-          ) : (
-            <p className="text-[10px] text-[var(--cadet-gray)]">显示所有账号的视频</p>
-          )}
+      {isAll ? (
+        <div className="grid size-8 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--cadet-gray)_10%,white)] text-[var(--cadet-gray)]">
+          <Users className="size-4" />
         </div>
+      ) : (
+        <AccountAvatar
+          name={account.displayName}
+          avatarUrl={account.avatarUrl}
+          initialsText={account.handle.slice(0, 2).toUpperCase()}
+          className="size-8 shrink-0 rounded-full text-[10px]"
+        />
+      )}
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-[var(--space-cadet)]">
+          {isAll ? "全部账号" : account.displayName}
+        </p>
+        {!isAll ? (
+          <p className="truncate text-[10px] text-[var(--cadet-gray)]">
+            @{account.handle} · {PLATFORM_LABELS[account.platform]}
+          </p>
+        ) : (
+          <p className="text-[10px] text-[var(--cadet-gray)]">显示所有账号的视频</p>
+        )}
       </div>
     </button>
   );
