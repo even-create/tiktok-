@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Users } from "lucide-react";
+import { ChevronDown, Users } from "lucide-react";
 import { AccountAvatar } from "@/components/account-avatar";
 import { PLATFORM_LABELS } from "@/lib/providers/platform";
 import type { FeedAccountOption } from "@/lib/latest-videos-feed";
@@ -28,16 +28,14 @@ function AccountOptionRow({
       type="button"
       role="menuitem"
       onClick={onSelect}
-      className={`flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-[var(--eggshell)] ${
-        isActive ? "bg-[color-mix(in_srgb,var(--carolina-blue)_6%,white)]" : ""
+      className={`flex w-full flex-col items-center justify-center gap-1.5 px-3 py-2.5 text-center transition ${
+        isActive
+          ? "bg-[color-mix(in_srgb,var(--cadet-gray)_14%,var(--eggshell))]"
+          : "hover:bg-[var(--eggshell)]"
       }`}
     >
-      <span className="flex w-4 shrink-0 justify-center">
-        {isActive ? <Check className="size-3.5 text-[var(--space-cadet)]" /> : null}
-      </span>
-
       {isAll ? (
-        <div className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--eggshell)] text-[var(--cadet-gray)]">
+        <div className="grid size-8 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--cadet-gray)_10%,white)] text-[var(--cadet-gray)]">
           <Users className="size-4" />
         </div>
       ) : (
@@ -49,16 +47,16 @@ function AccountOptionRow({
         />
       )}
 
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-[var(--space-cadet)]">
+      <div className="w-full min-w-0 px-0.5">
+        <p className="truncate text-xs font-medium text-[var(--space-cadet)]">
           {isAll ? "全部账号" : account.displayName}
         </p>
         {!isAll ? (
-          <p className="truncate text-xs text-[var(--cadet-gray)]">
+          <p className="truncate text-[10px] text-[var(--cadet-gray)]">
             @{account.handle} · {PLATFORM_LABELS[account.platform]}
           </p>
         ) : (
-          <p className="text-xs text-[var(--cadet-gray)]">显示所有账号的视频</p>
+          <p className="text-[10px] text-[var(--cadet-gray)]">显示所有账号的视频</p>
         )}
       </div>
     </button>
@@ -127,7 +125,7 @@ export function FeedAccountFilterSelect({ value, onChange, options }: FeedAccoun
       {open ? (
         <div
           role="listbox"
-          className="absolute left-0 top-[calc(100%+0.35rem)] z-50 max-h-72 w-full min-w-[16rem] overflow-y-auto rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] py-1 shadow-lg"
+          className="absolute left-0 top-[calc(100%+0.35rem)] z-50 max-h-72 w-full min-w-[16rem] overflow-y-auto rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] px-1 py-1 shadow-lg"
         >
           <AccountOptionRow
             account={null}
