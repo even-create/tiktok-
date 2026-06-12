@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { ApiAccount } from "@/lib/accounts";
 import type { AccountSnapshotRow } from "@/lib/account-snapshots";
+import { filterAccountsByOwnerId, filterSnapshotsForAccounts } from "@/lib/dashboard-totals";
 import { buildGrowthOverview, type GrowthOverviewMetric, type GrowthTrend } from "@/lib/growth-overview";
 
 type GrowthOverviewProps = {
@@ -19,6 +20,8 @@ type GrowthOverviewProps = {
   growthSnapshots: AccountSnapshotRow[];
   setupHint?: string | null;
   isLoading?: boolean;
+  /** When set, show team + personal dual rows (admin dashboard). */
+  adminDualScope?: { ownerId: string } | null;
 };
 
 const metricIcons: Record<string, typeof Users> = {
@@ -84,19 +87,64 @@ function GrowthStatCard({ metric }: { metric: GrowthOverviewMetric }) {
   );
 }
 
+function GrowthMetricsGrid({
+  metrics,
+  rowKey,
+  showSkeleton,
+}: {
+  metrics: GrowthOverviewMetric[];
+  rowKey: string;
+  showSkeleton: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {showSkeleton
+        ? Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={`${rowKey}-skeleton-${index}`}
+              className="animate-pulse rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] bg-[var(--eggshell)]/30 p-4"
+            >
+              <div className="flex items-center gap-2">
+                <div className="size-9 rounded-full bg-[var(--cadet-gray)]/15" />
+                <div className="h-3 w-20 rounded bg-[var(--cadet-gray)]/15" />
+              </div>
+              <div className="mt-4 h-7 w-16 rounded bg-[var(--cadet-gray)]/20" />
+              <div className="mt-2 h-3 w-14 rounded bg-[var(--cadet-gray)]/10" />
+            </div>
+          ))
+        : metrics.map((metric) => <GrowthStatCard key={`${rowKey}-${metric.id}`} metric={metric} />)}
+    </div>
+  );
+}
+
 export function GrowthOverview({
   apiAccounts,
   growthSnapshots,
   setupHint = null,
   isLoading = false,
+  adminDualScope = null,
 }: GrowthOverviewProps) {
-  const overview = useMemo(
-    () => buildGrowthOverview(apiAccounts, growthSnapshots),
-    [apiAccounts, growthSnapshots],
+  const personalAccounts = useMemo(() => {
+    if (!adminDualScope) return [];
+    return filterAccountsByOwnerId(apiAccounts, adminDualScope.ownerId);
+  }, [adminDualScope, apiAccounts]);
+
+  const personalSnapshots = useMemo(() => {
+    if (!adminDualScope) return [];
+    return filterSnapshotsForAccounts(growthSnapshots, personalAccounts);
+  }, [adminDualScope, growthSnapshots, personalAccounts]);
+
+  const teamOverview = useMemo(
+    () => buildGrowthOverview(apiAccounts, growthSnapshots, adminDualScope ? { titlePrefix: "团队" } : undefined),
+    [apiAccounts, growthSnapshots, adminDualScope],
   );
 
+  const personalOverview = useMemo(() => {
+    if (!adminDualScope) return null;
+    return buildGrowthOverview(personalAccounts, personalSnapshots);
+  }, [adminDualScope, personalAccounts, personalSnapshots]);
+
   const showSkeleton = isLoading && apiAccounts.length === 0;
-  const metrics = overview.metrics;
 
   return (
     <section className="mt-2 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
@@ -113,22 +161,11 @@ export function GrowthOverview({
         </p>
       ) : null}
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {showSkeleton
-          ? Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={index}
-                className="animate-pulse rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] bg-[var(--eggshell)]/30 p-4"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="size-9 rounded-full bg-[var(--cadet-gray)]/15" />
-                  <div className="h-3 w-20 rounded bg-[var(--cadet-gray)]/15" />
-                </div>
-                <div className="mt-4 h-7 w-16 rounded bg-[var(--cadet-gray)]/20" />
-                <div className="mt-2 h-3 w-14 rounded bg-[var(--cadet-gray)]/10" />
-              </div>
-            ))
-          : metrics.map((metric) => <GrowthStatCard key={metric.id} metric={metric} />)}
+      <div className={`mt-4 ${adminDualScope ? "space-y-3" : ""}`}>
+        <GrowthMetricsGrid metrics={teamOverview.metrics} rowKey="team" showSkeleton={showSkeleton} />
+        {adminDualScope && personalOverview ? (
+          <GrowthMetricsGrid metrics={personalOverview.metrics} rowKey="personal" showSkeleton={showSkeleton} />
+        ) : null}
       </div>
     </section>
   );
