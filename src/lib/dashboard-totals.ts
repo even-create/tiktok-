@@ -26,6 +26,17 @@ export function filterSnapshotsForAccounts(
   return snapshots.filter((row) => accountIds.has(row.account_id));
 }
 
+export type DashboardViewMode = "team" | "personal";
+
+export function resolveDashboardAccounts(
+  teamAccounts: ApiAccount[],
+  viewMode: DashboardViewMode,
+  ownerId: string,
+) {
+  if (viewMode === "team") return teamAccounts;
+  return filterAccountsByOwnerId(teamAccounts, ownerId);
+}
+
 export function computeDashboardTotals(accounts: ApiAccount[]): DashboardTotals {
   let totalFollowers = 0;
   let totalLikes = 0;

@@ -5,8 +5,9 @@ import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
 import { getCurrentUser } from "@/lib/current-user";
 import { supabase } from "@/lib/supabase";
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getCurrentUser();
+  const statsScope = new URL(request.url).searchParams.get("statsScope");
 
   let query = supabase
     .from("accounts")
@@ -18,8 +19,9 @@ export async function GET() {
       nullsFirst: false,
     });
 
-  // Admin sees every account; a member only sees the accounts they own.
-  if (user?.role === "MEMBER") {
+  // Admin sees every account. Members see own accounts by default, or all accounts
+  // when statsScope=team (Dashboard team view — read-only aggregate stats).
+  if (user?.role === "MEMBER" && statsScope !== "team") {
     query = query.eq("owner_id", user.id);
   }
 

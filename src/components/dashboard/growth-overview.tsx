@@ -10,18 +10,26 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import {
+  DashboardViewModeToggle,
+} from "@/components/dashboard/dashboard-view-mode-toggle";
+import type { DashboardViewMode } from "@/lib/dashboard-totals";
 import type { ApiAccount } from "@/lib/accounts";
 import type { AccountSnapshotRow } from "@/lib/account-snapshots";
-import { filterAccountsByOwnerId, filterSnapshotsForAccounts } from "@/lib/dashboard-totals";
+import {
+  filterSnapshotsForAccounts,
+  resolveDashboardAccounts,
+} from "@/lib/dashboard-totals";
 import { buildGrowthOverview, type GrowthOverviewMetric, type GrowthTrend } from "@/lib/growth-overview";
 
 type GrowthOverviewProps = {
-  apiAccounts: ApiAccount[];
+  teamAccounts: ApiAccount[];
   growthSnapshots: AccountSnapshotRow[];
+  viewMode: DashboardViewMode;
+  ownerId: string;
+  onViewModeChange: (mode: DashboardViewMode) => void;
   setupHint?: string | null;
   isLoading?: boolean;
-  /** When set, show team + personal dual rows (admin dashboard). */
-  adminDualScope?: { ownerId: string } | null;
 };
 
 const metricIcons: Record<string, typeof Users> = {
@@ -87,72 +95,45 @@ function GrowthStatCard({ metric }: { metric: GrowthOverviewMetric }) {
   );
 }
 
-function GrowthMetricsGrid({
-  metrics,
-  rowKey,
-  showSkeleton,
-}: {
-  metrics: GrowthOverviewMetric[];
-  rowKey: string;
-  showSkeleton: boolean;
-}) {
-  return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      {showSkeleton
-        ? Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={`${rowKey}-skeleton-${index}`}
-              className="animate-pulse rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] bg-[var(--eggshell)]/30 p-4"
-            >
-              <div className="flex items-center gap-2">
-                <div className="size-9 rounded-full bg-[var(--cadet-gray)]/15" />
-                <div className="h-3 w-20 rounded bg-[var(--cadet-gray)]/15" />
-              </div>
-              <div className="mt-4 h-7 w-16 rounded bg-[var(--cadet-gray)]/20" />
-              <div className="mt-2 h-3 w-14 rounded bg-[var(--cadet-gray)]/10" />
-            </div>
-          ))
-        : metrics.map((metric) => <GrowthStatCard key={`${rowKey}-${metric.id}`} metric={metric} />)}
-    </div>
-  );
-}
-
 export function GrowthOverview({
-  apiAccounts,
+  teamAccounts,
   growthSnapshots,
+  viewMode,
+  ownerId,
+  onViewModeChange,
   setupHint = null,
   isLoading = false,
-  adminDualScope = null,
 }: GrowthOverviewProps) {
-  const personalAccounts = useMemo(() => {
-    if (!adminDualScope) return [];
-    return filterAccountsByOwnerId(apiAccounts, adminDualScope.ownerId);
-  }, [adminDualScope, apiAccounts]);
-
-  const personalSnapshots = useMemo(() => {
-    if (!adminDualScope) return [];
-    return filterSnapshotsForAccounts(growthSnapshots, personalAccounts);
-  }, [adminDualScope, growthSnapshots, personalAccounts]);
-
-  const teamOverview = useMemo(
-    () => buildGrowthOverview(apiAccounts, growthSnapshots, adminDualScope ? { titlePrefix: "团队" } : undefined),
-    [apiAccounts, growthSnapshots, adminDualScope],
+  const activeAccounts = useMemo(
+    () => resolveDashboardAccounts(teamAccounts, viewMode, ownerId),
+    [teamAccounts, viewMode, ownerId],
   );
 
-  const personalOverview = useMemo(() => {
-    if (!adminDualScope) return null;
-    return buildGrowthOverview(personalAccounts, personalSnapshots);
-  }, [adminDualScope, personalAccounts, personalSnapshots]);
+  const activeSnapshots = useMemo(
+    () => filterSnapshotsForAccounts(growthSnapshots, activeAccounts),
+    [growthSnapshots, activeAccounts],
+  );
 
-  const showSkeleton = isLoading && apiAccounts.length === 0;
+  const overview = useMemo(
+    () =>
+      buildGrowthOverview(activeAccounts, activeSnapshots, {
+        titlePrefix: viewMode === "team" ? "团队" : "",
+      }),
+    [activeAccounts, activeSnapshots, viewMode],
+  );
+
+  const showSkeleton = isLoading && teamAccounts.length === 0;
 
   return (
     <section className="mt-2 rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_28%,transparent)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
-      <div className="flex items-center gap-3">
-        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm">
-          <BarChart3 className="size-5" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--space-cadet)] text-[var(--eggshell)] shadow-sm">
+            <BarChart3 className="size-5" />
+          </div>
+          <h2 className="text-lg font-semibold text-[var(--space-cadet)] sm:text-xl">增长概览</h2>
         </div>
-        <h2 className="text-lg font-semibold text-[var(--space-cadet)] sm:text-xl">增长概览</h2>
+        <DashboardViewModeToggle value={viewMode} onChange={onViewModeChange} />
       </div>
 
       {setupHint ? (
@@ -161,11 +142,22 @@ export function GrowthOverview({
         </p>
       ) : null}
 
-      <div className={`mt-4 ${adminDualScope ? "space-y-3" : ""}`}>
-        <GrowthMetricsGrid metrics={teamOverview.metrics} rowKey="team" showSkeleton={showSkeleton} />
-        {adminDualScope && personalOverview ? (
-          <GrowthMetricsGrid metrics={personalOverview.metrics} rowKey="personal" showSkeleton={showSkeleton} />
-        ) : null}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {showSkeleton
+          ? Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="animate-pulse rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_18%,transparent)] bg-[var(--eggshell)]/30 p-4"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="size-9 rounded-full bg-[var(--cadet-gray)]/15" />
+                  <div className="h-3 w-20 rounded bg-[var(--cadet-gray)]/15" />
+                </div>
+                <div className="mt-4 h-7 w-16 rounded bg-[var(--cadet-gray)]/20" />
+                <div className="mt-2 h-3 w-14 rounded bg-[var(--cadet-gray)]/10" />
+              </div>
+            ))
+          : overview.metrics.map((metric) => <GrowthStatCard key={metric.id} metric={metric} />)}
       </div>
     </section>
   );

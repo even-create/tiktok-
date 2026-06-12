@@ -8,6 +8,10 @@ import {
 } from "lucide-react";
 import { DashboardMetricsGrid } from "@/components/dashboard/dashboard-metrics-grid";
 import { GrowthOverview } from "@/components/dashboard/growth-overview";
+import {
+  DashboardViewModeToggle,
+} from "@/components/dashboard/dashboard-view-mode-toggle";
+import type { DashboardViewMode } from "@/lib/dashboard-totals";
 import { LatestVideosFeed } from "@/components/dashboard/latest-videos-feed";
 import {
   SyncRunnerProgress,
@@ -17,7 +21,7 @@ import { useSessionUser } from "@/hooks/use-session-user";
 import { formatBeijingTime } from "@/lib/format-beijing-time";
 import type { ApiAccount, ApiVideo } from "@/lib/accounts";
 import type { AccountSnapshotRow } from "@/lib/account-snapshots";
-import { computeDashboardTotals, filterAccountsByOwnerId } from "@/lib/dashboard-totals";
+import { computeDashboardTotals, resolveDashboardAccounts } from "@/lib/dashboard-totals";
 
 type VideoItem = {
   id: string;
@@ -225,7 +229,7 @@ function mapApiAccount(account: ApiAccount, sortOrder: number): Account {
 
 export default function DashboardPage() {
   const user = useSessionUser();
-  const isAdmin = user?.role === "ADMIN";
+  const [viewMode, setViewMode] = useState<DashboardViewMode>("team");
   const [accounts, setAccounts] = useState<Account[]>(trackedAccounts);
   const [apiAccounts, setApiAccounts] = useState<ApiAccount[]>([]);
   const [selectedHandle, setSelectedHandle] = useState(trackedAccounts[0].handle);
@@ -246,7 +250,7 @@ export default function DashboardPage() {
     setErrorMessage("");
 
     try {
-      const response = await fetch("/api/accounts", { cache: "no-store" });
+      const response = await fetch("/api/accounts?statsScope=team", { cache: "no-store" });
       const payload = (await response.json()) as {
         accounts?: ApiAccount[];
         growthSnapshots?: AccountSnapshotRow[];
@@ -377,14 +381,14 @@ export default function DashboardPage() {
 
   const isBusy = isLoading || isSyncingAll;
 
-  const teamTotals = useMemo(() => computeDashboardTotals(apiAccounts), [apiAccounts]);
+  const activeAccounts = useMemo(() => {
+    if (!user?.id) return apiAccounts;
+    return resolveDashboardAccounts(apiAccounts, viewMode, user.id);
+  }, [apiAccounts, viewMode, user?.id]);
 
-  const personalAccounts = useMemo(() => {
-    if (!isAdmin || !user?.id) return [];
-    return filterAccountsByOwnerId(apiAccounts, user.id);
-  }, [apiAccounts, isAdmin, user?.id]);
+  const displayTotals = useMemo(() => computeDashboardTotals(activeAccounts), [activeAccounts]);
 
-  const personalTotals = useMemo(() => computeDashboardTotals(personalAccounts), [personalAccounts]);
+  const metricsLabelPrefix = viewMode === "team" ? "团队" : "";
 
   return (
     <>
@@ -439,26 +443,25 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {isAdmin ? (
-        <div className="space-y-4 py-5">
-          <DashboardMetricsGrid totals={teamTotals} labelPrefix="团队" />
-          <DashboardMetricsGrid totals={personalTotals} />
-        </div>
-      ) : (
-        <div className="py-5">
-          <DashboardMetricsGrid totals={teamTotals} />
-        </div>
-      )}
+      <div className="flex items-center justify-end pt-5">
+        <DashboardViewModeToggle value={viewMode} onChange={setViewMode} />
+      </div>
+
+      <div className="pb-5">
+        <DashboardMetricsGrid totals={displayTotals} labelPrefix={metricsLabelPrefix} />
+      </div>
 
       <GrowthOverview
-        apiAccounts={apiAccounts}
+        teamAccounts={apiAccounts}
         growthSnapshots={growthSnapshots}
+        viewMode={viewMode}
+        ownerId={user?.id ?? "admin"}
+        onViewModeChange={setViewMode}
         setupHint={growthSetupHint}
         isLoading={isLoading}
-        adminDualScope={isAdmin && user?.id ? { ownerId: user.id } : null}
       />
 
-      <LatestVideosFeed apiAccounts={apiAccounts} isLoading={isLoading} />
+      <LatestVideosFeed apiAccounts={activeAccounts} isLoading={isLoading} />
 
     </>
   );
