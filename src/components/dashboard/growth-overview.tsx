@@ -110,11 +110,8 @@ export function GrowthOverview({
   );
 
   const overview = useMemo(
-    () =>
-      buildGrowthOverview(activeAccounts, activeSnapshots, {
-        titlePrefix: viewMode === "team" ? "团队" : "",
-      }),
-    [activeAccounts, activeSnapshots, viewMode],
+    () => buildGrowthOverview(activeAccounts, activeSnapshots),
+    [activeAccounts, activeSnapshots],
   );
 
   const showSkeleton = isLoading && teamAccounts.length === 0;

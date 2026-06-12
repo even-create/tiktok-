@@ -107,7 +107,6 @@ function computeDeltaFromSnapshots(
 export function buildGrowthOverview(
   accounts: ApiAccount[],
   snapshots: AccountSnapshotRow[],
-  options?: { titlePrefix?: string },
 ): GrowthOverviewResult {
   const todayKey = getSnapshotDateKey();
   const yesterdayKey = addDaysToDateKey(todayKey, -1);
@@ -143,12 +142,10 @@ export function buildGrowthOverview(
   const viewsCompare = formatComparePercent(todayViews, yesterdayViews);
   const likesCompare = formatComparePercent(todayLikes, yesterdayLikes);
 
-  const titlePrefix = options?.titlePrefix ?? "";
-
   const metrics: GrowthOverviewMetric[] = [
     {
       id: "followers",
-      titleZh: `${titlePrefix}新增粉丝`,
+      titleZh: "新增粉丝",
       value: formatSignedDelta(todayFollowers),
       comparePercent: followersCompare.percent,
       trend: followersCompare.trend,
@@ -156,7 +153,7 @@ export function buildGrowthOverview(
     },
     {
       id: "views",
-      titleZh: `${titlePrefix}新增播放`,
+      titleZh: "新增播放",
       value: formatSignedDelta(todayViews),
       comparePercent: viewsCompare.percent,
       trend: viewsCompare.trend,
@@ -164,7 +161,7 @@ export function buildGrowthOverview(
     },
     {
       id: "likes",
-      titleZh: `${titlePrefix}新增点赞`,
+      titleZh: "新增点赞",
       value: formatSignedDelta(todayLikes),
       comparePercent: likesCompare.percent,
       trend: likesCompare.trend,

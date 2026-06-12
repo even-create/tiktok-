@@ -388,8 +388,6 @@ export default function DashboardPage() {
 
   const displayTotals = useMemo(() => computeDashboardTotals(activeAccounts), [activeAccounts]);
 
-  const metricsLabelPrefix = viewMode === "team" ? "团队" : "";
-
   return (
     <>
       <header className="relative overflow-visible rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-5 shadow-sm">
@@ -445,7 +443,7 @@ export default function DashboardPage() {
       </header>
 
       <div className="py-5">
-        <DashboardMetricsGrid totals={displayTotals} labelPrefix={metricsLabelPrefix} />
+        <DashboardMetricsGrid totals={displayTotals} />
       </div>
 
       <GrowthOverview

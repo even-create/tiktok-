@@ -48,26 +48,17 @@ const metricDefinitions: MetricDefinition[] = [
   },
 ];
 
-export function DashboardMetricsGrid({
-  totals,
-  labelPrefix = "",
-}: {
-  totals: DashboardTotals;
-  labelPrefix?: string;
-}) {
+export function DashboardMetricsGrid({ totals }: { totals: DashboardTotals }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       {metricDefinitions.map((metric) => (
         <article
-          key={`${labelPrefix}${metric.label}`}
+          key={metric.label}
           className="group relative overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] bg-[var(--card)] p-4 shadow-sm transition duration-300 hover:shadow-md"
         >
           <div className={`absolute inset-x-0 top-0 h-16 bg-gradient-to-b ${metric.accent}`} />
           <div className="relative flex items-center justify-between">
-            <p className="text-sm text-[var(--cadet-gray)]">
-              {labelPrefix}
-              {metric.label}
-            </p>
+            <p className="text-sm text-[var(--cadet-gray)]">{metric.label}</p>
             <metric.icon className="size-5 text-[var(--space-cadet)]" />
           </div>
           <p className="relative mt-4 text-3xl font-semibold text-[var(--space-cadet)]">
