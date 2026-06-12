@@ -14,6 +14,7 @@ import {
   Settings,
   Sparkles,
   UsersRound,
+  Target,
   Users,
 } from "lucide-react";
 import { UserCard } from "@/components/dashboard/user-card";
@@ -29,6 +30,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Accounts", href: "/accounts", icon: Users },
+  { label: "Benchmark Accounts", href: "/benchmark-accounts", icon: Target },
   { label: "Content Analytics", href: "/content-analytics", icon: LineChart },
   { label: "Trends", href: "/trends", icon: Sparkles },
   { label: "AI Insights", href: "/ai-insights", icon: BrainCircuit },

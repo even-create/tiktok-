@@ -60,9 +60,11 @@ export function VideoFeedSkeleton({ count = 8 }: { count?: number }) {
 export function VideoFeedCard({
   video,
   onSelect,
+  showOwner = true,
 }: {
   video: ContentVideoWithQuality;
   onSelect: (video: ContentVideoWithQuality) => void;
+  showOwner?: boolean;
 }) {
   const tierStyle = qualityTierStyles[video.qualityTier];
 
@@ -149,12 +151,14 @@ export function VideoFeedCard({
             <TrendingUp className="size-2.5" />
             {video.engagementLabel}
           </span>
-          <p className="inline-flex min-w-0 items-center gap-1 truncate text-[10px] text-[var(--cadet-gray)]">
-            <UserRound className="size-3 shrink-0" />
-            <span className="truncate">
-              负责人：<span className="font-medium text-[var(--space-cadet)]">{video.accountOwnerName}</span>
-            </span>
-          </p>
+          {showOwner ? (
+            <p className="inline-flex min-w-0 items-center gap-1 truncate text-[10px] text-[var(--cadet-gray)]">
+              <UserRound className="size-3 shrink-0" />
+              <span className="truncate">
+                负责人：<span className="font-medium text-[var(--space-cadet)]">{video.accountOwnerName}</span>
+              </span>
+            </p>
+          ) : null}
         </div>
       </div>
     </article>
