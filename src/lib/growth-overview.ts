@@ -39,19 +39,19 @@ function deltaTrend(value: number | null): GrowthTrend {
   return "flat";
 }
 
-function formatComparePercent(todayDelta: number | null, yesterdayDelta: number | null): CompareResult {
-  if (todayDelta === null || yesterdayDelta === null) {
+function formatComparePercent(delta: number | null, baselineTotal: number | null): CompareResult {
+  if (delta === null) {
     return { percent: null, trend: null };
   }
 
-  if (yesterdayDelta === 0) {
-    if (todayDelta === 0) {
+  if (baselineTotal === null || baselineTotal === 0) {
+    if (delta === 0) {
       return { percent: "0%", trend: "flat" };
     }
-    return { percent: null, trend: todayDelta > 0 ? "up" : "down" };
+    return { percent: null, trend: delta > 0 ? "up" : "down" };
   }
 
-  const change = ((todayDelta - yesterdayDelta) / Math.abs(yesterdayDelta)) * 100;
+  const change = (delta / Math.abs(baselineTotal)) * 100;
   const rounded = Math.round(change);
 
   if (rounded === 0) {
@@ -63,6 +63,16 @@ function formatComparePercent(todayDelta: number | null, yesterdayDelta: number 
   }
 
   return { percent: `${Math.abs(rounded)}%`, trend: "down" };
+}
+
+function resolveBaselineDateKey(
+  snapshotsByDate: Map<string, AccountSnapshotRow[]>,
+  todayKey: string,
+  yesterdayKey: string,
+): string | null {
+  if (snapshotsByDate.get(todayKey)?.length) return todayKey;
+  if (snapshotsByDate.get(yesterdayKey)?.length) return yesterdayKey;
+  return null;
 }
 
 function snapshotMetricValue(row: AccountSnapshotRow, field: "followers" | "likes" | "views") {
@@ -110,7 +120,6 @@ export function buildGrowthOverview(
 ): GrowthOverviewResult {
   const todayKey = getSnapshotDateKey();
   const yesterdayKey = addDaysToDateKey(todayKey, -1);
-  const dayBeforeKey = addDaysToDateKey(todayKey, -2);
 
   const snapshotsByDate = new Map<string, AccountSnapshotRow[]>();
   for (const row of snapshots) {
@@ -119,59 +128,54 @@ export function buildGrowthOverview(
     snapshotsByDate.set(row.snapshot_date, bucket);
   }
 
-  const todayFollowers = computeDeltaFromSnapshots(accounts, snapshotsByDate, yesterdayKey, "followers");
-  const todayViews = computeDeltaFromSnapshots(accounts, snapshotsByDate, yesterdayKey, "views");
-  const todayLikes = computeDeltaFromSnapshots(accounts, snapshotsByDate, yesterdayKey, "likes");
+  const baselineDateKey = resolveBaselineDateKey(snapshotsByDate, todayKey, yesterdayKey);
+  const baselineRows = baselineDateKey ? snapshotsByDate.get(baselineDateKey) ?? [] : [];
+  const baselineTotals = sumSnapshotTotals(baselineRows);
 
-  const yesterdayTotals = sumSnapshotTotals(snapshotsByDate.get(yesterdayKey) ?? []);
-  const dayBeforeTotals = sumSnapshotTotals(snapshotsByDate.get(dayBeforeKey) ?? []);
-  const yesterdayFollowers =
-    snapshotsByDate.get(yesterdayKey)?.length && snapshotsByDate.get(dayBeforeKey)?.length
-      ? yesterdayTotals.followers - dayBeforeTotals.followers
-      : null;
-  const yesterdayViews =
-    snapshotsByDate.get(yesterdayKey)?.length && snapshotsByDate.get(dayBeforeKey)?.length
-      ? yesterdayTotals.views - dayBeforeTotals.views
-      : null;
-  const yesterdayLikes =
-    snapshotsByDate.get(yesterdayKey)?.length && snapshotsByDate.get(dayBeforeKey)?.length
-      ? yesterdayTotals.likes - dayBeforeTotals.likes
-      : null;
+  const followersDelta = baselineDateKey
+    ? computeDeltaFromSnapshots(accounts, snapshotsByDate, baselineDateKey, "followers")
+    : null;
+  const viewsDelta = baselineDateKey
+    ? computeDeltaFromSnapshots(accounts, snapshotsByDate, baselineDateKey, "views")
+    : null;
+  const likesDelta = baselineDateKey
+    ? computeDeltaFromSnapshots(accounts, snapshotsByDate, baselineDateKey, "likes")
+    : null;
 
-  const followersCompare = formatComparePercent(todayFollowers, yesterdayFollowers);
-  const viewsCompare = formatComparePercent(todayViews, yesterdayViews);
-  const likesCompare = formatComparePercent(todayLikes, yesterdayLikes);
+  const followersCompare = formatComparePercent(followersDelta, baselineTotals.followers);
+  const viewsCompare = formatComparePercent(viewsDelta, baselineTotals.views);
+  const likesCompare = formatComparePercent(likesDelta, baselineTotals.likes);
 
   const metrics: GrowthOverviewMetric[] = [
     {
       id: "followers",
       titleZh: "新增粉丝",
-      value: formatSignedDelta(todayFollowers),
+      value: formatSignedDelta(followersDelta),
       comparePercent: followersCompare.percent,
       trend: followersCompare.trend,
-      valueTrend: deltaTrend(todayFollowers),
+      valueTrend: deltaTrend(followersDelta),
     },
     {
       id: "views",
       titleZh: "新增播放",
-      value: formatSignedDelta(todayViews),
+      value: formatSignedDelta(viewsDelta),
       comparePercent: viewsCompare.percent,
       trend: viewsCompare.trend,
-      valueTrend: deltaTrend(todayViews),
+      valueTrend: deltaTrend(viewsDelta),
     },
     {
       id: "likes",
       titleZh: "新增点赞",
-      value: formatSignedDelta(todayLikes),
+      value: formatSignedDelta(likesDelta),
       comparePercent: likesCompare.percent,
       trend: likesCompare.trend,
-      valueTrend: deltaTrend(todayLikes),
+      valueTrend: deltaTrend(likesDelta),
     },
   ];
 
   return {
     metrics,
-    dateLabel: todayKey,
+    dateLabel: baselineDateKey ?? todayKey,
   };
 }
 

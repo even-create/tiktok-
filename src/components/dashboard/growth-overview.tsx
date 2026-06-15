@@ -58,7 +58,7 @@ function CompareRow({ metric }: { metric: GrowthOverviewMetric }) {
 
   return (
     <div className="mt-1.5 flex items-center gap-1.5 text-xs">
-      <span className="text-[var(--cadet-gray)]">较昨日</span>
+      <span className="text-[var(--cadet-gray)]">较上次同步</span>
       {metric.trend === "up" ? (
         <TrendingUp className={`size-3.5 ${compareTrendClass(metric.trend)}`} />
       ) : metric.trend === "down" ? (

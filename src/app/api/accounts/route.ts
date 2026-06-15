@@ -34,7 +34,9 @@ export async function GET(request: Request) {
   const accounts = data ?? [];
   const todayKey = getSnapshotDateKey();
   const yesterdayKey = addDaysToDateKey(todayKey, -1);
-  const dayBeforeKey = addDaysToDateKey(todayKey, -2);
+
+  const snapshotRead = await fetchSnapshotsForDates([todayKey, yesterdayKey]);
+  const hasBaselineSnapshot = snapshotRead.rows.length > 0;
 
   const snapshotWrite = await recordAllAccountSnapshots(
     accounts.map((account) => ({
@@ -46,9 +48,6 @@ export async function GET(request: Request) {
     })),
   );
 
-  const snapshotRead = await fetchSnapshotsForDates([yesterdayKey, dayBeforeKey]);
-  const hasYesterday = snapshotRead.rows.some((row) => row.snapshot_date === yesterdayKey);
-
   return NextResponse.json({
     accounts,
     growthSnapshots: snapshotRead.rows,
@@ -56,11 +55,11 @@ export async function GET(request: Request) {
       today: todayKey,
       yesterday: yesterdayKey,
       tableReady: snapshotRead.tableReady && (accounts.length === 0 || snapshotWrite.recorded > 0),
-      hasYesterday,
+      hasBaselineSnapshot,
       setupHint: !snapshotRead.tableReady
         ? "请在 Supabase 执行 migration：account_daily_snapshots，然后重新 Sync。"
-        : !hasYesterday
-          ? "已记录今日快照。明天 Sync 后可显示粉丝/播放/点赞的日增长对比。"
+        : !hasBaselineSnapshot
+          ? "完成首次 Sync 后，再次 Sync 即可显示较上次同步的增长对比。"
           : null,
     },
   });
