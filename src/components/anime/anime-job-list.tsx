@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Play, RefreshCw } from "lucide-react";
+import { Play, RefreshCw, X } from "lucide-react";
 import type { AnimeJobRecord } from "@/lib/anime/jobs";
 import { resolveCharacterName } from "@/lib/anime/character-names";
 import {
@@ -9,6 +9,7 @@ import {
   getJobDisplayStatus,
   getJobStageLabel,
   getJobStatusLabel,
+  isJobActive,
   type AnimeJobTab,
 } from "@/lib/anime/job-status";
 import { VideoDownloadButton } from "@/components/anime/video-download-button";
@@ -26,7 +27,9 @@ type AnimeJobListProps = {
   selectedJobId?: string | null;
   onSelectJob?: (job: AnimeJobRecord) => void;
   onSyncJob?: (jobId: string) => void;
+  onCancelJob?: (jobId: string) => void;
   syncingJobId?: string | null;
+  cancellingJobId?: string | null;
 };
 
 export function AnimeJobList({
@@ -35,7 +38,9 @@ export function AnimeJobList({
   selectedJobId,
   onSelectJob,
   onSyncJob,
+  onCancelJob,
   syncingJobId,
+  cancellingJobId,
 }: AnimeJobListProps) {
   const [tab, setTab] = useState<AnimeJobTab>("active");
 
@@ -135,6 +140,17 @@ export function AnimeJobList({
                   </button>
 
                   <div className="flex shrink-0 items-center gap-2">
+                    {isJobActive(job) ? (
+                      <button
+                        type="button"
+                        disabled={cancellingJobId === job.id}
+                        onClick={() => onCancelJob?.(job.id)}
+                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-[color-mix(in_srgb,#f43f5e_35%,transparent)] px-3 text-xs text-rose-600 hover:bg-rose-50 disabled:opacity-60"
+                      >
+                        <X className="size-3.5" />
+                        {cancellingJobId === job.id ? "取消中…" : "取消"}
+                      </button>
+                    ) : null}
                     {displayStatus === "running" && !job.video_url ? (
                       <button
                         type="button"

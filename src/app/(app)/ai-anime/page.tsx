@@ -13,6 +13,7 @@ import {
   Sparkles,
   Upload,
   Wand2,
+  X,
 } from "lucide-react";
 import { AnimeJobList } from "@/components/anime/anime-job-list";
 import { VideoDownloadButton } from "@/components/anime/video-download-button";
@@ -31,7 +32,7 @@ import {
   VIDEO_RESOLUTION_OPTIONS,
 } from "@/lib/anime/prompts";
 import type { AnimeJobRecord } from "@/lib/anime/jobs";
-import { getJobDisplayStatus } from "@/lib/anime/job-status";
+import { getJobDisplayStatus, isJobActive } from "@/lib/anime/job-status";
 
 const REF_STORAGE_KEY = "anime-character-refs";
 const PARAMS_STORAGE_KEY = "anime-generation-params";
@@ -97,6 +98,7 @@ export default function AiAnimePage() {
   const [uploadingCharacterId, setUploadingCharacterId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncingJobId, setSyncingJobId] = useState<string | null>(null);
+  const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -186,6 +188,41 @@ export default function AiAnimePage() {
       } finally {
         setIsSyncing(false);
         setSyncingJobId(null);
+      }
+    },
+    [refreshJobs],
+  );
+
+  const cancelJob = useCallback(
+    async (jobId: string) => {
+      const confirmed = window.confirm(
+        "确定取消该任务吗？已在 Vidmor 后台生成的内容无法撤回，但本系统将不再继续处理该任务。",
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      setCancellingJobId(jobId);
+      setErrorMessage("");
+
+      try {
+        const response = await fetch(`/api/anime/jobs/${jobId}/cancel`, { method: "POST" });
+        const payload = (await response.json()) as {
+          job?: AnimeJobRecord;
+          message?: string;
+          error?: string;
+        };
+
+        if (!response.ok || !payload.job) {
+          throw new Error(payload.error ?? "取消失败");
+        }
+
+        setSelectedJob((current) => (current?.id === jobId ? payload.job ?? null : current));
+        await refreshJobs();
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "取消失败");
+      } finally {
+        setCancellingJobId(null);
       }
     },
     [refreshJobs],
@@ -600,14 +637,45 @@ export default function AiAnimePage() {
             <p className="mt-2 text-sm text-amber-700">{selectedJob.error_message}</p>
           ) : null}
           {selectedJob.status === "running" && !selectedJob.video_url ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={isSyncing}
+                onClick={() => void syncJob(selectedJob.id)}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-3 text-sm text-[var(--space-cadet)] transition hover:bg-[var(--eggshell)]/70 disabled:opacity-60"
+              >
+                {isSyncing ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                从 Vidmor 同步成片
+              </button>
+              {isJobActive(selectedJob) ? (
+                <button
+                  type="button"
+                  disabled={cancellingJobId === selectedJob.id}
+                  onClick={() => void cancelJob(selectedJob.id)}
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,#f43f5e_35%,transparent)] px-3 text-sm text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
+                >
+                  {cancellingJobId === selectedJob.id ? (
+                    <LoaderCircle className="size-4 animate-spin" />
+                  ) : (
+                    <X className="size-4" />
+                  )}
+                  取消任务
+                </button>
+              ) : null}
+            </div>
+          ) : isJobActive(selectedJob) ? (
             <button
               type="button"
-              disabled={isSyncing}
-              onClick={() => void syncJob(selectedJob.id)}
-              className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--cadet-gray)_30%,transparent)] px-3 text-sm text-[var(--space-cadet)] transition hover:bg-[var(--eggshell)]/70 disabled:opacity-60"
+              disabled={cancellingJobId === selectedJob.id}
+              onClick={() => void cancelJob(selectedJob.id)}
+              className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,#f43f5e_35%,transparent)] px-3 text-sm text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
             >
-              {isSyncing ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-              从 Vidmor 同步成片
+              {cancellingJobId === selectedJob.id ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <X className="size-4" />
+              )}
+              取消任务
             </button>
           ) : null}
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -652,7 +720,9 @@ export default function AiAnimePage() {
         selectedJobId={selectedJob?.id}
         onSelectJob={setSelectedJob}
         onSyncJob={(jobId) => void syncJob(jobId)}
+        onCancelJob={(jobId) => void cancelJob(jobId)}
         syncingJobId={syncingJobId}
+        cancellingJobId={cancellingJobId}
       />
     </div>
   );

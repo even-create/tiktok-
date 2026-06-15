@@ -203,6 +203,50 @@ export async function listRecentAnimeJobs(limit = 50) {
   return (data ?? []) as AnimeJobRecord[];
 }
 
+export const ANIME_JOB_CANCELLED_MESSAGE = "任务已取消";
+
+export function isAnimeJobCancelled(job: Pick<AnimeJobRecord, "status" | "error_message">) {
+  return job.status === "failed" && job.error_message === ANIME_JOB_CANCELLED_MESSAGE;
+}
+
+export async function cancelAnimeJob(id: string) {
+  const { data, error } = await supabase
+    .from("anime_jobs")
+    .update({
+      status: "failed",
+      stage: "failed",
+      error_message: ANIME_JOB_CANCELLED_MESSAGE,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .in("status", ["pending", "running"])
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (data) {
+    return data as AnimeJobRecord;
+  }
+
+  const existing = await getAnimeJob(id);
+  if (!existing) {
+    throw new Error("任务不存在");
+  }
+
+  if (isAnimeJobCancelled(existing)) {
+    return existing;
+  }
+
+  if (existing.status === "success") {
+    throw new Error("已完成的任务无法取消");
+  }
+
+  throw new Error("该任务当前无法取消");
+}
+
 export async function listActiveAnimeJobs() {
   const { data, error } = await supabase
     .from("anime_jobs")

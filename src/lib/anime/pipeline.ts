@@ -6,7 +6,28 @@ import {
   DEFAULT_IMAGE_PROMPT_TEMPLATE,
   DEFAULT_VIDEO_PROMPT_TEMPLATE,
 } from "@/lib/anime/prompts";
-import { claimAnimeVideoSubmit, getAnimeJob, updateAnimeJob } from "@/lib/anime/jobs";
+import {
+  ANIME_JOB_CANCELLED_MESSAGE,
+  claimAnimeVideoSubmit,
+  getAnimeJob,
+  isAnimeJobCancelled,
+  updateAnimeJob,
+} from "@/lib/anime/jobs";
+
+export class AnimeJobCancelledError extends Error {
+  constructor() {
+    super(ANIME_JOB_CANCELLED_MESSAGE);
+    this.name = "AnimeJobCancelledError";
+  }
+}
+
+async function requireActiveAnimeJob(jobId: string) {
+  const job = await getAnimeJob(jobId);
+  if (!job || isAnimeJobCancelled(job) || (job.status !== "running" && job.status !== "pending")) {
+    throw new AnimeJobCancelledError();
+  }
+  return job;
+}
 import { processAnimeJobQueue } from "@/lib/anime/queue";
 import {
   buildImageToImageRequest,
@@ -34,10 +55,7 @@ import { getAnimeCharacter, getPublicAssetUrl, resolveVidmorToken, GPT_IMAGE_20,
  * Returns the video task id, or null when the job already has a completed video.
  */
 export async function submitVideoForJob(jobId: string): Promise<string | null> {
-  const job = await getAnimeJob(jobId);
-  if (!job) {
-    throw new Error("任务不存在");
-  }
+  const job = await requireActiveAnimeJob(jobId);
 
   if (job.video_url) {
     return job.video_task_id;
@@ -133,10 +151,7 @@ async function awaitVideoCompletion(jobId: string, videoTaskId: string, token: s
 }
 
 export async function runAnimePipeline(jobId: string) {
-  const job = await getAnimeJob(jobId);
-  if (!job) {
-    throw new Error("任务不存在");
-  }
+  const job = await requireActiveAnimeJob(jobId);
 
   const token = resolveVidmorToken();
   if (!token) {
@@ -151,6 +166,7 @@ export async function runAnimePipeline(jobId: string) {
   const imageTemplate = job.image_prompt_template || DEFAULT_IMAGE_PROMPT_TEMPLATE;
 
   await updateAnimeJob(jobId, { status: "running", stage: "uploading", progress: 5 });
+  await requireActiveAnimeJob(jobId);
 
   const referenceSourceUrl =
     job.reference_image_url?.trim() || getPublicAssetUrl(character.refImagePath);
@@ -158,6 +174,7 @@ export async function runAnimePipeline(jobId: string) {
 
   const imagePrompt = buildImageToImagePrompt(job.action, imageTemplate);
   await updateAnimeJob(jobId, { stage: "image_to_image", progress: 15 });
+  await requireActiveAnimeJob(jobId);
 
   const imageCost = await queryCoinCost(buildImageCostPayload(imagePrompt), token);
 
@@ -189,6 +206,7 @@ export async function runAnimePipeline(jobId: string) {
     progress: 60,
     image_url: generatedImageUrl,
   });
+  await requireActiveAnimeJob(jobId);
 
   // Submit the video in this same run, immediately after the image is ready, so a job is
   // never left in a "image done, no video" state for a background loop to pick up later.
@@ -202,7 +220,14 @@ export async function runAnimePipelineSafe(jobId: string) {
   try {
     await runAnimePipeline(jobId);
   } catch (error) {
+    if (error instanceof AnimeJobCancelledError) {
+      return;
+    }
+
     const current = await getAnimeJob(jobId);
+    if (current && isAnimeJobCancelled(current)) {
+      return;
+    }
     if (current?.status === "success" || current?.video_url) {
       return;
     }
