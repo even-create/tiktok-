@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isTikHubConfigured } from "@/lib/app-settings";
 import { persistSyncResults } from "@/lib/sync-center";
 import { insertSyncLog } from "@/lib/sync-logs";
+import { syncAllBenchmarkAccounts } from "@/lib/sync-all-benchmark-accounts";
 import { syncAllTrackedAccounts } from "@/lib/sync-all-accounts";
 
 export const maxDuration = 300;
@@ -30,12 +31,14 @@ export async function GET(request: Request) {
 
   try {
     const syncResult = await syncAllTrackedAccounts({ force: false });
+    const benchmarkResult = await syncAllBenchmarkAccounts({ force: false });
     await persistSyncResults(syncResult.results, "auto");
 
     return NextResponse.json({
       ok: true,
       durationMs: Date.now() - startedAt,
       syncResult,
+      benchmarkResult,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "自动同步失败";

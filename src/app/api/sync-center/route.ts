@@ -6,6 +6,7 @@ import {
   persistSyncResults,
 } from "@/lib/sync-center";
 import { countApifyCallsSince, getRecentSyncLogs, insertSyncLog } from "@/lib/sync-logs";
+import { syncAllBenchmarkAccounts } from "@/lib/sync-all-benchmark-accounts";
 import { syncAllTrackedAccounts } from "@/lib/sync-all-accounts";
 import { syncTikTokAccount } from "@/lib/tiktok-sync";
 import { getAccounts } from "@/lib/tiktok-data";
@@ -149,6 +150,7 @@ export async function POST(request: Request) {
     }
 
     const syncResult = await syncAllTrackedAccounts({ force });
+    const benchmarkResult = await syncAllBenchmarkAccounts({ force });
     await persistSyncResults(syncResult.results, syncType);
 
     const { count: apifyCallsToday } = await countApifyCallsSince(getStartOfTodayIso());
@@ -157,6 +159,7 @@ export async function POST(request: Request) {
       ok: true,
       durationMs: Date.now() - startedAt,
       syncResult,
+      benchmarkResult,
       usage: await buildApiUsageStatus(apifyCallsToday),
     });
   } catch (error) {

@@ -15,7 +15,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "请输入账号链接" }, { status: 400 });
     }
 
-    const result = await syncBenchmarkAccount(url, user.id);
+    const result = await syncBenchmarkAccount({ url, ownerId: user.id, force: true });
+
+    if (result.skipped) {
+      return NextResponse.json({
+        cached: true,
+        message: result.message,
+      });
+    }
 
     return NextResponse.json({
       account: result.account,
