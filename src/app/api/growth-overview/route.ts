@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchSnapshotsForDates, recordAllAccountSnapshots } from "@/lib/account-snapshots";
+import { fetchSnapshotsForDates, groupSnapshotsByDate, recordAllAccountSnapshots } from "@/lib/account-snapshots";
 import { getCurrentUser } from "@/lib/current-user";
 import { buildGrowthOverview } from "@/lib/growth-overview";
 import { addDaysToDateKey, getSnapshotDateKey } from "@/lib/snapshot-date";
@@ -27,10 +27,7 @@ export async function GET() {
     const accounts = data ?? [];
     const todayKey = getSnapshotDateKey();
     const yesterdayKey = addDaysToDateKey(todayKey, -1);
-
-    const snapshotRead = await fetchSnapshotsForDates([todayKey, yesterdayKey]);
-    const overview = buildGrowthOverview(accounts, snapshotRead.rows);
-    const hasBaselineSnapshot = snapshotRead.rows.length > 0;
+    const dayBeforeKey = addDaysToDateKey(todayKey, -2);
 
     await recordAllAccountSnapshots(
       accounts.map((account) => ({
@@ -42,18 +39,22 @@ export async function GET() {
       })),
     );
 
+    const snapshotRead = await fetchSnapshotsForDates([yesterdayKey, dayBeforeKey]);
+    const overview = buildGrowthOverview(accounts, snapshotRead.rows);
+    const hasYesterday = (groupSnapshotsByDate(snapshotRead.rows).get(yesterdayKey)?.length ?? 0) > 0;
+
     return NextResponse.json({
       ...overview,
       growthSnapshots: snapshotRead.rows,
       snapshotDays: {
         today: todayKey,
         yesterday: yesterdayKey,
-        hasBaselineSnapshot,
+        hasYesterday,
       },
       setupHint: !snapshotRead.tableReady
         ? "请在 Supabase 执行 migration：account_daily_snapshots，然后重新 Sync。"
-        : !hasBaselineSnapshot
-          ? "完成首次 Sync 后，再次 Sync 即可显示较上次同步的增长对比。"
+        : !hasYesterday
+          ? "已记录今日快照。明天 Sync 后可显示粉丝/播放/点赞的日增长对比。"
           : null,
     });
   } catch (error) {
