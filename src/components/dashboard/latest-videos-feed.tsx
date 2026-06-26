@@ -8,6 +8,7 @@ import { VideoFeedCard, VideoFeedSkeleton } from "@/components/dashboard/video-f
 import type { ApiAccount } from "@/lib/accounts";
 import { filterVideosByPostedDate, filterVideosBySearch, flattenVideosFromAccounts } from "@/lib/content-analytics";
 import { formatBeijingDateChinese, getBeijingDateKey } from "@/lib/format-beijing-time";
+import { filterAccountsByOwnerId } from "@/lib/dashboard-totals";
 import { enrichVideosWithQuality, type ContentVideoWithQuality } from "@/lib/content-quality";
 import {
   buildFeedAccountOptions,
@@ -128,7 +129,14 @@ export function LatestVideosFeed({ apiAccounts, isLoading }: LatestVideosFeedPro
   const [sortMode, setSortMode] = useState<FeedSortMode>("posted");
   const [selectedVideo, setSelectedVideo] = useState<ContentVideoWithQuality | null>(null);
 
-  const allVideos = useMemo(() => flattenVideosFromAccounts(apiAccounts), [apiAccounts]);
+  const feedAccounts = useMemo(() => {
+    if (user?.role === "MEMBER" && user.id) {
+      return filterAccountsByOwnerId(apiAccounts, user.id);
+    }
+    return apiAccounts;
+  }, [apiAccounts, user?.id, user?.role]);
+
+  const allVideos = useMemo(() => flattenVideosFromAccounts(feedAccounts), [feedAccounts]);
 
   const accountOptions = useMemo(() => buildFeedAccountOptions(allVideos), [allVideos]);
   const ownerOptions = useMemo(() => buildFeedOwnerOptions(allVideos), [allVideos]);
